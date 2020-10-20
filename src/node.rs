@@ -1,5 +1,5 @@
 use crate::shared::*;
-use orbtk::{behaviors::MouseBehavior, prelude::*};
+use orbtk::{proc_macros::*, api::prelude::*, widgets::{behaviors::MouseBehavior, prelude::*}};
 
 const SELECTED_BRUSH: Brush = Brush::SolidColor(Color::rgb(255, 255, 255));
 const DESELECTED_BRUSH: Brush = Brush::SolidColor(Color::rgb(0, 0, 0));
@@ -13,7 +13,7 @@ const MARGIN: Thickness = Thickness {
 widget!(
     Node<NodeState> {
         widget_type: WidgetType,
-        title: String16,
+        title: String,
         my_margin: Thickness,
         node_id: u32,
         slot_count_input: usize,
@@ -37,7 +37,7 @@ impl Template for Node {
                         TextBlock::create()
                             .id("title")
                             .text(("title", id))
-                            .element("text-block")
+                            .style("text-block")
                             .foreground("#000000")
                             .margin(MARGIN)
                             .width(0.)
@@ -62,7 +62,7 @@ impl Template for Node {
 
 #[derive(Default, AsAny)]
 pub struct NodeState {
-    pub title: String16,
+    pub title: String,
     pub builder: WidgetBuildContext,
     frame: Entity,
     property_stack: Entity,

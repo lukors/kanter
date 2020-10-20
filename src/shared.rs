@@ -55,7 +55,7 @@ impl DragDropEntity {
 
 pub(crate) type OptionDragDropEntity = Option<DragDropEntity>;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Action {
     Press(Mouse),
     Release(Mouse),
@@ -78,7 +78,7 @@ pub fn child_entities(ctx: &mut Context) -> Vec<Entity> {
     output
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ActionMain {
     LoadGraph(String),
     SaveGraph(String),

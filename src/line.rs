@@ -41,12 +41,12 @@ impl RenderObject for LineRenderObject {
         rc2d.set_line_width(3.);
         rc2d.set_stroke_style(Brush::SolidColor(Color::rgb(0, 0, 0)));
         rc2d.move_to(
-            global_position.x + start_point.x,
-            global_position.y + start_point.y,
+            global_position.x() + start_point.x(),
+            global_position.y() + start_point.y(),
         );
         rc2d.line_to(
-            global_position.x + end_point.x,
-            global_position.y + end_point.y,
+            global_position.x() + end_point.x(),
+            global_position.y() + end_point.y(),
         );
         rc2d.stroke();
     }

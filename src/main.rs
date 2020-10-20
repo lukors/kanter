@@ -13,12 +13,12 @@ mod line;
 fn main() {
     Application::new()
         .window(|ctx| {
-            Window::create()
+            Window::new()
                 .title("Kanter")
                 .position((300., 300.))
                 .size(1024., 768.)
                 .resizeable(true)
-                .child(MainView::create().build(ctx))
+                .child(MainView::new().build(ctx))
                 .build(ctx)
         })
         .run();
@@ -41,7 +41,7 @@ impl MainState {
 
     fn node_container_action(&mut self, ctx: &mut Context) {
         if let Some(action_main) = &self.option_action_main {
-            let path = ctx.child("graph_path").clone::<String16>("text");
+            let path = ctx.child("graph_path").clone::<String>("text");
 
             let action_to_send = match action_main {
                 ActionMain::LoadGraph(_) => Some(ActionMain::LoadGraph(path.to_string())),
@@ -77,15 +77,15 @@ impl State for MainState {
 
 impl Template for MainView {
     fn template(mut self, id: Entity, ctx: &mut BuildContext) -> Self {
-        let workspace = Workspace::create().build(ctx);
+        let workspace = Workspace::new().build(ctx);
         self.state_mut().workspace = workspace;
 
         self.name("MainView").child(workspace).child(
-            Stack::create()
+            Stack::new()
                 .orientation(Orientation::Horizontal)
                 .child(
-                    Button::create()
-                        .element("button")
+                    Button::new()
+                        .style("button")
                         .on_click(move |states, _| {
                             states
                                 .get_mut::<MainState>(id)
@@ -97,8 +97,8 @@ impl Template for MainView {
                         .build(ctx),
                 )
                 .child(
-                    Button::create()
-                        .element("button")
+                    Button::new()
+                        .style("button")
                         .on_click(move |states, _| {
                             states
                                 .get_mut::<MainState>(id)
@@ -110,14 +110,14 @@ impl Template for MainView {
                         .build(ctx),
                 )
                 .child(
-                    TextBox::create()
+                    TextBox::new()
                         .id("graph_path")
                         .text("data/invert_graph.json")
                         .build(ctx),
                 )
                 .child(
-                    Button::create()
-                        .element("button")
+                    Button::new()
+                        .style("button")
                         .on_click(move |states, p| {
                             states
                                 .get_mut::<MainState>(id)

@@ -3,7 +3,7 @@ use kanter_core::{
     node::{Node as CoreNode, MixType, NodeType, Side},
     node_graph::{Edge as CoreEdge, NodeGraph, NodeId, SlotId},
 };
-use orbtk::{prelude::*, shell::MouseButton};
+use orbtk::{prelude::*, shell::event::MouseButton};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 
@@ -91,7 +91,7 @@ impl NodeContainerState {
             if ctx
                 .get_widget(*child_entity)
                 .get::<Rectangle>("bounds")
-                .contains((mouse.x, mouse.y))
+                .contains((mouse.position.x(), mouse.position.y()))
                 && Self::is_clickable(ctx, *child_entity)
             {
                 return Some(*child_entity);
@@ -126,7 +126,7 @@ impl NodeContainerState {
             }
             NodeType::Image(path) => {
                 let property_widget = ctx.get_widget(self.menu_property_list[0]);
-                let path_menu = property_widget.get::<String16>("text");
+                let path_menu = property_widget.get::<String>("text");
 
                 if path_menu.to_string() != *path {
                     self.node_graph_spatial.node_graph.set_image_node_path(node_id, path_menu.to_string()).unwrap();
@@ -164,7 +164,7 @@ impl NodeContainerState {
                                 };
 
                                 self.drag_offset =
-                                    Point::new(mouse.x, mouse.y) - dragged_entity_pos;
+                                    Point::new(mouse.position.x(), mouse.position.y()) - dragged_entity_pos;
                             }
                         }
                         MouseButton::Right => {
@@ -181,8 +181,8 @@ impl NodeContainerState {
                         _ => {}
                     };
                     self.mouse_position = Point {
-                        x: mouse.x,
-                        y: mouse.y,
+                        x: mouse.position.x(),
+                        y: mouse.position.y(),
                     };
                 }
                 Action::Release(mouse) => {
@@ -192,7 +192,7 @@ impl NodeContainerState {
                         if ctx
                             .get_widget(slot_entity)
                             .get::<Rectangle>("bounds")
-                            .contains((mouse.x, mouse.y))
+                            .contains((mouse.position.x(), mouse.position.y()))
                         {
                             self.dropped_on_entity = Some(DragDropEntity {
                                 widget_type,
@@ -202,8 +202,8 @@ impl NodeContainerState {
                     }
 
                     self.mouse_position = Point {
-                        x: mouse.x,
-                        y: mouse.y,
+                        x: mouse.position.x(),
+                        y: mouse.position.y(),
                     };
                 }
                 Action::Move(p) => self.mouse_position = p,
@@ -378,7 +378,7 @@ impl NodeContainerState {
                         }
                     };
 
-                    ctx.push_event(ChangedEvent(edge_entity));
+                    ctx.push_event(ChangedEvent(edge_entity, "".to_string()));
                     let _ = self.node_graph_spatial.node_graph.connect_arbitrary(
                         NodeId(dropped_on_node_id),
                         dropped_on_side.into(),
@@ -579,9 +579,9 @@ impl NodeContainerState {
         dragged_widget.set::<Thickness>(
             "my_margin",
             Thickness {
-                left: self.mouse_position.x - self.drag_offset.x,
+                left: self.mouse_position.x() - self.drag_offset.x(),
                 right: current_margin.right,
-                top: self.mouse_position.y - self.drag_offset.y,
+                top: self.mouse_position.y() - self.drag_offset.y(),
                 bottom: current_margin.bottom,
             },
         );
@@ -596,8 +596,8 @@ impl NodeContainerState {
         let slot_id = *ctx.get_widget(slot_entity).get::<u32>("slot_id");
 
         let mouse_position = Point {
-            x: self.mouse_position.x,
-            y: self.mouse_position.y,
+            x: self.mouse_position.x(),
+            y: self.mouse_position.y(),
         };
 
         let dragged_edges = match slot_side {
@@ -643,8 +643,8 @@ impl NodeContainerState {
 
     fn refresh_dragged_edges(&mut self, ctx: &mut Context) {
         let mouse_point = Point {
-            x: self.mouse_position.x,
-            y: self.mouse_position.y,
+            x: self.mouse_position.x(),
+            y: self.mouse_position.y(),
         };
         for edge_entity in self.dragged_edges.0.clone() {
             self.move_edge_side(ctx, edge_entity, self.dragged_edges.1, mouse_point);
@@ -1189,8 +1189,8 @@ impl NodeContainerState {
     }
 
     fn position_edge(side: WidgetSide, slot: u32, node_position: Point) -> Point {
-        let x = node_position.x;
-        let y = node_position.y + SLOT_SIZE_HALF + ((SLOT_SIZE + SLOT_SPACING) * slot as f64);
+        let x = node_position.x();
+        let y = node_position.y() + SLOT_SIZE_HALF + ((SLOT_SIZE + SLOT_SPACING) * slot as f64);
         match side {
             WidgetSide::Input => Point { x, y },
             WidgetSide::Output => Point {

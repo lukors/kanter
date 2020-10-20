@@ -2,7 +2,7 @@ use crate::{node_container::NodeContainer, shared::*};
 use kanter_core::node::{MixType, NodeType};
 use orbtk::{
     prelude::*,
-    shell::{ButtonState, Key},
+    shell::event::{ButtonState, Key},
 };
 use std::cell::Cell;
 
@@ -13,10 +13,10 @@ widget!(Workspace<WorkspaceState>: MouseHandler, KeyDownHandler {
 
 impl Template for Workspace {
     fn template(mut self, id: Entity, ctx: &mut BuildContext) -> Self {
-        let node_container = NodeContainer::create().build(ctx);
+        let node_container = NodeContainer::new().build(ctx);
         self.state_mut().node_container = node_container;
 
-        let menu_node = Popup::create()
+        let menu_node = Popup::new()
             .margin(Thickness {
                 left: 0.,
                 top: 30.,
@@ -26,11 +26,11 @@ impl Template for Workspace {
             .width(200.)
             .target(id)
             .child(
-                Stack::create()
+                Stack::new()
                     .orientation("vertical")
                     .child(
-                        Button::create()
-                            .element("button")
+                        Button::new()
+                            .style("button")
                             .on_click(move |states, _| {
                                 states
                                     .get_mut::<WorkspaceState>(id)
@@ -41,8 +41,8 @@ impl Template for Workspace {
                             .build(ctx),
                     )
                     .child(
-                        Button::create()
-                            .element("button")
+                        Button::new()
+                            .style("button")
                             .on_click(move |states, _| {
                                 states
                                     .get_mut::<WorkspaceState>(id)
@@ -53,8 +53,8 @@ impl Template for Workspace {
                             .build(ctx),
                     )
                     .child(
-                        Button::create()
-                            .element("button")
+                        Button::new()
+                            .style("button")
                             .on_click(move |states, _| {
                                 states
                                     .get_mut::<WorkspaceState>(id)
@@ -65,8 +65,8 @@ impl Template for Workspace {
                             .build(ctx),
                     )
                     .child(
-                        Button::create()
-                            .element("button")
+                        Button::new()
+                            .style("button")
                             .on_click(move |states, _| {
                                 states
                                     .get_mut::<WorkspaceState>(id)
@@ -77,8 +77,8 @@ impl Template for Workspace {
                             .build(ctx),
                     )
                     .child(
-                        Button::create()
-                            .element("button")
+                        Button::new()
+                            .style("button")
                             .on_click(move |states, _| {
                                 states
                                     .get_mut::<WorkspaceState>(id)
@@ -89,8 +89,8 @@ impl Template for Workspace {
                             .build(ctx),
                     )
                     // .child(
-                    //     Button::create()
-                    //         .element("button")
+                    //     Button::new()
+                    //         .style("button")
                     //         .on_click(move |states, _| {
                     //             states
                     //                 .get_mut::<WorkspaceState>(id)
@@ -101,8 +101,8 @@ impl Template for Workspace {
                     //         .build(ctx),
                     // )
                     // .child(
-                    //     Button::create()
-                    //         .element("button")
+                    //     Button::new()
+                    //         .style("button")
                     //         .on_click(move |states, _| {
                     //             states
                     //                 .get_mut::<WorkspaceState>(id)
@@ -113,8 +113,8 @@ impl Template for Workspace {
                     //         .build(ctx),
                     // )
                     .child(
-                        Button::create()
-                            .element("button")
+                        Button::new()
+                            .style("button")
                             .on_click(move |states, _| {
                                 states
                                     .get_mut::<WorkspaceState>(id)
@@ -125,8 +125,8 @@ impl Template for Workspace {
                             .build(ctx),
                     )
                     // .child(
-                    //     Button::create()
-                    //         .element("button")
+                    //     Button::new()
+                    //         .style("button")
                     //         .on_click(move |states, _| {
                     //             states
                     //                 .get_mut::<WorkspaceState>(id)
@@ -152,7 +152,6 @@ impl Template for Workspace {
             })
             .on_mouse_up(move |states, m| {
                 states.get::<WorkspaceState>(id).action(Action::Release(m));
-                false
             })
             .on_key_down(move |states, event| -> bool {
                 if event.key == Key::Delete && event.state == ButtonState::Down {
@@ -177,7 +176,7 @@ impl State for WorkspaceState {
     fn init(&mut self, _: &mut Registry, ctx: &mut Context<'_>) {
         ctx.parent()
             .set::<u32>("node_container_entity", self.node_container.0);
-        ctx.push_event_by_window(FocusEvent::RequestFocus(ctx.entity));
+        ctx.push_event_by_window(FocusEvent::RequestFocus(ctx.entity()));
     }
 
     fn update(&mut self, _: &mut Registry, ctx: &mut Context<'_>) {
