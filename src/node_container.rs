@@ -65,13 +65,28 @@ impl State for NodeContainerState {
         self.sync_properties(ctx);
 
         self.handle_action(ctx);
-        self.handle_add_node(ctx);
+        // self.handle_add_node(ctx);
         self.handle_dragged_entity(ctx);
         self.handle_dropped_entity(ctx);
 
         self.reset_mouse_action(ctx);
 
         self.handle_action_main(ctx);
+    }
+
+    fn messages(
+        &mut self,
+        mut messages: MessageReader,
+        _registry: &mut Registry,
+        ctx: &mut Context,
+    ) {
+        for message in messages.read::<Message>() {
+            match message {
+                Message::AddNode(node_type) => {
+                    self.add_node(ctx, node_type)
+                }
+            }
+        }
     }
 }
 
@@ -80,7 +95,7 @@ impl NodeContainerState {
         let self_entity = ctx.widget().entity();
         let bc = &mut ctx.build_context();
 
-        let menu_property = MenuProperty::create().build(bc);
+        let menu_property = MenuProperty::new().build(bc);
         self.menu_property = menu_property;
 
         bc.append_child(self_entity, menu_property);
@@ -259,7 +274,7 @@ impl NodeContainerState {
             _ => todo!()
         };
 
-        let property_stack = Stack::create().build(bc);
+        let property_stack = Stack::new().build(bc);
         for property in &properties {
             bc.append_child(property_stack, *property);
         }
@@ -268,7 +283,7 @@ impl NodeContainerState {
 
         self.menu_property_node = Some(node_entity);
 
-        let container = Container::create()
+        let container = Container::new()
             .background("#ff0000")
             .build(bc);
 
@@ -323,6 +338,7 @@ impl NodeContainerState {
             return;
         }
         self.reset_dragging(ctx);
+
 
         let dropped_on_entity = match self.dropped_on_entity {
             Some(drag_drop_entity) => drag_drop_entity,
@@ -434,23 +450,19 @@ impl NodeContainerState {
         }
     }
 
-    fn handle_add_node(&mut self, ctx: &mut Context) {
-        if let Some(node_type) = ctx.widget().get::<OptionNodeType>("add_node").clone() {
-            let node_id = self
-                .node_graph_spatial
-                .node_graph
-                .add_node(CoreNode::new(node_type))
-                .unwrap();
+    fn add_node(&mut self, ctx: &mut Context, node_type: NodeType) {
+        let node_id = self
+            .node_graph_spatial
+            .node_graph
+            .add_node(CoreNode::new(node_type))
+            .unwrap();
 
-            self.populate_node(ctx, node_id);
+        self.populate_node(ctx, node_id);
 
-            self.dragged_entity = Some(DragDropEntity {
-                entity: Self::get_most_recent_entity_type(ctx, WidgetType::Node),
-                widget_type: WidgetType::Node,
-            });
-        }
-
-        ctx.widget().set::<OptionNodeType>("add_node", None)
+        // self.dragged_entity = Some(DragDropEntity {
+        //     entity: Self::get_most_recent_entity_type(ctx, WidgetType::Node),
+        //     widget_type: WidgetType::Node,
+        // });
     }
 
     fn reset_mouse_action(&mut self, ctx: &mut Context) {
@@ -746,7 +758,7 @@ impl NodeContainerState {
         let self_entity = ctx.widget().entity();
         let bc = &mut ctx.build_context();
         let item = match side {
-            WidgetSide::Input => Edge::create()
+            WidgetSide::Input => Edge::new()
                 .id("edge")
                 .output_point(other_point.unwrap_or_default())
                 .input_point(slot_position)
@@ -755,7 +767,7 @@ impl NodeContainerState {
                 .output_slot(other_slot_id.unwrap_or_default())
                 .input_slot(slot_id)
                 .build(bc),
-            WidgetSide::Output => Edge::create()
+            WidgetSide::Output => Edge::new()
                 .id("edge")
                 .output_point(slot_position)
                 .input_point(other_point.unwrap_or_default())
@@ -1069,7 +1081,7 @@ impl NodeContainerState {
         let self_entity = ctx.widget().entity();
         let bc = &mut ctx.build_context();
 
-        let item = Node::create()
+        let item = Node::new()
             .id(node_id.0.to_string())
             .title(node_title)
             .node_id(node_id.0)
@@ -1100,7 +1112,7 @@ impl NodeContainerState {
 
             let slot_margin = Self::position_slot(WidgetSide::Input, i as u32, node_margin);
 
-            let item = Slot::create()
+            let item = Slot::new()
                 .node_id(node_id)
                 .margin(slot_margin)
                 .side(WidgetSide::Input)
@@ -1118,7 +1130,7 @@ impl NodeContainerState {
 
             let slot_margin = Self::position_slot(WidgetSide::Output, i as u32, node_margin);
 
-            let item = Slot::create()
+            let item = Slot::new()
                 .node_id(node_id)
                 .margin(slot_margin)
                 .side(WidgetSide::Output)
@@ -1175,7 +1187,7 @@ impl NodeContainerState {
         let output_point = Self::position_edge(WidgetSide::Output, output_slot, output_node_pos);
         let input_point = Self::position_edge(WidgetSide::Input, input_slot, input_node_pos);
 
-        let item = Edge::create()
+        let item = Edge::new()
             .id("edge")
             .output_point(output_point)
             .input_point(input_point)

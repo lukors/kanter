@@ -32,9 +32,7 @@ impl Template for Workspace {
                         Button::new()
                             .style("button")
                             .on_click(move |states, _| {
-                                states
-                                    .get_mut::<WorkspaceState>(id)
-                                    .add_node(NodeType::Mix(MixType::default()));
+                                states.send_message(Message::AddNode(NodeType::Mix(MixType::default())), node_container);
                                 true
                             })
                             .text("Mix")
@@ -174,8 +172,7 @@ struct WorkspaceState {
 
 impl State for WorkspaceState {
     fn init(&mut self, _: &mut Registry, ctx: &mut Context<'_>) {
-        ctx.parent()
-            .set::<u32>("node_container_entity", self.node_container.0);
+        ctx.parent().set::<u32>("node_container_entity", self.node_container.0);
         ctx.push_event_by_window(FocusEvent::RequestFocus(ctx.entity()));
     }
 

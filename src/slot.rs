@@ -18,7 +18,7 @@ impl Template for Slot {
             .width(SLOT_SIZE)
             .height(SLOT_SIZE)
             .child(
-                Container::create()
+                Container::new()
                     .background(Color::rgb(200, 200, 200))
                     .border_width(1.)
                     .border_radius(SLOT_SIZE_HALF)

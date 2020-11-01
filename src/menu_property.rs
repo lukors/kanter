@@ -15,13 +15,13 @@ impl MenuProperty {
     pub fn combo_box(items: Vec<String>, selected_index: i32) -> ComboBox {
         let items_len = items.len();
 
-        ComboBox::create()
+        ComboBox::new()
             .margin((5., 5., 5., 5.))
             .items_builder(move |bc, index| {
                 let text = &items[index];
-                TextBlock::create()
+                TextBlock::new()
                     .margin((0.0, 0.0, 0.0, 2.0))
-                    .vertical_alignment("start")
+                    .v_align("start")
                     .text(text.as_str())
                     .build(bc)
             })
@@ -30,7 +30,7 @@ impl MenuProperty {
     }
 
     pub fn text_box(text: String) -> TextBox {
-        TextBox::create()
+        TextBox::new()
             .margin((5., 5., 5., 5.))
             .text(text)
     }

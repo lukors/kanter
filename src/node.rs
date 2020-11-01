@@ -24,17 +24,17 @@ widget!(
 
 impl Template for Node {
     fn template(mut self, id: Entity, ctx: &mut BuildContext) -> Self {
-        let property_stack = Stack::create().build(ctx);
+        let property_stack = Stack::new().build(ctx);
         self.state_mut().property_stack = property_stack;
 
-        let frame = Container::create()
+        let frame = Container::new()
             .background(Color::rgb(0, 255, 0))
             .border_width(2.)
             .border_brush(DESELECTED_BRUSH)
             .child(
-                Stack::create()
+                Stack::new()
                     .child(
-                        TextBlock::create()
+                        TextBlock::new()
                             .id("title")
                             .text(("title", id))
                             .style("text-block")
@@ -55,7 +55,7 @@ impl Template for Node {
             .width(NODE_WIDTH)
             .height(NODE_HEIGHT)
             .margin(("my_margin", id))
-            .child(MouseBehavior::create().enabled(id).target(id.0).build(ctx))
+            .child(MouseBehavior::new().enabled(id).target(id.0).build(ctx))
             .child(frame)
     }
 }

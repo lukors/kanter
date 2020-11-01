@@ -19,7 +19,7 @@ impl Template for Edge {
             .id("edge")
             .widget_type(WidgetType::Edge)
             .child(
-                Line::create()
+                Line::new()
                     .start_point(("output_point", id))
                     .end_point(("input_point", id))
                     .build(ctx),

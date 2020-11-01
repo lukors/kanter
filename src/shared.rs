@@ -1,6 +1,10 @@
 use kanter_core::node::{MixType, NodeType, Side};
 use orbtk::prelude::*;
 
+pub enum Message {
+    AddNode(NodeType),
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum WidgetType {
     Node,
