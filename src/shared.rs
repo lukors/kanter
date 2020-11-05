@@ -3,6 +3,9 @@ use orbtk::prelude::*;
 
 pub enum Message {
     AddNode(NodeType),
+    PositionNode(Point),
+    OpenAddNodeMenu,
+    FocusNodeContainer,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]

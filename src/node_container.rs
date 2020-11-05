@@ -62,14 +62,16 @@ impl State for NodeContainerState {
     }
 
     fn update(&mut self, _: &mut Registry, ctx: &mut Context<'_>) {
-        self.sync_properties(ctx);
+        // self.sync_properties(ctx);
 
-        self.handle_action(ctx);
+        // self.handle_action(ctx);
         // self.handle_add_node(ctx);
-        self.handle_dragged_entity(ctx);
-        self.handle_dropped_entity(ctx);
 
-        self.reset_mouse_action(ctx);
+        
+
+        // self.handle_dragged_entity(ctx);
+        // self.handle_dropped_entity(ctx);
+        // self.reset_mouse_action(ctx);
 
         self.handle_action_main(ctx);
     }
@@ -82,9 +84,8 @@ impl State for NodeContainerState {
     ) {
         for message in messages.read::<Message>() {
             match message {
-                Message::AddNode(node_type) => {
-                    self.add_node(ctx, node_type)
-                }
+                Message::AddNode(node_type) => { self.add_node(ctx, node_type) }
+                _ => { }
             }
         }
     }
@@ -394,7 +395,7 @@ impl NodeContainerState {
                         }
                     };
 
-                    ctx.push_event(ChangedEvent(edge_entity, "".to_string()));
+                    // ctx.push_event(ChangedEvent(edge_entity, "".to_string()));
                     let _ = self.node_graph_spatial.node_graph.connect_arbitrary(
                         NodeId(dropped_on_node_id),
                         dropped_on_side.into(),

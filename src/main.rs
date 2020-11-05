@@ -119,9 +119,10 @@ impl Template for MainView {
                     Button::new()
                         .style("button")
                         .on_click(move |states, p| {
-                            states
-                                .get_mut::<MainState>(id)
-                                .action_main(ActionMain::MenuNode(p));
+                            states.send_message(Message::OpenAddNodeMenu, workspace);
+                            // states
+                            //     .get_mut::<MainState>(id)
+                            //     .action_main(ActionMain::MenuNode(p));
                             true
                         })
                         .text("Add node")

@@ -33,6 +33,7 @@ impl Template for Workspace {
                             .style("button")
                             .on_click(move |states, _| {
                                 states.send_message(Message::AddNode(NodeType::Mix(MixType::default())), node_container);
+                                states.send_message(Message::FocusNodeContainer, id);
                                 true
                             })
                             .text("Mix")
@@ -173,12 +174,39 @@ struct WorkspaceState {
 impl State for WorkspaceState {
     fn init(&mut self, _: &mut Registry, ctx: &mut Context<'_>) {
         ctx.parent().set::<u32>("node_container_entity", self.node_container.0);
-        ctx.push_event_by_window(FocusEvent::RequestFocus(ctx.entity()));
+        // ctx.push_event_by_window(FocusEvent::RequestFocus(ctx.entity()));
     }
 
-    fn update(&mut self, _: &mut Registry, ctx: &mut Context<'_>) {
-        self.handle_action_main(ctx);
-        self.propagate_action(ctx);
+    // fn update(&mut self, _: &mut Registry, ctx: &mut Context<'_>) {
+    //     self.handle_action_main(ctx);
+    //     self.propagate_action(ctx);
+    // }
+
+    fn messages(
+        &mut self,
+        mut messages: MessageReader,
+        _registry: &mut Registry,
+        ctx: &mut Context,
+    ) {
+        for message in messages.read::<Message>() {
+            println!("hej");
+            match message {
+                Message::FocusNodeContainer => { 
+                    println!("yey");
+                    let mut menu_node_widget = ctx.get_widget(self.menu_node);
+                    menu_node_widget.set::<bool>("open", false);
+                }
+                Message::OpenAddNodeMenu => {
+                    println!("yo");
+                    let current_open = *ctx.get_widget(self.menu_node).get::<bool>("open");
+                    println!("{}", current_open);
+                    let mut menu_node_widget = ctx.get_widget(self.menu_node);
+                    menu_node_widget.set::<bool>("open", !current_open);
+                    
+                }
+                _ => { }
+            }
+        }
     }
 }
 
