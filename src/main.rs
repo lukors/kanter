@@ -1,11 +1,12 @@
 use bevy::{
     prelude::*,
-    transform::components::Transform,
+    input::mouse::MouseMotion,
 };
 
 
 fn main() {
     App::build()
+        .init_resource::<State>()
         .add_resource(WindowDescriptor {
             title: "Bevy".to_string(),
             width: 1024,
@@ -15,7 +16,7 @@ fn main() {
         })
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup.system())
-        // .add_system(toggle_cursor)
+        .add_system(toggle_cursor)
         .add_system(update_camera.system())
         .run();
 }
@@ -39,22 +40,32 @@ fn setup(
 struct MyPosition { x: f32, y: f32 }
 struct Camera;
 
-fn update_camera(mut query: Query<(&mut Transform, &Camera)>) {
+#[derive(Default)]
+struct State {
+    mouse_motion_event_reader: EventReader<MouseMotion>,
+}
+
+fn update_camera(mut state: ResMut<State>, mouse_motion_events: Res<Events<MouseMotion>>, mut query: Query<(&mut Transform, &Camera)>) {
+    let mut delta: Vec2 = Vec2::zero();
+    for event in state.mouse_motion_event_reader.iter(&mouse_motion_events) {
+        delta += event.delta;
+    }
+    if delta == Vec2::zero() {
+        return;
+    }
+
     for (mut transform, my_struct) in query.iter_mut() {
-        transform.translation.x += 1.;
+        transform.translation.x += delta.x;
+        transform.translation.y -= delta.y;
     }
 }
 
 fn toggle_cursor(input: Res<Input<KeyCode>>, mut windows: ResMut<Windows>) {
-    // if input.just_pressed(KeyCode::Space) {
-    //     viewport.locked = !viewport.locked;
-    // }
-
-    // if viewport.locked {
-    //     let window = windows.get_primary_mut().unwrap();
-    //     window.set_cursor_lock_mode(!window.cursor_locked());
-    //     window.set_cursor_visibility(!window.cursor_visible());
-    // }
+    if input.just_pressed(KeyCode::Space) {
+        let window = windows.get_primary_mut().unwrap();
+        window.set_cursor_lock_mode(!window.cursor_locked());
+        window.set_cursor_visibility(!window.cursor_visible());
+    }
 }
 
 
