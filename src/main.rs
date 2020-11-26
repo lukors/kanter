@@ -1,8 +1,4 @@
-use bevy::{
-    prelude::*,
-    input::mouse::MouseMotion,
-};
-
+use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Camera};
 
 fn main() {
     App::build()
@@ -32,36 +28,40 @@ fn setup(
 
     commands
         .spawn(Camera2dBundle::default())
-        .with(Camera::default())
+        // .with(Camera)
         .spawn(SpriteBundle {
             material: materials.add(texture_handle.into()),
             ..Default::default()
         });
 }
 
-struct MyPosition { x: f32, y: f32 }
-
 #[derive(Default)]
-struct FirstPerson{ on: bool }
+struct FirstPerson {
+    on: bool,
+}
 
-#[derive(Default)]
-struct Camera { locked: bool }
+// struct Camera;
 
 #[derive(Default)]
 struct State {
     mouse_motion_event_reader: EventReader<MouseMotion>,
 }
 
-fn update_camera(mut state: ResMut<State>, mouse_motion_events: Res<Events<MouseMotion>>, first_person: Res<FirstPerson>, mut query: Query<(&mut Transform, &Camera)>) {
+fn update_camera(
+    mut state: ResMut<State>,
+    mouse_motion_events: Res<Events<MouseMotion>>,
+    first_person: Res<FirstPerson>,
+    mut query: Query<(&Camera, &mut Transform)>,
+) {
     let mut delta: Vec2 = Vec2::zero();
     for event in state.mouse_motion_event_reader.iter(&mouse_motion_events) {
         delta += event.delta;
     }
     if delta == Vec2::zero() {
-        return
+        return;
     }
 
-    for (mut transform, camera) in query.iter_mut() {
+    for (_camera, mut transform) in query.iter_mut() {
         if !first_person.on {
             continue;
         }
@@ -77,11 +77,8 @@ fn update_cursor_visibility(mut windows: ResMut<Windows>, first_person: Res<Firs
     window.set_cursor_visibility(!first_person.on);
 }
 
-// fn toggle_cursor(input: Res<Input<KeyCode>>, mut windows: ResMut<Windows>) {
-fn toggle_cursor(mut first_person: ResMut<FirstPerson>, input: Res<Input<KeyCode>>, mut query: Query<(&mut Camera)>) {
+fn toggle_cursor(mut first_person: ResMut<FirstPerson>, input: Res<Input<KeyCode>>) {
     if input.just_pressed(KeyCode::Tab) {
         first_person.on = !first_person.on;
     }
 }
-
-
