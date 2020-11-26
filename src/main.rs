@@ -14,9 +14,11 @@ fn main() {
             vsync: false,
             ..Default::default()
         })
+        .add_resource(FirstPerson::default())
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup.system())
-        .add_system(toggle_cursor)
+        .add_system(toggle_cursor.system())
+        .add_system(update_cursor_visibility.system())
         .add_system(update_camera.system())
         .run();
 }
@@ -30,7 +32,7 @@ fn setup(
 
     commands
         .spawn(Camera2dBundle::default())
-        .with(Camera)
+        .with(Camera::default())
         .spawn(SpriteBundle {
             material: materials.add(texture_handle.into()),
             ..Default::default()
@@ -38,33 +40,47 @@ fn setup(
 }
 
 struct MyPosition { x: f32, y: f32 }
-struct Camera;
+
+#[derive(Default)]
+struct FirstPerson{ on: bool }
+
+#[derive(Default)]
+struct Camera { locked: bool }
 
 #[derive(Default)]
 struct State {
     mouse_motion_event_reader: EventReader<MouseMotion>,
 }
 
-fn update_camera(mut state: ResMut<State>, mouse_motion_events: Res<Events<MouseMotion>>, mut query: Query<(&mut Transform, &Camera)>) {
+fn update_camera(mut state: ResMut<State>, mouse_motion_events: Res<Events<MouseMotion>>, first_person: Res<FirstPerson>, mut query: Query<(&mut Transform, &Camera)>) {
     let mut delta: Vec2 = Vec2::zero();
     for event in state.mouse_motion_event_reader.iter(&mouse_motion_events) {
         delta += event.delta;
     }
     if delta == Vec2::zero() {
-        return;
+        return
     }
 
-    for (mut transform, my_struct) in query.iter_mut() {
+    for (mut transform, camera) in query.iter_mut() {
+        if !first_person.on {
+            continue;
+        }
+
         transform.translation.x += delta.x;
         transform.translation.y -= delta.y;
     }
 }
 
-fn toggle_cursor(input: Res<Input<KeyCode>>, mut windows: ResMut<Windows>) {
-    if input.just_pressed(KeyCode::Space) {
-        let window = windows.get_primary_mut().unwrap();
-        window.set_cursor_lock_mode(!window.cursor_locked());
-        window.set_cursor_visibility(!window.cursor_visible());
+fn update_cursor_visibility(mut windows: ResMut<Windows>, first_person: Res<FirstPerson>) {
+    let window = windows.get_primary_mut().unwrap();
+    window.set_cursor_lock_mode(first_person.on);
+    window.set_cursor_visibility(!first_person.on);
+}
+
+// fn toggle_cursor(input: Res<Input<KeyCode>>, mut windows: ResMut<Windows>) {
+fn toggle_cursor(mut first_person: ResMut<FirstPerson>, input: Res<Input<KeyCode>>, mut query: Query<(&mut Camera)>) {
+    if input.just_pressed(KeyCode::Tab) {
+        first_person.on = !first_person.on;
     }
 }
 
