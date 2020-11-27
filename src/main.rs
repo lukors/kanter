@@ -74,11 +74,11 @@ struct Hovered {
 }
 
 fn update_hovered(
+    mut materials: ResMut<Assets<ColorMaterial>>,
     mut state: ResMut<State>,
     e_cursor_moved: Res<Events<CursorMoved>>,
     windows: Res<Windows>,
-    e_mouse_motion: Res<Events<MouseMotion>>,
-    mut q_hovered: Query<(&mut Hovered, &Transform, &Size)>,
+    mut q_hovered: Query<(&mut Hovered, &Transform, &Size, &Handle<ColorMaterial>)>,
     q_camera: Query<(&Camera, &Transform)>,
 ) {
     let mut cursor_pos: Option<Vec2> = None;
@@ -100,8 +100,7 @@ fn update_hovered(
         // apply the camera transform
         let pos_wld = cam_transform.compute_matrix() * screen_pos.extend(0.0).extend(1.0);
 
-        // if pos_wld.
-        for (mut hovered, transform, size) in q_hovered.iter_mut() {
+        for (mut hovered, transform, size, material) in q_hovered.iter_mut() {
             let half_width = size.xy.x / 2.0;
             let half_height = size.xy.y / 2.0;
 
@@ -110,18 +109,14 @@ fn update_hovered(
                 && transform.translation.x + half_width > pos_wld.x
                 && transform.translation.x + half_height > pos_wld.y
             {
-                println!("{:?}", pos_wld);
+                hovered.on = true;
+                materials.get_mut(material).unwrap().color.set_a(0.5);
+            } else {
+                hovered.on = false;
+                materials.get_mut(material).unwrap().color.set_a(1.);
             }
         }
     }
-
-    // for event in state.mouse_motion_event_reader.iter(&e_mouse_motion) {
-    //     delta += event.delta;
-    // }
-
-    // for (mut hovered, transform) in q_hovered.iter_mut() {
-    //     // if
-    // }
 }
 
 struct Crosshair;
