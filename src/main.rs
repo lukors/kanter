@@ -74,8 +74,11 @@ fn update_camera(
 
 fn update_cursor_visibility(mut windows: ResMut<Windows>, first_person: Res<FirstPerson>) {
     let window = windows.get_primary_mut().unwrap();
-    window.set_cursor_lock_mode(first_person.on);
     window.set_cursor_visibility(!first_person.on);
+
+    if first_person.on {
+        window.set_cursor_position((window.width() / 2) as i32, (window.height() / 2) as i32);
+    }
 }
 
 fn toggle_cursor(mut first_person: ResMut<FirstPerson>, input: Res<Input<KeyCode>>) {
