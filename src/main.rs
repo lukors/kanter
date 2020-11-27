@@ -18,6 +18,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup.system())
         .add_system(toggle_cursor.system())
+        .add_system(update_hovered.system())
         .add_system(update_cursor_visibility.system())
         .add_system(update_crosshair_visibility.system())
         .add_system(update_camera.system())
@@ -45,6 +46,10 @@ fn setup(
         .spawn(SpriteBundle {
             material: materials.add(test_image.into()),
             ..Default::default()
+        })
+        .with(Hovered::default())
+        .with(Size {
+            xy: Vec2::new(256., 256.),
         });
 }
 
@@ -53,11 +58,78 @@ struct FirstPerson {
     on: bool,
 }
 
+#[derive(Default)]
+struct Size {
+    xy: Vec2,
+}
+
+// #[derive(Default)]
+// struct Dragged {
+//     on: bool,
+// }
+
+#[derive(Default)]
+struct Hovered {
+    on: bool,
+}
+
+fn update_hovered(
+    mut state: ResMut<State>,
+    e_cursor_moved: Res<Events<CursorMoved>>,
+    windows: Res<Windows>,
+    e_mouse_motion: Res<Events<MouseMotion>>,
+    mut q_hovered: Query<(&mut Hovered, &Transform, &Size)>,
+    q_camera: Query<(&Camera, &Transform)>,
+) {
+    let mut cursor_pos: Option<Vec2> = None;
+    for event in state.cursor_moved_event_reader.iter(&e_cursor_moved) {
+        cursor_pos = Some(event.position);
+    }
+
+    if let Some(cursor_pos) = cursor_pos {
+        let (_cam, cam_transform) = q_camera.iter().last().unwrap();
+
+        // get the size of the window
+        let window = windows.get_primary().unwrap();
+        let size = Vec2::new(window.width() as f32, window.height() as f32);
+
+        // the default orthographic projection is in pixels from the center;
+        // just undo the translation
+        let screen_pos = cursor_pos - size / 2.0;
+
+        // apply the camera transform
+        let pos_wld = cam_transform.compute_matrix() * screen_pos.extend(0.0).extend(1.0);
+
+        // if pos_wld.
+        for (mut hovered, transform, size) in q_hovered.iter_mut() {
+            let half_width = size.xy.x / 2.0;
+            let half_height = size.xy.y / 2.0;
+
+            if transform.translation.x - half_width < pos_wld.x
+                && transform.translation.y - half_height < pos_wld.y
+                && transform.translation.x + half_width > pos_wld.x
+                && transform.translation.x + half_height > pos_wld.y
+            {
+                println!("{:?}", pos_wld);
+            }
+        }
+    }
+
+    // for event in state.mouse_motion_event_reader.iter(&e_mouse_motion) {
+    //     delta += event.delta;
+    // }
+
+    // for (mut hovered, transform) in q_hovered.iter_mut() {
+    //     // if
+    // }
+}
+
 struct Crosshair;
 
 #[derive(Default)]
 struct State {
     mouse_motion_event_reader: EventReader<MouseMotion>,
+    cursor_moved_event_reader: EventReader<CursorMoved>,
 }
 
 fn update_camera(
