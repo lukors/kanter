@@ -1,4 +1,8 @@
-use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Camera};
+use bevy::{
+    input::mouse::MouseMotion,
+    prelude::*,
+    render::{camera::Camera, draw::Draw},
+};
 
 fn main() {
     App::build()
@@ -15,6 +19,7 @@ fn main() {
         .add_startup_system(setup.system())
         .add_system(toggle_cursor.system())
         .add_system(update_cursor_visibility.system())
+        .add_system(update_crosshair_visibility.system())
         .add_system(update_camera.system())
         .run();
 }
@@ -24,12 +29,21 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let texture_handle = asset_server.load("image_2.png");
+    let test_image = asset_server.load("image_2.png");
+    let crosshair_image = asset_server.load("crosshair.png");
 
     commands
         .spawn(Camera2dBundle::default())
+        .with_children(|parent| {
+            parent
+                .spawn(SpriteBundle {
+                    material: materials.add(crosshair_image.into()),
+                    ..Default::default()
+                })
+                .with(Crosshair);
+        })
         .spawn(SpriteBundle {
-            material: materials.add(texture_handle.into()),
+            material: materials.add(test_image.into()),
             ..Default::default()
         });
 }
@@ -38,6 +52,8 @@ fn setup(
 struct FirstPerson {
     on: bool,
 }
+
+struct Crosshair;
 
 #[derive(Default)]
 struct State {
@@ -78,6 +94,15 @@ fn update_cursor_visibility(mut windows: ResMut<Windows>, first_person: Res<Firs
 
     if first_person.on {
         window.set_cursor_position((window.width() / 2) as i32, (window.height() / 2) as i32);
+    }
+}
+
+fn update_crosshair_visibility(
+    first_person: Res<FirstPerson>,
+    mut query: Query<(&Crosshair, &mut Draw)>,
+) {
+    for (_crosshair, mut draw) in query.iter_mut() {
+        draw.is_visible = first_person.on;
     }
 }
 
