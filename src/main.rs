@@ -7,7 +7,7 @@ fn main() {
             title: "Bevy".to_string(),
             width: 1024,
             height: 768,
-            vsync: false,
+            vsync: true,
             ..Default::default()
         })
         .add_resource(FirstPerson::default())
@@ -28,7 +28,6 @@ fn setup(
 
     commands
         .spawn(Camera2dBundle::default())
-        // .with(Camera)
         .spawn(SpriteBundle {
             material: materials.add(texture_handle.into()),
             ..Default::default()
@@ -39,8 +38,6 @@ fn setup(
 struct FirstPerson {
     on: bool,
 }
-
-// struct Camera;
 
 #[derive(Default)]
 struct State {
@@ -53,6 +50,10 @@ fn update_camera(
     first_person: Res<FirstPerson>,
     mut query: Query<(&Camera, &mut Transform)>,
 ) {
+    if !first_person.on {
+        return;
+    }
+
     let mut delta: Vec2 = Vec2::zero();
     for event in state.mouse_motion_event_reader.iter(&mouse_motion_events) {
         delta += event.delta;
