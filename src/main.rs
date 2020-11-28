@@ -29,6 +29,7 @@ impl Plugin for KanterPlugin {
             .add_system(hoverable.system())
             .add_system(alpha.system())
             .add_system(draggable.system())
+            .add_system(drag.system())
             .add_system(cursor_visibility.system())
             .add_system(crosshair_visibility.system())
             .add_system(camera.system());
@@ -58,7 +59,7 @@ fn setup(
             ..Default::default()
         })
         .with(Hoverable)
-        .with(Dragged::default())
+        .with(Draggable)
         .with(Size {
             xy: Vec2::new(256., 256.),
         });
@@ -77,19 +78,11 @@ struct Size {
     xy: Vec2,
 }
 
-#[derive(Default)]
-struct Dragged {
-    on: bool,
-    anchor: Vec2,
-}
+struct Draggable;
+struct Dragged;
 
 struct Hoverable;
-struct HoveredTemp;
-
-#[derive(Default)]
-struct Hovered {
-    on: bool,
-}
+struct Hovered;
 
 fn hoverable(
     commands: &mut Commands,
@@ -102,7 +95,7 @@ fn hoverable(
         &Transform,
         &Size,
     )>,
-    q_hovered: Query<(Entity, &HoveredTemp)>,
+    q_hovered: Query<(Entity, &Hovered)>,
     q_camera: Query<(&Camera, &Transform)>,
 ) {
     let mut cursor_pos: Option<Vec2> = None;
@@ -127,15 +120,15 @@ fn hoverable(
             {
                 // Remove all hovered components.
                 for (entity, _hovered) in q_hovered.iter() {
-                    commands.remove_one::<HoveredTemp>(entity);
+                    commands.remove_one::<Hovered>(entity);
                 }
 
                 // Insert the hovered component on the hovered entity.
-                commands.insert_one(entity, HoveredTemp);
+                commands.insert_one(entity, Hovered);
                 break;
 
             } else {
-                commands.remove_one::<HoveredTemp>(entity);
+                commands.remove_one::<Hovered>(entity);
             }
         }
     }
@@ -143,7 +136,7 @@ fn hoverable(
 
 fn alpha(
     mut materials: ResMut<Assets<ColorMaterial>>,
-    q_hovered: Query<(&HoveredTemp, &Handle<ColorMaterial>)>,
+    q_hovered: Query<(&Hovered, &Handle<ColorMaterial>)>,
     q_hoverable: Query<(&Hoverable, &Handle<ColorMaterial>)>,
 ) {
     for (_hoverable, material) in q_hoverable.iter() {
@@ -168,26 +161,22 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
 }
 
 fn draggable(
+    commands: &mut Commands,
     i_mouse_button: Res<Input<MouseButton>>,
     e_cursor_moved: Res<Events<CursorMoved>>,
     mut state: ResMut<State>,
     windows: Res<Windows>,
-    mut q_dragged: Query<(&mut Dragged, &Hovered, &mut Transform)>,
+    mut q_draggable: Query<(Entity, &Draggable, &Hovered, &mut Transform)>,
     q_camera: Query<(&Camera, &Transform)>,
 ) {
     if i_mouse_button.just_pressed(MouseButton::Left) {
-        for (mut dragged, hovered, transform) in q_dragged.iter_mut() {
-            if hovered.on {
-                dragged.on = true;
-                break;
-            }
+        for (entity, _draggable, _hovered, _transform) in q_draggable.iter_mut() {
+            commands.insert_one(entity, Dragged);
+            break;
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
-        for (mut dragged, _hovered, transform) in q_dragged.iter_mut() {
-            if dragged.on {
-                dragged.on = false;
-                break;
-            }
+        for (entity, _draggable, _hovered, _transform) in q_draggable.iter_mut() {
+            commands.remove_one::<Dragged>(entity);
         }
     }
 
@@ -202,6 +191,14 @@ fn draggable(
 
         let cursor_world = cursor_to_world(&window, &cam_transform, cursor_pos);
     }
+}
+
+fn drag(
+    windows: Res<Windows>,
+    mut q_dragged: Query<(&Dragged, &mut Transform)>,
+    q_camera: Query<(&Camera, &Transform)>,
+) {
+    
 }
 
 struct Crosshair;
