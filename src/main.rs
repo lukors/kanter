@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use bevy::{
     input::mouse::MouseMotion,
     prelude::*,
@@ -85,7 +87,6 @@ struct Workspace {
     cursor_moved: bool,
 }
 
-// TODO: Move this into workspace component
 #[derive(Default)]
 struct FirstPerson {
     on: bool,
@@ -111,7 +112,7 @@ fn workspace(
     e_mouse_motion: Res<Events<MouseMotion>>,
     windows: Res<Windows>,
     mut q_workspace: Query<&mut Workspace>,
-    q_camera: Query<(&Camera, &Transform)>,
+    q_camera: Query<&Transform, With<Camera>>,
 ) {
     let mut event_cursor_delta: Vec2 = Vec2::zero();
     for event_motion in state.er_mouse_motion.iter(&e_mouse_motion) {
@@ -124,7 +125,7 @@ fn workspace(
             workspace.cursor_screen = event_cursor_screen.position;
 
             let window = windows.get_primary().unwrap();
-            let (_cam, cam_transform) = q_camera.iter().last().unwrap();
+            let cam_transform = q_camera.iter().last().unwrap();
             workspace.cursor_world =
                 cursor_to_world(window, cam_transform, event_cursor_screen.position);
 
@@ -137,15 +138,18 @@ fn workspace(
     }
 }
 
+// TODO: Use the `Changed` `Query` thing: https://github.com/bevyengine/bevy/pull/834
+// TODO: Use the `Without` `Query` thing: https://github.com/bevyengine/bevy/pull/834
+
 fn hoverable(
     commands: &mut Commands,
     q_workspace: Query<&Workspace>,
-    q_hoverable: Query<(Entity, &Hoverable, &Transform, &Size)>,
+    q_hoverable: Query<(Entity, &Transform, &Size), With<Hoverable>>,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
 
     if workspace.cursor_moved {
-        for (entity, _hoverable, transform, size) in q_hoverable.iter() {
+        for (entity, transform, size) in q_hoverable.iter() {
             let half_width = size.xy.x / 2.0;
             let half_height = size.xy.y / 2.0;
 
@@ -161,6 +165,9 @@ fn hoverable(
         }
     }
 }
+
+// TODO: Able to hover only one thing
+// TODO: Make it unable to hover what is being dragged
 
 fn alpha(
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -191,21 +198,21 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
 fn draggable(
     commands: &mut Commands,
     i_mouse_button: Res<Input<MouseButton>>,
-    mut q_pressed: Query<(Entity, &Draggable, &Hovered, &Transform)>,
-    mut q_released: Query<(Entity, &Dragged)>,
+    q_pressed: Query<(Entity, &Transform), (With<Hovered>, With<Draggable>)>,
+    q_released: Query<Entity, With<Dragged>>,
     q_workspace: Query<&Workspace>,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
 
     if i_mouse_button.just_pressed(MouseButton::Left) {
-        if let Some((entity, _draggable, _hovered, transform)) = q_pressed.iter_mut().next() {
+        if let Some((entity, transform)) = q_pressed.iter().next() {
             let translation = Vec2::new(transform.translation.x, transform.translation.y);
             let anchor = translation - workspace.cursor_world;
 
             commands.insert_one(entity, Dragged { anchor });
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
-        for (entity, _dragged) in q_released.iter_mut() {
+        for entity in q_released.iter() {
             commands.remove_one::<Dragged>(entity);
         }
     }
@@ -232,7 +239,7 @@ struct State {
 
 fn camera(
     first_person: Res<FirstPerson>,
-    mut q_camera: Query<(&Camera, &mut Transform)>,
+    mut q_camera: Query<&mut Transform, With<Camera>>,
     q_workspace: Query<&Workspace>,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
@@ -241,7 +248,7 @@ fn camera(
         return;
     }
 
-    for (_camera, mut transform) in q_camera.iter_mut() {
+    for mut transform in q_camera.iter_mut() {
         if !first_person.on {
             continue;
         }
