@@ -16,13 +16,22 @@ fn main() {
         })
         .add_resource(FirstPerson::default())
         .add_plugins(DefaultPlugins)
-        .add_startup_system(setup.system())
-        .add_system(toggle_cursor.system())
-        .add_system(update_hovered.system())
-        .add_system(update_cursor_visibility.system())
-        .add_system(update_crosshair_visibility.system())
-        .add_system(update_camera.system())
+        .add_plugin(KanterPlugin)
         .run();
+}
+
+pub struct KanterPlugin;
+
+impl Plugin for KanterPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_startup_system(setup.system())
+            .add_system(toggle_cursor.system())
+            .add_system(hoverable.system())
+            .add_system(draggable.system())
+            .add_system(cursor_visibility.system())
+            .add_system(crosshair_visibility.system())
+            .add_system(camera.system());
+    }
 }
 
 fn setup(
@@ -48,10 +57,14 @@ fn setup(
             ..Default::default()
         })
         .with(Hovered::default())
+        .with(Dragged::default())
         .with(Size {
             xy: Vec2::new(256., 256.),
         });
 }
+
+#[derive(Default)]
+struct Workspace {}
 
 #[derive(Default)]
 struct FirstPerson {
@@ -63,22 +76,33 @@ struct Size {
     xy: Vec2,
 }
 
-// #[derive(Default)]
-// struct Dragged {
-//     on: bool,
-// }
+#[derive(Default)]
+struct Dragged {
+    on: bool,
+    anchor: Vec2,
+}
+
+struct Hoverable;
 
 #[derive(Default)]
 struct Hovered {
     on: bool,
 }
 
-fn update_hovered(
+fn hoverable(
+    commands: &mut Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut state: ResMut<State>,
     e_cursor_moved: Res<Events<CursorMoved>>,
     windows: Res<Windows>,
-    mut q_hovered: Query<(&mut Hovered, &Transform, &Size, &Handle<ColorMaterial>)>,
+    mut q_hoverable: Query<(
+        &Entity,
+        &mut Hovered,
+        &Transform,
+        &Size,
+        &Handle<ColorMaterial>,
+    )>,
+    mut q_hovered: Query<(&Entity, &Hoverable)>,
     q_camera: Query<(&Camera, &Transform)>,
 ) {
     let mut cursor_pos: Option<Vec2> = None;
@@ -88,19 +112,11 @@ fn update_hovered(
 
     if let Some(cursor_pos) = cursor_pos {
         let (_cam, cam_transform) = q_camera.iter().last().unwrap();
-
-        // get the size of the window
         let window = windows.get_primary().unwrap();
-        let size = Vec2::new(window.width() as f32, window.height() as f32);
 
-        // the default orthographic projection is in pixels from the center;
-        // just undo the translation
-        let screen_pos = cursor_pos - size / 2.0;
+        let pos_wld = cursor_to_world(window, cam_transform, cursor_pos);
 
-        // apply the camera transform
-        let pos_wld = cam_transform.compute_matrix() * screen_pos.extend(0.0).extend(1.0);
-
-        for (mut hovered, transform, size, material) in q_hovered.iter_mut() {
+        for (entity, mut hovered, transform, size, material) in q_hoverable.iter_mut() {
             let half_width = size.xy.x / 2.0;
             let half_height = size.xy.y / 2.0;
 
@@ -109,13 +125,68 @@ fn update_hovered(
                 && transform.translation.x + half_width > pos_wld.x
                 && transform.translation.x + half_height > pos_wld.y
             {
+                // for (entity, _hovered) in q_hovered {
+                //     commands.remove_one::<Hoverable>(*entity);
+                // }
+                commands.insert_one(*entity, Hoverable);
                 hovered.on = true;
                 materials.get_mut(material).unwrap().color.set_a(0.5);
+                break;
             } else {
                 hovered.on = false;
                 materials.get_mut(material).unwrap().color.set_a(1.);
             }
         }
+    }
+}
+
+fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2) -> Vec2 {
+    // get the size of the window
+    let size = Vec2::new(window.width() as f32, window.height() as f32);
+
+    // the default orthographic projection is in pixels from the center;
+    // just undo the translation
+    let screen_pos = cursor_pos - size / 2.0;
+
+    // apply the camera transform
+    let out = cam_transform.compute_matrix() * screen_pos.extend(0.0).extend(1.0);
+    Vec2::new(out.x, out.y)
+}
+
+fn draggable(
+    i_mouse_button: Res<Input<MouseButton>>,
+    e_cursor_moved: Res<Events<CursorMoved>>,
+    mut state: ResMut<State>,
+    windows: Res<Windows>,
+    mut q_dragged: Query<(&mut Dragged, &Hovered, &mut Transform)>,
+    q_camera: Query<(&Camera, &Transform)>,
+) {
+    if i_mouse_button.just_pressed(MouseButton::Left) {
+        for (mut dragged, hovered, transform) in q_dragged.iter_mut() {
+            if hovered.on {
+                dragged.on = true;
+                break;
+            }
+        }
+    } else if i_mouse_button.just_released(MouseButton::Left) {
+        for (mut dragged, _hovered, transform) in q_dragged.iter_mut() {
+            if dragged.on {
+                dragged.on = false;
+                break;
+            }
+        }
+    }
+
+    let mut cursor_pos: Option<Vec2> = None;
+    for event in state.cursor_moved_event_reader.iter(&e_cursor_moved).last() {
+        cursor_pos = Some(event.position);
+    }
+
+    if let Some(cursor_pos) = cursor_pos {
+        let window = windows.get_primary().unwrap();
+        let (_cam, cam_transform) = q_camera.iter().last().unwrap();
+
+        let cursor_world = cursor_to_world(&window, &cam_transform, cursor_pos);
     }
 }
 
@@ -127,7 +198,7 @@ struct State {
     cursor_moved_event_reader: EventReader<CursorMoved>,
 }
 
-fn update_camera(
+fn camera(
     mut state: ResMut<State>,
     mouse_motion_events: Res<Events<MouseMotion>>,
     first_person: Res<FirstPerson>,
@@ -155,7 +226,7 @@ fn update_camera(
     }
 }
 
-fn update_cursor_visibility(mut windows: ResMut<Windows>, first_person: Res<FirstPerson>) {
+fn cursor_visibility(mut windows: ResMut<Windows>, first_person: Res<FirstPerson>) {
     let window = windows.get_primary_mut().unwrap();
     window.set_cursor_visibility(!first_person.on);
 
@@ -164,10 +235,7 @@ fn update_cursor_visibility(mut windows: ResMut<Windows>, first_person: Res<Firs
     }
 }
 
-fn update_crosshair_visibility(
-    first_person: Res<FirstPerson>,
-    mut query: Query<(&Crosshair, &mut Draw)>,
-) {
+fn crosshair_visibility(first_person: Res<FirstPerson>, mut query: Query<(&Crosshair, &mut Draw)>) {
     for (_crosshair, mut draw) in query.iter_mut() {
         draw.is_visible = first_person.on;
     }
