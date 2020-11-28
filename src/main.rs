@@ -30,7 +30,7 @@ impl Plugin for KanterPlugin {
             .add_system(workspace.system())
             .add_system(toggle_cursor.system())
             .add_system(drag.system())
-            .add_system(alpha.system())
+            .add_system(material.system())
             .add_system(hoverable.system())
             .add_system(draggable.system())
             .add_system(cursor_visibility.system())
@@ -58,6 +58,24 @@ fn setup(
                     ..Default::default()
                 })
                 .with(Crosshair);
+        })
+        .spawn(SpriteBundle {
+            material: materials.add(test_image.clone().into()),
+            ..Default::default()
+        })
+        .with(Hoverable)
+        .with(Draggable)
+        .with(Size {
+            xy: Vec2::new(256., 256.),
+        })
+        .spawn(SpriteBundle {
+            material: materials.add(test_image.clone().into()),
+            ..Default::default()
+        })
+        .with(Hoverable)
+        .with(Draggable)
+        .with(Size {
+            xy: Vec2::new(256., 256.),
         })
         .spawn(SpriteBundle {
             material: materials.add(test_image.clone().into()),
@@ -138,13 +156,10 @@ fn workspace(
     }
 }
 
-// TODO: Use the `Changed` `Query` thing: https://github.com/bevyengine/bevy/pull/834
-// TODO: Use the `Without` `Query` thing: https://github.com/bevyengine/bevy/pull/834
-
 fn hoverable(
     commands: &mut Commands,
     q_workspace: Query<&Workspace>,
-    q_hoverable: Query<(Entity, &Transform, &Size), With<Hoverable>>,
+    q_hoverable: Query<(Entity, &Transform, &Size), (With<Hoverable>, Without<Dragged>)>,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
 
@@ -166,19 +181,30 @@ fn hoverable(
     }
 }
 
-// TODO: Able to hover only one thing
-// TODO: Make it unable to hover what is being dragged
-
-fn alpha(
+fn material(
     mut materials: ResMut<Assets<ColorMaterial>>,
-    q_hovered: Query<(&Hovered, &Handle<ColorMaterial>)>,
-    q_hoverable: Query<(&Hoverable, &Handle<ColorMaterial>)>,
+    q_hoverable: Query<
+        (&Handle<ColorMaterial>, Option<&Hovered>, Option<&Dragged>),
+        With<Hoverable>,
+    >,
 ) {
-    for (_hoverable, material) in q_hoverable.iter() {
-        materials.get_mut(material).unwrap().color.set_a(1.0);
-    }
-    for (_hovered, material) in q_hovered.iter() {
-        materials.get_mut(material).unwrap().color.set_a(0.5);
+    let mut first = true;
+
+    for (material, hovered, dragged) in q_hoverable.iter() {
+        let (red, green, alpha) = if dragged.is_some() {
+            (0.0, 1.0, 1.0)
+        } else if first && hovered.is_some() {
+            first = false;
+            (1.0, 0.0, 1.0)
+        } else if hovered.is_some() {
+            (1.0, 1.0, 0.5)
+        } else {
+            (1.0, 1.0, 1.0)
+        };
+
+        materials.get_mut(material).unwrap().color.set_r(red);
+        materials.get_mut(material).unwrap().color.set_g(green);
+        materials.get_mut(material).unwrap().color.set_a(alpha);
     }
 }
 
