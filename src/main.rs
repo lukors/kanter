@@ -26,10 +26,10 @@ impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_startup_system(setup.system())
             .add_system(toggle_cursor.system())
-            .add_system(hoverable.system())
-            .add_system(alpha.system())
-            .add_system(draggable.system())
             .add_system(drag.system())
+            .add_system(alpha.system())
+            .add_system(hoverable.system())
+            .add_system(draggable.system())
             .add_system(cursor_visibility.system())
             .add_system(crosshair_visibility.system())
             .add_system(camera.system());
@@ -53,6 +53,15 @@ fn setup(
                     ..Default::default()
                 })
                 .with(Crosshair);
+        })
+        .spawn(SpriteBundle {
+            material: materials.add(test_image.clone().into()),
+            ..Default::default()
+        })
+        .with(Hoverable)
+        .with(Draggable)
+        .with(Size {
+            xy: Vec2::new(256., 256.),
         })
         .spawn(SpriteBundle {
             material: materials.add(test_image.into()),
@@ -89,44 +98,27 @@ fn hoverable(
     mut state: ResMut<State>,
     e_cursor_moved: Res<Events<CursorMoved>>,
     windows: Res<Windows>,
-    q_hoverable: Query<(
-        Entity,
-        &Hoverable,
-        &Transform,
-        &Size,
-    )>,
-    q_hovered: Query<(Entity, &Hovered)>,
+    q_hoverable: Query<(Entity, &Hoverable, &Transform, &Size)>,
     q_camera: Query<(&Camera, &Transform)>,
 ) {
-    let mut cursor_pos: Option<Vec2> = None;
-    for event in state.cursor_moved_event_reader.iter(&e_cursor_moved) {
-        cursor_pos = Some(event.position);
-    }
+    let event_cursor = state.er_cursor_moved_hover.latest(&e_cursor_moved);
 
-    if let Some(cursor_pos) = cursor_pos {
+    if let Some(event_cursor) = event_cursor {
         let (_cam, cam_transform) = q_camera.iter().last().unwrap();
         let window = windows.get_primary().unwrap();
 
-        let pos_wld = cursor_to_world(window, cam_transform, cursor_pos);
+        let pos_wld = cursor_to_world(window, cam_transform, event_cursor.position);
 
         for (entity, _hoverable, transform, size) in q_hoverable.iter() {
             let half_width = size.xy.x / 2.0;
             let half_height = size.xy.y / 2.0;
 
             if transform.translation.x - half_width < pos_wld.x
-                && transform.translation.y - half_height < pos_wld.y
                 && transform.translation.x + half_width > pos_wld.x
-                && transform.translation.x + half_height > pos_wld.y
+                && transform.translation.y - half_height < pos_wld.y
+                && transform.translation.y + half_height > pos_wld.y
             {
-                // Remove all hovered components.
-                for (entity, _hovered) in q_hovered.iter() {
-                    commands.remove_one::<Hovered>(entity);
-                }
-
-                // Insert the hovered component on the hovered entity.
                 commands.insert_one(entity, Hovered);
-                break;
-
             } else {
                 commands.remove_one::<Hovered>(entity);
             }
@@ -163,50 +155,48 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
 fn draggable(
     commands: &mut Commands,
     i_mouse_button: Res<Input<MouseButton>>,
-    e_cursor_moved: Res<Events<CursorMoved>>,
-    mut state: ResMut<State>,
-    windows: Res<Windows>,
-    mut q_draggable: Query<(Entity, &Draggable, &Hovered, &mut Transform)>,
-    q_camera: Query<(&Camera, &Transform)>,
+    mut q_pressed: Query<(Entity, &Draggable, &Hovered)>,
+    mut q_released: Query<(Entity, &Dragged)>,
 ) {
     if i_mouse_button.just_pressed(MouseButton::Left) {
-        for (entity, _draggable, _hovered, _transform) in q_draggable.iter_mut() {
+        if let Some((entity, _draggable, _hovered)) = q_pressed.iter_mut().next() {
             commands.insert_one(entity, Dragged);
-            break;
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
-        for (entity, _draggable, _hovered, _transform) in q_draggable.iter_mut() {
+        for (entity, _dragged) in q_released.iter_mut() {
             commands.remove_one::<Dragged>(entity);
         }
-    }
-
-    let mut cursor_pos: Option<Vec2> = None;
-    for event in state.cursor_moved_event_reader.iter(&e_cursor_moved).last() {
-        cursor_pos = Some(event.position);
-    }
-
-    if let Some(cursor_pos) = cursor_pos {
-        let window = windows.get_primary().unwrap();
-        let (_cam, cam_transform) = q_camera.iter().last().unwrap();
-
-        let cursor_world = cursor_to_world(&window, &cam_transform, cursor_pos);
     }
 }
 
 fn drag(
     windows: Res<Windows>,
+    mut state: ResMut<State>,
+    e_cursor_moved: Res<Events<CursorMoved>>,
     mut q_dragged: Query<(&Dragged, &mut Transform)>,
     q_camera: Query<(&Camera, &Transform)>,
 ) {
-    
+    for (_dragged, mut transform) in q_dragged.iter_mut() {
+        let event_cursor = state.er_cursor_moved_drag.latest(&e_cursor_moved);
+
+        if let Some(event_cursor) = event_cursor {
+            let window = windows.get_primary().unwrap();
+            let (_cam, cam_transform) = q_camera.iter().last().unwrap();
+            let cursor_world = cursor_to_world(&window, &cam_transform, event_cursor.position);
+
+            transform.translation.x = cursor_world.x;
+            transform.translation.y = cursor_world.y;
+        }
+    }
 }
 
 struct Crosshair;
 
 #[derive(Default)]
 struct State {
-    mouse_motion_event_reader: EventReader<MouseMotion>,
-    cursor_moved_event_reader: EventReader<CursorMoved>,
+    er_mouse_motion_fpcam: EventReader<MouseMotion>,
+    er_cursor_moved_hover: EventReader<CursorMoved>,
+    er_cursor_moved_drag: EventReader<CursorMoved>,
 }
 
 fn camera(
@@ -220,7 +210,7 @@ fn camera(
     }
 
     let mut delta: Vec2 = Vec2::zero();
-    for event in state.mouse_motion_event_reader.iter(&mouse_motion_events) {
+    for event in state.er_mouse_motion_fpcam.iter(&mouse_motion_events) {
         delta += event.delta;
     }
     if delta == Vec2::zero() {
