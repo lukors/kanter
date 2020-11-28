@@ -191,17 +191,18 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
 fn draggable(
     commands: &mut Commands,
     i_mouse_button: Res<Input<MouseButton>>,
-    mut q_pressed: Query<(Entity, &Draggable, &Hovered)>,
+    mut q_pressed: Query<(Entity, &Draggable, &Hovered, &Transform)>,
     mut q_released: Query<(Entity, &Dragged)>,
+    q_workspace: Query<&Workspace>,
 ) {
+    let workspace = q_workspace.iter().next().unwrap();
+
     if i_mouse_button.just_pressed(MouseButton::Left) {
-        if let Some((entity, _draggable, _hovered)) = q_pressed.iter_mut().next() {
-            commands.insert_one(
-                entity,
-                Dragged {
-                    anchor: Vec2::zero(),
-                },
-            );
+        if let Some((entity, _draggable, _hovered, transform)) = q_pressed.iter_mut().next() {
+            let translation = Vec2::new(transform.translation.x, transform.translation.y);
+            let anchor = translation - workspace.cursor_world;
+
+            commands.insert_one(entity, Dragged { anchor });
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
         for (entity, _dragged) in q_released.iter_mut() {
