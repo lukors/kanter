@@ -27,6 +27,7 @@ impl Plugin for KanterPlugin {
         app.add_startup_system(setup.system())
             .add_system(toggle_cursor.system())
             .add_system(hoverable.system())
+            .add_system(alpha.system())
             .add_system(draggable.system())
             .add_system(cursor_visibility.system())
             .add_system(crosshair_visibility.system())
@@ -56,7 +57,7 @@ fn setup(
             material: materials.add(test_image.into()),
             ..Default::default()
         })
-        .with(Hovered::default())
+        .with(Hoverable)
         .with(Dragged::default())
         .with(Size {
             xy: Vec2::new(256., 256.),
@@ -83,6 +84,7 @@ struct Dragged {
 }
 
 struct Hoverable;
+struct HoveredTemp;
 
 #[derive(Default)]
 struct Hovered {
@@ -91,18 +93,16 @@ struct Hovered {
 
 fn hoverable(
     commands: &mut Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut state: ResMut<State>,
     e_cursor_moved: Res<Events<CursorMoved>>,
     windows: Res<Windows>,
-    mut q_hoverable: Query<(
-        &Entity,
-        &mut Hovered,
+    q_hoverable: Query<(
+        Entity,
+        &Hoverable,
         &Transform,
         &Size,
-        &Handle<ColorMaterial>,
     )>,
-    mut q_hovered: Query<(&Entity, &Hoverable)>,
+    q_hovered: Query<(Entity, &HoveredTemp)>,
     q_camera: Query<(&Camera, &Transform)>,
 ) {
     let mut cursor_pos: Option<Vec2> = None;
@@ -116,7 +116,7 @@ fn hoverable(
 
         let pos_wld = cursor_to_world(window, cam_transform, cursor_pos);
 
-        for (entity, mut hovered, transform, size, material) in q_hoverable.iter_mut() {
+        for (entity, _hoverable, transform, size) in q_hoverable.iter() {
             let half_width = size.xy.x / 2.0;
             let half_height = size.xy.y / 2.0;
 
@@ -125,18 +125,32 @@ fn hoverable(
                 && transform.translation.x + half_width > pos_wld.x
                 && transform.translation.x + half_height > pos_wld.y
             {
-                // for (entity, _hovered) in q_hovered {
-                //     commands.remove_one::<Hoverable>(*entity);
-                // }
-                commands.insert_one(*entity, Hoverable);
-                hovered.on = true;
-                materials.get_mut(material).unwrap().color.set_a(0.5);
+                // Remove all hovered components.
+                for (entity, _hovered) in q_hovered.iter() {
+                    commands.remove_one::<HoveredTemp>(entity);
+                }
+
+                // Insert the hovered component on the hovered entity.
+                commands.insert_one(entity, HoveredTemp);
                 break;
+
             } else {
-                hovered.on = false;
-                materials.get_mut(material).unwrap().color.set_a(1.);
+                commands.remove_one::<HoveredTemp>(entity);
             }
         }
+    }
+}
+
+fn alpha(
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    q_hovered: Query<(&HoveredTemp, &Handle<ColorMaterial>)>,
+    q_hoverable: Query<(&Hoverable, &Handle<ColorMaterial>)>,
+) {
+    for (_hoverable, material) in q_hoverable.iter() {
+        materials.get_mut(material).unwrap().color.set_a(1.0);
+    }
+    for (_hovered, material) in q_hovered.iter() {
+        materials.get_mut(material).unwrap().color.set_a(0.5);
     }
 }
 
