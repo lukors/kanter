@@ -25,6 +25,7 @@ pub struct KanterPlugin;
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_startup_system(setup.system())
+            .add_system(workspace.system())
             .add_system(toggle_cursor.system())
             .add_system(drag.system())
             .add_system(alpha.system())
@@ -45,6 +46,8 @@ fn setup(
     let crosshair_image = asset_server.load("crosshair.png");
 
     commands
+        .spawn(())
+        .with(Workspace::default())
         .spawn(Camera2dBundle::default())
         .with_children(|parent| {
             parent
@@ -75,8 +78,14 @@ fn setup(
 }
 
 #[derive(Default)]
-struct Workspace {}
+struct Workspace {
+    cursor_screen: Vec2,
+    cursor_world: Vec2,
+    cursor_delta: Vec2,
+    cursor_moved: bool,
+}
 
+// TODO: Move this into workspace component
 #[derive(Default)]
 struct FirstPerson {
     on: bool,
@@ -88,35 +97,62 @@ struct Size {
 }
 
 struct Draggable;
-struct Dragged;
+#[derive(Default)]
+struct Dragged {
+    anchor: Vec2,
+}
 
 struct Hoverable;
 struct Hovered;
 
-fn hoverable(
-    commands: &mut Commands,
+fn workspace(
     mut state: ResMut<State>,
     e_cursor_moved: Res<Events<CursorMoved>>,
+    e_mouse_motion: Res<Events<MouseMotion>>,
     windows: Res<Windows>,
-    q_hoverable: Query<(Entity, &Hoverable, &Transform, &Size)>,
+    mut q_workspace: Query<&mut Workspace>,
     q_camera: Query<(&Camera, &Transform)>,
 ) {
-    let event_cursor = state.er_cursor_moved_hover.latest(&e_cursor_moved);
+    let mut event_cursor_delta: Vec2 = Vec2::zero();
+    for event_motion in state.er_mouse_motion.iter(&e_mouse_motion) {
+        event_cursor_delta += event_motion.delta;
+    }
+    let event_cursor_screen = state.er_cursor_moved.latest(&e_cursor_moved);
 
-    if let Some(event_cursor) = event_cursor {
-        let (_cam, cam_transform) = q_camera.iter().last().unwrap();
-        let window = windows.get_primary().unwrap();
+    for mut workspace in q_workspace.iter_mut() {
+        if let Some(event_cursor_screen) = event_cursor_screen {
+            workspace.cursor_screen = event_cursor_screen.position;
 
-        let pos_wld = cursor_to_world(window, cam_transform, event_cursor.position);
+            let window = windows.get_primary().unwrap();
+            let (_cam, cam_transform) = q_camera.iter().last().unwrap();
+            workspace.cursor_world =
+                cursor_to_world(window, cam_transform, event_cursor_screen.position);
 
+            workspace.cursor_moved = true;
+        } else {
+            workspace.cursor_moved = false;
+        }
+
+        workspace.cursor_delta = event_cursor_delta;
+    }
+}
+
+fn hoverable(
+    commands: &mut Commands,
+    q_workspace: Query<&Workspace>,
+    q_hoverable: Query<(Entity, &Hoverable, &Transform, &Size)>,
+) {
+    let workspace = q_workspace.iter().next().unwrap();
+
+    if workspace.cursor_moved {
         for (entity, _hoverable, transform, size) in q_hoverable.iter() {
             let half_width = size.xy.x / 2.0;
             let half_height = size.xy.y / 2.0;
 
-            if transform.translation.x - half_width < pos_wld.x
-                && transform.translation.x + half_width > pos_wld.x
-                && transform.translation.y - half_height < pos_wld.y
-                && transform.translation.y + half_height > pos_wld.y
+            if transform.translation.x - half_width < workspace.cursor_world.x
+                && transform.translation.x + half_width > workspace.cursor_world.x
+                && transform.translation.y - half_height < workspace.cursor_world.y
+                && transform.translation.y + half_height > workspace.cursor_world.y
             {
                 commands.insert_one(entity, Hovered);
             } else {
@@ -160,7 +196,12 @@ fn draggable(
 ) {
     if i_mouse_button.just_pressed(MouseButton::Left) {
         if let Some((entity, _draggable, _hovered)) = q_pressed.iter_mut().next() {
-            commands.insert_one(entity, Dragged);
+            commands.insert_one(
+                entity,
+                Dragged {
+                    anchor: Vec2::zero(),
+                },
+            );
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
         for (entity, _dragged) in q_released.iter_mut() {
@@ -169,23 +210,13 @@ fn draggable(
     }
 }
 
-fn drag(
-    windows: Res<Windows>,
-    mut state: ResMut<State>,
-    e_cursor_moved: Res<Events<CursorMoved>>,
-    mut q_dragged: Query<(&Dragged, &mut Transform)>,
-    q_camera: Query<(&Camera, &Transform)>,
-) {
-    for (_dragged, mut transform) in q_dragged.iter_mut() {
-        let event_cursor = state.er_cursor_moved_drag.latest(&e_cursor_moved);
+fn drag(mut q_dragged: Query<(&Dragged, &mut Transform)>, q_workspace: Query<&Workspace>) {
+    let workspace = q_workspace.iter().next().unwrap();
 
-        if let Some(event_cursor) = event_cursor {
-            let window = windows.get_primary().unwrap();
-            let (_cam, cam_transform) = q_camera.iter().last().unwrap();
-            let cursor_world = cursor_to_world(&window, &cam_transform, event_cursor.position);
-
-            transform.translation.x = cursor_world.x;
-            transform.translation.y = cursor_world.y;
+    if workspace.cursor_moved {
+        for (dragged, mut transform) in q_dragged.iter_mut() {
+            transform.translation.x = workspace.cursor_world.x + dragged.anchor.x;
+            transform.translation.y = workspace.cursor_world.y + dragged.anchor.y;
         }
     }
 }
@@ -194,36 +225,28 @@ struct Crosshair;
 
 #[derive(Default)]
 struct State {
-    er_mouse_motion_fpcam: EventReader<MouseMotion>,
-    er_cursor_moved_hover: EventReader<CursorMoved>,
-    er_cursor_moved_drag: EventReader<CursorMoved>,
+    er_mouse_motion: EventReader<MouseMotion>,
+    er_cursor_moved: EventReader<CursorMoved>,
 }
 
 fn camera(
-    mut state: ResMut<State>,
-    mouse_motion_events: Res<Events<MouseMotion>>,
     first_person: Res<FirstPerson>,
-    mut query: Query<(&Camera, &mut Transform)>,
+    mut q_camera: Query<(&Camera, &mut Transform)>,
+    q_workspace: Query<&Workspace>,
 ) {
+    let workspace = q_workspace.iter().next().unwrap();
+
     if !first_person.on {
         return;
     }
 
-    let mut delta: Vec2 = Vec2::zero();
-    for event in state.er_mouse_motion_fpcam.iter(&mouse_motion_events) {
-        delta += event.delta;
-    }
-    if delta == Vec2::zero() {
-        return;
-    }
-
-    for (_camera, mut transform) in query.iter_mut() {
+    for (_camera, mut transform) in q_camera.iter_mut() {
         if !first_person.on {
             continue;
         }
 
-        transform.translation.x += delta.x;
-        transform.translation.y -= delta.y;
+        transform.translation.x += workspace.cursor_delta.x;
+        transform.translation.y -= workspace.cursor_delta.y;
     }
 }
 
