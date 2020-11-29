@@ -24,18 +24,20 @@ fn main() {
 
 pub struct KanterPlugin;
 
+// TODO: Make moving stuff a parenting thing instead of changing transforms.
+
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_startup_system(setup.system())
-            .add_system(workspace.system())
-            .add_system(toggle_cursor.system())
-            .add_system(drag.system())
-            .add_system(material.system())
-            .add_system(hoverable.system())
-            .add_system(draggable.system())
-            .add_system(cursor_visibility.system())
-            .add_system(crosshair_visibility.system())
-            .add_system(camera.system());
+            .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
+            .add_system_to_stage(stage::UPDATE, camera.system())
+            .add_system_to_stage(stage::UPDATE, draggable.system())
+            .add_system_to_stage(stage::UPDATE, drag.system())
+            .add_system_to_stage(stage::UPDATE, hoverable.system())
+            .add_system_to_stage(stage::UPDATE, toggle_cursor.system())
+            .add_system_to_stage(stage::POST_UPDATE, cursor_visibility.system())
+            .add_system_to_stage(stage::POST_UPDATE, crosshair_visibility.system())
+            .add_system_to_stage(stage::POST_UPDATE, material.system());
     }
 }
 
