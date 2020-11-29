@@ -24,16 +24,15 @@ fn main() {
 
 pub struct KanterPlugin;
 
-// TODO: Make moving stuff a parenting thing instead of changing transforms.
-
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_startup_system(setup.system())
             .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
             .add_system_to_stage(stage::UPDATE, camera.system())
+            .add_system_to_stage(stage::UPDATE, cursor_transform.system())
             .add_system_to_stage(stage::UPDATE, draggable.system())
             .add_system_to_stage(stage::UPDATE, hoverable.system())
-            .add_system_to_stage(stage::UPDATE, toggle_cursor.system())
+            .add_system_to_stage(stage::UPDATE, first_person.system())
             .add_system_to_stage(stage::POST_UPDATE, drag.system())
             .add_system_to_stage(stage::POST_UPDATE, drop.system())
             .add_system_to_stage(stage::POST_UPDATE, cursor_visibility.system())
@@ -62,47 +61,28 @@ fn setup(
                 })
                 .with(Crosshair);
         })
-        .spawn(SpriteBundle {
-            material: materials.add(test_image.clone().into()),
-            ..Default::default()
-        })
-        .with(Hoverable)
-        .with(Draggable)
-        .with(Size {
-            xy: Vec2::new(256., 256.),
-        })
-        .spawn(SpriteBundle {
-            material: materials.add(test_image.clone().into()),
-            ..Default::default()
-        })
-        .with(Hoverable)
-        .with(Draggable)
-        .with(Size {
-            xy: Vec2::new(256., 256.),
-        })
-        .spawn(SpriteBundle {
-            material: materials.add(test_image.clone().into()),
-            ..Default::default()
-        })
-        .with(Hoverable)
-        .with(Draggable)
-        .with(Size {
-            xy: Vec2::new(256., 256.),
-        })
-        .spawn(SpriteBundle {
-            material: materials.add(test_image.into()),
-            ..Default::default()
-        })
-        .with(Hoverable)
-        .with(Draggable)
-        .with(Size {
-            xy: Vec2::new(256., 256.),
-        });
+        .spawn((Transform::default(), GlobalTransform::default(), Cursor));
+
+    for _ in 0..4 {
+        commands
+            .spawn(SpriteBundle {
+                material: materials.add(test_image.clone().into()),
+                ..Default::default()
+            })
+            .with(Hoverable)
+            .with(Draggable)
+            .with(Size {
+                xy: Vec2::new(256., 256.),
+            });
+    }
 }
 
-// TODO: Make `FirstPerson` not a resource.
-// TODO: Add a camera entity component to workspace.
 // TODO: Stop grabbing the mouse if the window is not active.
+// TODO: Escape should exit FP mode.
+// TODO: Make `FirstPerson` not a resource, put it on workspace instead.
+// TODO: Add a camera entity component to workspace so its more reliable to get to.
+// TODO: Parent everything to the workspace it belongs to, so everything automatically is removed
+//       when the workspace is.
 
 #[derive(Default)]
 struct Workspace {
@@ -110,7 +90,6 @@ struct Workspace {
     cursor_world: Vec2,
     cursor_delta: Vec2,
     cursor_moved: bool,
-    dragging: bool,
 }
 
 #[derive(Default)]
@@ -123,15 +102,12 @@ struct Size {
     xy: Vec2,
 }
 
+struct Cursor;
+
 struct Draggable;
 #[derive(Default)]
-struct Dragged {
-    anchor: Vec2,
-}
+struct Dragged;
 struct Dropped;
-// struct DragParent {
-//     xy: Vec2,
-// }
 
 struct Hoverable;
 struct Hovered;
@@ -165,6 +141,32 @@ fn workspace(
         }
 
         workspace.cursor_delta = event_cursor_delta;
+    }
+}
+
+fn cursor_transform(
+    r_first_person: Res<FirstPerson>,
+    commands: &mut Commands,
+    q_workspace: Query<&Workspace>,
+    q_camera: Query<Entity, With<Camera>>,
+    mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
+) {
+    if r_first_person.on {
+        let camera_e = q_camera.iter().next().unwrap();
+
+        for (entity, mut transform) in q_cursor.iter_mut() {
+            transform.translation.x = 0.;
+            transform.translation.y = 0.;
+            commands.insert_one(entity, Parent(camera_e));
+        }
+    } else {
+        let workspace = q_workspace.iter().next().unwrap();
+
+        for (entity, mut transform) in q_cursor.iter_mut() {
+            transform.translation.x = workspace.cursor_world.x;
+            transform.translation.y = workspace.cursor_world.y;
+            commands.remove_one::<Parent>(entity);
+        }
     }
 }
 
@@ -236,18 +238,12 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
 fn draggable(
     commands: &mut Commands,
     i_mouse_button: Res<Input<MouseButton>>,
-    q_pressed: Query<(Entity, &Transform), (With<Hovered>, With<Draggable>)>,
+    q_pressed: Query<Entity, (With<Hovered>, With<Draggable>)>,
     q_released: Query<Entity, With<Dragged>>,
-    q_workspace: Query<&Workspace>,
 ) {
-    let workspace = q_workspace.iter().next().unwrap();
-
     if i_mouse_button.just_pressed(MouseButton::Left) {
-        if let Some((entity, transform)) = q_pressed.iter().next() {
-            let translation = Vec2::new(transform.translation.x, transform.translation.y);
-            let anchor = translation - workspace.cursor_world;
-
-            commands.insert_one(entity, Dragged { anchor });
+        if let Some(entity) = q_pressed.iter().next() {
+            commands.insert_one(entity, Dragged);
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
         for entity in q_released.iter() {
@@ -261,12 +257,12 @@ fn draggable(
 fn drag(
     commands: &mut Commands,
     mut q_dragged: Query<(Entity, &mut Transform, &GlobalTransform), Added<Dragged>>,
-    q_camera: Query<(Entity, &Transform), With<Camera>>,
+    q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
 ) {
-    if let Some((camera, cam_transform)) = q_camera.iter().next() {
+    if let Some((cursor_e, cursor_transform)) = q_cursor.iter().next() {
         for (entity, mut transform, global_transform) in q_dragged.iter_mut() {
-            let global_pos = global_transform.translation - cam_transform.translation;
-            commands.insert_one(entity, Parent(camera));
+            let global_pos = global_transform.translation - cursor_transform.translation;
+            commands.insert_one(entity, Parent(cursor_e));
             transform.translation.x = global_pos.x;
             transform.translation.y = global_pos.y;
         }
@@ -330,7 +326,7 @@ fn crosshair_visibility(first_person: Res<FirstPerson>, mut query: Query<(&Cross
     }
 }
 
-fn toggle_cursor(mut first_person: ResMut<FirstPerson>, input: Res<Input<KeyCode>>) {
+fn first_person(mut first_person: ResMut<FirstPerson>, input: Res<Input<KeyCode>>) {
     if input.just_pressed(KeyCode::Tab) {
         first_person.on = !first_person.on;
     }
