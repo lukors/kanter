@@ -16,7 +16,6 @@ fn main() {
             vsync: true,
             ..Default::default()
         })
-        .add_resource(FirstPerson::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();
@@ -77,12 +76,13 @@ fn setup(
     }
 }
 
-// TODO: Stop grabbing the mouse if the window is not active.
-// TODO: Escape should exit FP mode.
-// TODO: Make `FirstPerson` not a resource, put it on workspace instead.
 // TODO: Add a camera entity component to workspace so its more reliable to get to.
 // TODO: Parent everything to the workspace it belongs to, so everything automatically is removed
 //       when the workspace is.
+// TODO: Box select
+// TODO: Add an "active workspace" global resource.
+// TODO: Stop grabbing the mouse if the window is not active. No good way to do this yet.
+// TODO: Add click and drag panning
 
 #[derive(Default)]
 struct Workspace {
@@ -90,11 +90,7 @@ struct Workspace {
     cursor_world: Vec2,
     cursor_delta: Vec2,
     cursor_moved: bool,
-}
-
-#[derive(Default)]
-struct FirstPerson {
-    on: bool,
+    first_person: bool,
 }
 
 #[derive(Default)]
@@ -145,13 +141,14 @@ fn workspace(
 }
 
 fn cursor_transform(
-    r_first_person: Res<FirstPerson>,
     commands: &mut Commands,
     q_workspace: Query<&Workspace>,
     q_camera: Query<Entity, With<Camera>>,
     mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
 ) {
-    if r_first_person.on {
+    let workspace = q_workspace.iter().next().unwrap();
+
+    if workspace.first_person {
         let camera_e = q_camera.iter().next().unwrap();
 
         for (entity, mut transform) in q_cursor.iter_mut() {
@@ -160,8 +157,6 @@ fn cursor_transform(
             commands.insert_one(entity, Parent(camera_e));
         }
     } else {
-        let workspace = q_workspace.iter().next().unwrap();
-
         for (entity, mut transform) in q_cursor.iter_mut() {
             transform.translation.x = workspace.cursor_world.x;
             transform.translation.y = workspace.cursor_world.y;
@@ -290,44 +285,46 @@ struct State {
     er_cursor_moved: EventReader<CursorMoved>,
 }
 
-fn camera(
-    first_person: Res<FirstPerson>,
-    mut q_camera: Query<&mut Transform, With<Camera>>,
-    q_workspace: Query<&Workspace>,
-) {
+fn camera(mut q_camera: Query<&mut Transform, With<Camera>>, q_workspace: Query<&Workspace>) {
     let workspace = q_workspace.iter().next().unwrap();
 
-    if !first_person.on {
+    if !workspace.first_person {
         return;
     }
 
     for mut transform in q_camera.iter_mut() {
-        if !first_person.on {
-            continue;
-        }
-
         transform.translation.x += workspace.cursor_delta.x;
         transform.translation.y -= workspace.cursor_delta.y;
     }
 }
 
-fn cursor_visibility(mut windows: ResMut<Windows>, first_person: Res<FirstPerson>) {
-    let window = windows.get_primary_mut().unwrap();
-    window.set_cursor_visibility(!first_person.on);
+// TODO: Make these two functions only run when first_person has changed
+fn cursor_visibility(mut windows: ResMut<Windows>, q_workspace: Query<&Workspace>) {
+    let workspace = q_workspace.iter().next().unwrap();
 
-    if first_person.on {
+    let window = windows.get_primary_mut().unwrap();
+    window.set_cursor_visibility(!workspace.first_person);
+
+    if workspace.first_person {
         window.set_cursor_position((window.width() / 2) as i32, (window.height() / 2) as i32);
     }
 }
 
-fn crosshair_visibility(first_person: Res<FirstPerson>, mut query: Query<(&Crosshair, &mut Draw)>) {
+fn crosshair_visibility(q_workspace: Query<&Workspace>, mut query: Query<(&Crosshair, &mut Draw)>) {
+    let workspace = q_workspace.iter().next().unwrap();
+
     for (_crosshair, mut draw) in query.iter_mut() {
-        draw.is_visible = first_person.on;
+        draw.is_visible = workspace.first_person;
     }
 }
 
-fn first_person(mut first_person: ResMut<FirstPerson>, input: Res<Input<KeyCode>>) {
+fn first_person(input: Res<Input<KeyCode>>, mut q_workspace: Query<&mut Workspace>) {
+    let mut workspace = q_workspace.iter_mut().next().unwrap();
+
     if input.just_pressed(KeyCode::Tab) {
-        first_person.on = !first_person.on;
+        workspace.first_person = !workspace.first_person;
+    }
+    if input.just_pressed(KeyCode::Escape) {
+        workspace.first_person = false;
     }
 }
