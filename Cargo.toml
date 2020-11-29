@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 # bevy = "0.3"
-bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "8e4eb41" }
+bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "1f3d506" }
