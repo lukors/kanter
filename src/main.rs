@@ -32,9 +32,10 @@ impl Plugin for KanterPlugin {
             .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
             .add_system_to_stage(stage::UPDATE, camera.system())
             .add_system_to_stage(stage::UPDATE, draggable.system())
-            .add_system_to_stage(stage::UPDATE, drag.system())
             .add_system_to_stage(stage::UPDATE, hoverable.system())
             .add_system_to_stage(stage::UPDATE, toggle_cursor.system())
+            .add_system_to_stage(stage::POST_UPDATE, drag.system())
+            .add_system_to_stage(stage::POST_UPDATE, drop.system())
             .add_system_to_stage(stage::POST_UPDATE, cursor_visibility.system())
             .add_system_to_stage(stage::POST_UPDATE, crosshair_visibility.system())
             .add_system_to_stage(stage::POST_UPDATE, material.system());
@@ -99,12 +100,17 @@ fn setup(
         });
 }
 
+// TODO: Make `FirstPerson` not a resource.
+// TODO: Add a camera entity component to workspace.
+// TODO: Stop grabbing the mouse if the window is not active.
+
 #[derive(Default)]
 struct Workspace {
     cursor_screen: Vec2,
     cursor_world: Vec2,
     cursor_delta: Vec2,
     cursor_moved: bool,
+    dragging: bool,
 }
 
 #[derive(Default)]
@@ -122,6 +128,10 @@ struct Draggable;
 struct Dragged {
     anchor: Vec2,
 }
+struct Dropped;
+// struct DragParent {
+//     xy: Vec2,
+// }
 
 struct Hoverable;
 struct Hovered;
@@ -242,18 +252,37 @@ fn draggable(
     } else if i_mouse_button.just_released(MouseButton::Left) {
         for entity in q_released.iter() {
             commands.remove_one::<Dragged>(entity);
+
+            commands.insert_one(entity, Dropped);
         }
     }
 }
 
-fn drag(mut q_dragged: Query<(&Dragged, &mut Transform)>, q_workspace: Query<&Workspace>) {
-    let workspace = q_workspace.iter().next().unwrap();
-
-    if workspace.cursor_moved {
-        for (dragged, mut transform) in q_dragged.iter_mut() {
-            transform.translation.x = workspace.cursor_world.x + dragged.anchor.x;
-            transform.translation.y = workspace.cursor_world.y + dragged.anchor.y;
+fn drag(
+    commands: &mut Commands,
+    mut q_dragged: Query<(Entity, &mut Transform, &GlobalTransform), Added<Dragged>>,
+    q_camera: Query<(Entity, &Transform), With<Camera>>,
+) {
+    if let Some((camera, cam_transform)) = q_camera.iter().next() {
+        for (entity, mut transform, global_transform) in q_dragged.iter_mut() {
+            let global_pos = global_transform.translation - cam_transform.translation;
+            commands.insert_one(entity, Parent(camera));
+            transform.translation.x = global_pos.x;
+            transform.translation.y = global_pos.y;
         }
+    }
+}
+
+fn drop(
+    commands: &mut Commands,
+    mut q_dropped: Query<(Entity, &mut Transform, &GlobalTransform), Added<Dropped>>,
+) {
+    for (entity, mut transform, global_transform) in q_dropped.iter_mut() {
+        let global_pos = global_transform.translation;
+        transform.translation.x = global_pos.x;
+        transform.translation.y = global_pos.y;
+        commands.remove_one::<Parent>(entity);
+        commands.remove_one::<Dropped>(entity);
     }
 }
 
