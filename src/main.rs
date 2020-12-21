@@ -99,6 +99,7 @@ fn setup(
 // TODO: Stop grabbing the mouse if the window is not active. Wait for this PR to be merged:
 //       https://github.com/bevyengine/bevy/pull/956
 // TODO: Add click and drag panning
+// TODO: Use the `size` of `Sprite` component instead of using my own `Size` component.
 
 struct ActiveWorkspace(Option<Entity>);
 struct Owner(Entity);
