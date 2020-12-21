@@ -3,7 +3,7 @@
 use bevy::{
     input::mouse::MouseMotion,
     prelude::*,
-    render::{camera::Camera, draw::Draw},
+    render::{camera::Camera},
 };
 
 fn main() {
@@ -11,8 +11,8 @@ fn main() {
         .init_resource::<State>()
         .add_resource(WindowDescriptor {
             title: "Bevy".to_string(),
-            width: 1024,
-            height: 768,
+            width: 1024.0,
+            height: 768.0,
             vsync: true,
             ..Default::default()
         })
@@ -26,18 +26,18 @@ pub struct KanterPlugin;
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_resource(ActiveWorkspace(None))
-            .add_startup_system(setup)
-            .add_system_to_stage(stage::PRE_UPDATE, workspace)
-            .add_system_to_stage(stage::UPDATE, camera)
-            .add_system_to_stage(stage::UPDATE, cursor_transform)
-            .add_system_to_stage(stage::UPDATE, draggable)
-            .add_system_to_stage(stage::UPDATE, hoverable)
-            .add_system_to_stage(stage::UPDATE, first_person)
-            .add_system_to_stage(stage::POST_UPDATE, drag)
-            .add_system_to_stage(stage::POST_UPDATE, drop)
-            .add_system_to_stage(stage::POST_UPDATE, cursor_visibility)
-            .add_system_to_stage(stage::POST_UPDATE, crosshair_visibility)
-            .add_system_to_stage(stage::POST_UPDATE, material);
+            .add_startup_system(setup.system())
+            .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
+            .add_system_to_stage(stage::UPDATE, camera.system())
+            .add_system_to_stage(stage::UPDATE, cursor_transform.system())
+            .add_system_to_stage(stage::UPDATE, draggable.system())
+            .add_system_to_stage(stage::UPDATE, hoverable.system())
+            .add_system_to_stage(stage::UPDATE, first_person.system())
+            .add_system_to_stage(stage::POST_UPDATE, drag.system())
+            .add_system_to_stage(stage::POST_UPDATE, drop.system())
+            .add_system_to_stage(stage::POST_UPDATE, cursor_visibility.system())
+            .add_system_to_stage(stage::POST_UPDATE, crosshair_visibility.system())
+            .add_system_to_stage(stage::POST_UPDATE, material.system());
     }
 }
 
@@ -377,8 +377,9 @@ fn cursor_visibility(
         let window = windows.get_primary_mut().unwrap();
         window.set_cursor_visibility(!first_person.0);
 
+        let window_size = Vec2::new(window.width(), window.height());
         if first_person.0 {
-            window.set_cursor_position((window.width() / 2) as i32, (window.height() / 2) as i32);
+            window.set_cursor_position(window_size / 2.0);
         }
     }
 }
@@ -386,19 +387,19 @@ fn cursor_visibility(
 fn crosshair_visibility(
     r_aw: Res<ActiveWorkspace>,
     q_workspace: Query<(Entity, &FirstPerson)>,
-    mut query: Query<(&Owner, &mut Draw), With<Crosshair>>,
+    mut query: Query<(&Owner, &mut Visible), With<Crosshair>>,
 ) {
     for (workspace_e, first_person) in q_workspace.iter() {
         if !workspace_matches(&r_aw, workspace_e) {
             continue;
         }
 
-        for (owner, mut draw) in query.iter_mut() {
+        for (owner, mut visible) in query.iter_mut() {
             if !owner_matches(&r_aw, owner) {
                 continue;
             }
 
-            draw.is_visible = first_person.0;
+            visible.is_visible = first_person.0;
         }
     }
 }
