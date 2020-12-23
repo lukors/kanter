@@ -1,10 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use bevy::{
-    input::mouse::MouseMotion,
-    prelude::*,
-    render::{camera::Camera},
-};
+use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Camera};
 
 fn main() {
     App::build()
@@ -40,6 +36,12 @@ impl Plugin for KanterPlugin {
             .add_system_to_stage(stage::POST_UPDATE, material.system());
     }
 }
+
+const NODE_SIZE: f32 = 128.;
+const NODE_SIZE_VEC: Vec2 = Vec2 {
+    x: NODE_SIZE,
+    y: NODE_SIZE,
+};
 
 fn setup(
     mut r_aw: ResMut<ActiveWorkspace>,
@@ -78,13 +80,11 @@ fn setup(
         commands
             .spawn(SpriteBundle {
                 material: materials.add(test_image.clone().into()),
+                sprite: Sprite::new(NODE_SIZE_VEC),
                 ..Default::default()
             })
             .with(Hoverable)
             .with(Draggable)
-            .with(Size {
-                xy: Vec2::new(256., 256.),
-            })
             .with(Owner(r_aw_e));
     }
 }
@@ -99,7 +99,6 @@ fn setup(
 // TODO: Stop grabbing the mouse if the window is not active. Wait for this PR to be merged:
 //       https://github.com/bevyengine/bevy/pull/956
 // TODO: Add click and drag panning
-// TODO: Use the `size` of `Sprite` component instead of using my own `Size` component.
 
 struct ActiveWorkspace(Option<Entity>);
 struct Owner(Entity);
@@ -113,11 +112,6 @@ struct Workspace {
 }
 
 struct FirstPerson(bool);
-
-#[derive(Default)]
-struct Size {
-    xy: Vec2,
-}
 
 struct Cursor;
 
@@ -206,14 +200,14 @@ fn cursor_transform(
 fn hoverable(
     commands: &mut Commands,
     q_workspace: Query<&Workspace>,
-    q_hoverable: Query<(Entity, &Transform, &Size), (With<Hoverable>, Without<Dragged>)>,
+    q_hoverable: Query<(Entity, &Transform, &Sprite), (With<Hoverable>, Without<Dragged>)>,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
 
     if workspace.cursor_moved {
-        for (entity, transform, size) in q_hoverable.iter() {
-            let half_width = size.xy.x / 2.0;
-            let half_height = size.xy.y / 2.0;
+        for (entity, transform, sprite) in q_hoverable.iter() {
+            let half_width = sprite.size.x / 2.;
+            let half_height = sprite.size.y / 2.;
 
             if transform.translation.x - half_width < workspace.cursor_world.x
                 && transform.translation.x + half_width > workspace.cursor_world.x
