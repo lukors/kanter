@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Camera};
+use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Camera, window::WindowFocused};
 
 fn main() {
     App::build()
@@ -96,8 +96,6 @@ fn setup(
 // TODO: Parent everything to the workspace it belongs to, so everything automatically is removed
 //       when the workspace is.
 // TODO: Box select
-// TODO: Stop grabbing the mouse if the window is not active. Wait for this PR to be merged:
-//       https://github.com/bevyengine/bevy/pull/956
 // TODO: Add click and drag panning
 
 struct ActiveWorkspace(Option<Entity>);
@@ -319,6 +317,7 @@ struct Crosshair;
 struct State {
     er_mouse_motion: EventReader<MouseMotion>,
     er_cursor_moved: EventReader<CursorMoved>,
+    er_window_focused: EventReader<WindowFocused>,
 }
 
 fn camera(
@@ -401,6 +400,8 @@ fn crosshair_visibility(
 fn first_person(
     r_aw: Res<ActiveWorkspace>,
     input: Res<Input<KeyCode>>,
+    e_window_focused: Res<Events<WindowFocused>>,
+    mut state: ResMut<State>,
     mut q_workspace: Query<(Entity, &mut FirstPerson)>,
 ) {
     for (workspace_e, mut first_person) in q_workspace.iter_mut() {
@@ -413,6 +414,13 @@ fn first_person(
         }
         if input.just_pressed(KeyCode::Escape) {
             first_person.0 = false;
+        }
+
+        let event_window_focused = state.er_window_focused.latest(&e_window_focused);
+        if let Some(event_window_focused) = event_window_focused {
+            if !event_window_focused.focused {
+                first_person.0 = false;
+            }
         }
     }
 }
