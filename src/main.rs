@@ -364,11 +364,10 @@ fn workspace_matches(r_aw: &Res<ActiveWorkspace>, entity: Entity) -> bool {
     }
 }
 
-// TODO: Make these two functions only run when first_person has changed
 fn cursor_visibility(
     r_aw: Res<ActiveWorkspace>,
     mut windows: ResMut<Windows>,
-    q_workspace: Query<(Entity, &FirstPerson)>,
+    q_workspace: Query<(Entity, &FirstPerson), Changed<FirstPerson>>,
 ) {
     for (workspace_e, first_person) in q_workspace.iter() {
         if !workspace_matches(&r_aw, workspace_e) {
