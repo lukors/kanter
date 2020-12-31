@@ -2,9 +2,11 @@
 
 use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Camera, window::WindowFocused};
 
+const MODE: &str = "mode";
+
 fn main() {
     App::build()
-        .init_resource::<State>()
+        .init_resource::<StateGlobal>()
         .add_resource(WindowDescriptor {
             title: "Bevy".to_string(),
             width: 1024.0,
@@ -12,9 +14,23 @@ fn main() {
             vsync: true,
             ..Default::default()
         })
+        .add_resource(State::new(ModeState::None))
+        .add_stage_before(stage::UPDATE, MODE, StateStage::<ModeState>::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum ModeState {
+    None,
+    BoxSelect,
+}
+
+impl Default for ModeState {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 pub struct KanterPlugin;
@@ -24,6 +40,10 @@ impl Plugin for KanterPlugin {
         app.add_resource(ActiveWorkspace(None))
             .add_startup_system(setup.system())
             .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
+            .add_system_to_stage(stage::PRE_UPDATE, mode.system())
+            .on_state_enter(MODE, ModeState::BoxSelect, box_select_setup.system())
+            .on_state_update(MODE, ModeState::BoxSelect, box_select.system())
+            .on_state_exit(MODE, ModeState::BoxSelect, box_select_cleanup.system())
             .add_system_to_stage(stage::UPDATE, camera.system())
             .add_system_to_stage(stage::UPDATE, cursor_transform.system())
             .add_system_to_stage(stage::UPDATE, draggable.system())
@@ -96,7 +116,16 @@ fn setup(
 // TODO: Parent everything to the workspace it belongs to, so everything automatically is removed
 //       when the workspace is.
 // TODO: Box select
-// TODO: Add click and drag panning
+// TODO: Fix bug where first person selection aim is off after dropping a node outside the window,
+//       can debug this by using box select in first person mode.
+// TODO: Handle first person mode with states.
+// TODO: Make cursor data global and not per workspace.
+// TODO: Remove owner concept to simplify the code, can add back later if I want it.
+// TODO: Remove as many unwraps as possible to reduce risk of crashes.
+// TODO: Test box select with OS level DPI scaling on.
+// TODO: Have easy global access to re-used textures.
+// TODO: Implement ablitiy to select nodes, then make dragging affect selected nodes,
+//       then implement box select.
 
 struct ActiveWorkspace(Option<Entity>);
 struct Owner(Entity);
@@ -114,15 +143,22 @@ struct FirstPerson(bool);
 struct Cursor;
 
 struct Draggable;
-#[derive(Default)]
 struct Dragged;
 struct Dropped;
 
 struct Hoverable;
 struct Hovered;
 
+struct BoxSelectCursor;
+
+#[derive(Default)]
+struct BoxSelect {
+    start: Vec2,
+    end: Vec2,
+}
+
 fn workspace(
-    mut state: ResMut<State>,
+    mut state_global: ResMut<StateGlobal>,
     e_cursor_moved: Res<Events<CursorMoved>>,
     e_mouse_motion: Res<Events<MouseMotion>>,
     windows: Res<Windows>,
@@ -130,10 +166,10 @@ fn workspace(
     q_camera: Query<&Transform, With<Camera>>,
 ) {
     let mut event_cursor_delta: Vec2 = Vec2::zero();
-    for event_motion in state.er_mouse_motion.iter(&e_mouse_motion) {
+    for event_motion in state_global.er_mouse_motion.iter(&e_mouse_motion) {
         event_cursor_delta += event_motion.delta;
     }
-    let event_cursor_screen = state.er_cursor_moved.latest(&e_cursor_moved);
+    let event_cursor_screen = state_global.er_cursor_moved.latest(&e_cursor_moved);
 
     for mut workspace in q_workspace.iter_mut() {
         if let Some(event_cursor_screen) = event_cursor_screen {
@@ -150,6 +186,104 @@ fn workspace(
         }
 
         workspace.cursor_delta = event_cursor_delta;
+    }
+}
+
+fn mode(
+    mut mode: ResMut<State<ModeState>>,
+    input: Res<Input<KeyCode>>,
+) {
+    let mode_current = *mode.current();
+
+    if input.just_pressed(KeyCode::Escape) && mode_current != ModeState::None {
+        mode.set_next(ModeState::None).unwrap();
+    }
+
+    if input.just_pressed(KeyCode::B) && mode_current != ModeState::BoxSelect {
+        mode.set_next(ModeState::BoxSelect).unwrap();
+    }
+}
+
+fn box_select_setup(
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    commands: &mut Commands,
+    q_workspace: Query<&Workspace>,
+) {
+    let workspace = q_workspace.iter().next().unwrap();
+
+    let box_image = asset_server.load("box_select.png");
+    let crosshair_image = asset_server.load("crosshair.png");
+
+    let box_material = materials.add(box_image.into());
+    materials.get_mut(&box_material).unwrap().color.set_a(0.25);
+
+    commands.spawn(SpriteBundle {
+        transform: Transform::from_translation(workspace.cursor_world.extend(0.)),
+        material: materials.add(crosshair_image.into()),
+        ..Default::default()
+    })
+    .with(BoxSelectCursor)
+    .spawn(SpriteBundle {
+        material: box_material,
+        visible: Visible { is_visible: false, is_transparent: true },
+        ..Default::default()
+    })
+    .with(BoxSelect::default());
+}
+
+fn box_select(
+    i_mouse_button: Res<Input<MouseButton>>,
+    mut mode: ResMut<State<ModeState>>,
+    q_workspace: Query<&Workspace>,
+    mut q_box_select_cursor: Query<&mut Transform, With<BoxSelectCursor>>,
+    mut q_box_select: Query<(&mut Transform, &mut Visible, &Sprite, &mut BoxSelect)>,
+) {
+    let workspace = q_workspace.iter().next().unwrap();
+
+
+    for mut transform in q_box_select_cursor.iter_mut() {
+        transform.translation = workspace.cursor_world.extend(0.);
+    }
+
+    for (mut transform, mut visible, sprite, mut box_select) in q_box_select.iter_mut() {
+        if i_mouse_button.just_pressed(MouseButton::Left) {
+            visible.is_visible = true;
+            box_select.start = workspace.cursor_world;
+        }
+
+        if i_mouse_button.just_released(MouseButton::Left)
+        && visible.is_visible
+        && *mode.current() != ModeState::None {
+            mode.overwrite_next(ModeState::None).unwrap();
+            return;
+        }
+
+        if visible.is_visible {
+            box_select.end = box_select.start - workspace.cursor_world;
+
+            let new_transform = Transform {
+                translation: (box_select.start - box_select.end / 2.0).extend(0.),
+                rotation: Quat::identity(),
+                scale: (box_select.end / sprite.size).extend(1.0),
+            };
+
+            *transform = new_transform;
+        }
+    }
+}
+
+fn box_select_cleanup(
+    commands: &mut Commands,
+    q_box_select_cursor: Query<Entity, With<BoxSelectCursor>>,
+    q_box_select: Query<Entity, With<BoxSelect>>,
+) {
+    for box_select_cursor_e in q_box_select_cursor.iter() {
+        commands.despawn(box_select_cursor_e);
+    }
+
+    for q_box_select_e in q_box_select.iter() {
+        commands.despawn(q_box_select_e);
     }
 }
 
@@ -314,7 +448,7 @@ fn drop(
 struct Crosshair;
 
 #[derive(Default)]
-struct State {
+struct StateGlobal {
     er_mouse_motion: EventReader<MouseMotion>,
     er_cursor_moved: EventReader<CursorMoved>,
     er_window_focused: EventReader<WindowFocused>,
@@ -401,7 +535,7 @@ fn first_person(
     r_aw: Res<ActiveWorkspace>,
     input: Res<Input<KeyCode>>,
     e_window_focused: Res<Events<WindowFocused>>,
-    mut state: ResMut<State>,
+    mut state_global: ResMut<StateGlobal>,
     mut q_workspace: Query<(Entity, &mut FirstPerson)>,
 ) {
     for (workspace_e, mut first_person) in q_workspace.iter_mut() {
@@ -416,7 +550,7 @@ fn first_person(
             first_person.0 = false;
         }
 
-        let event_window_focused = state.er_window_focused.latest(&e_window_focused);
+        let event_window_focused = state_global.er_window_focused.latest(&e_window_focused);
         if let Some(event_window_focused) = event_window_focused {
             if !event_window_focused.focused {
                 first_person.0 = false;
