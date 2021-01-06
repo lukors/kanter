@@ -25,6 +25,7 @@ fn main() {
 enum ModeState {
     None,
     BoxSelect,
+    Grab,
 }
 
 impl Default for ModeState {
@@ -44,13 +45,16 @@ impl Plugin for KanterPlugin {
             .on_state_enter(MODE, ModeState::BoxSelect, box_select_setup.system())
             .on_state_update(MODE, ModeState::BoxSelect, box_select.system())
             .on_state_exit(MODE, ModeState::BoxSelect, box_select_cleanup.system())
+            .on_state_enter(MODE, ModeState::Grab, grab_setup.system())
+            .on_state_update(MODE, ModeState::Grab, grab.system())
+            .on_state_exit(MODE, ModeState::Grab, grab_cleanup.system())
+            .on_state_update(MODE, ModeState::None, select_single.system())
+            .on_state_update(MODE, ModeState::None, draggable.system())
             .add_system_to_stage(stage::UPDATE, camera.system())
             .add_system_to_stage(stage::UPDATE, cursor_transform.system())
-            .add_system_to_stage(stage::UPDATE, draggable.system())
             .add_system_to_stage(stage::UPDATE, hoverable.system())
             .add_system_to_stage(stage::UPDATE, first_person.system())
             .add_system_to_stage(stage::UPDATE, deselect.system())
-            .add_system_to_stage(stage::UPDATE, select_single.system())
             .add_system_to_stage(stage::POST_UPDATE, drag.system())
             .add_system_to_stage(stage::POST_UPDATE, drop.system())
             .add_system_to_stage(stage::POST_UPDATE, cursor_visibility.system())
@@ -98,7 +102,7 @@ fn setup(
             Owner(r_aw_e),
         ));
 
-    for _ in 0..1 {
+    for _ in 0..4 {
         commands
             .spawn(SpriteBundle {
                 material: materials.add(test_image.clone().into()),
@@ -115,8 +119,6 @@ fn setup(
 //       This allows for more fine grained control over when systems run, resulting in cleaner code.
 //       At least first_person can be broken out (it has been broken out now).
 // TODO: Add a camera entity component to workspace so its more reliable to get to.
-// TODO: Parent everything to the workspace it belongs to, so everything automatically is removed
-//       when the workspace is.
 // TODO: Fix bug where first person selection aim is off after dropping a node outside the window,
 //       can debug this by using box select in first person mode.
 // TODO: Handle first person mode with states.
@@ -126,9 +128,9 @@ fn setup(
 // TODO: Test box select with OS level DPI scaling on.
 // TODO: Have easy global access to re-used textures.
 // TODO: Try removing `Dropped` component and instead check for the deletion of `Dragged` component.
-// TODO: Box select
-// TODO: Implement ablitiy to select nodes, then make dragging affect selected nodes,
-//       then implement box select.
+// TODO: Make hover system not run when dragging.
+// TODO: Save state before grabbing and restore it if escape is pressed, undo system?
+// TODO: Stop drag and drop if escape is pressed.
 
 struct ActiveWorkspace(Option<Entity>);
 struct Owner(Entity);
@@ -203,6 +205,10 @@ fn mode(mut mode: ResMut<State<ModeState>>, input: Res<Input<KeyCode>>) {
 
     if input.just_pressed(KeyCode::B) && mode_current != ModeState::BoxSelect {
         mode.set_next(ModeState::BoxSelect).unwrap();
+    }
+
+    if input.just_pressed(KeyCode::G) && mode_current != ModeState::Grab {
+        mode.set_next(ModeState::Grab).unwrap();
     }
 }
 
@@ -637,5 +643,24 @@ fn select_single(
 
     for entity in q_hovered.iter() {
         commands.insert_one(entity, Selected);
+    }
+}
+
+fn grab_setup(commands: &mut Commands, q_selected: Query<Entity, With<Selected>>) {
+    for entity in q_selected.iter() {
+        commands.insert_one(entity, Dragged);
+    }
+}
+
+fn grab(mut mode: ResMut<State<ModeState>>, i_mouse_button: Res<Input<MouseButton>>) {
+    if i_mouse_button.just_pressed(MouseButton::Left) {
+        mode.overwrite_next(ModeState::None).unwrap();
+    }
+}
+
+fn grab_cleanup(commands: &mut Commands, q_dragged: Query<Entity, With<Dragged>>) {
+    for entity in q_dragged.iter() {
+        commands.remove_one::<Dragged>(entity);
+        commands.insert_one(entity, Dropped);
     }
 }
