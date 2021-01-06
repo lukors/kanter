@@ -49,6 +49,8 @@ impl Plugin for KanterPlugin {
             .add_system_to_stage(stage::UPDATE, draggable.system())
             .add_system_to_stage(stage::UPDATE, hoverable.system())
             .add_system_to_stage(stage::UPDATE, first_person.system())
+            .add_system_to_stage(stage::UPDATE, deselect.system())
+            .add_system_to_stage(stage::UPDATE, select_single.system())
             .add_system_to_stage(stage::POST_UPDATE, drag.system())
             .add_system_to_stage(stage::POST_UPDATE, drop.system())
             .add_system_to_stage(stage::POST_UPDATE, cursor_visibility.system())
@@ -96,7 +98,7 @@ fn setup(
             Owner(r_aw_e),
         ));
 
-    for _ in 0..4 {
+    for _ in 0..1 {
         commands
             .spawn(SpriteBundle {
                 material: materials.add(test_image.clone().into()),
@@ -115,7 +117,6 @@ fn setup(
 // TODO: Add a camera entity component to workspace so its more reliable to get to.
 // TODO: Parent everything to the workspace it belongs to, so everything automatically is removed
 //       when the workspace is.
-// TODO: Box select
 // TODO: Fix bug where first person selection aim is off after dropping a node outside the window,
 //       can debug this by using box select in first person mode.
 // TODO: Handle first person mode with states.
@@ -124,6 +125,8 @@ fn setup(
 // TODO: Remove as many unwraps as possible to reduce risk of crashes.
 // TODO: Test box select with OS level DPI scaling on.
 // TODO: Have easy global access to re-used textures.
+// TODO: Try removing `Dropped` component and instead check for the deletion of `Dragged` component.
+// TODO: Box select
 // TODO: Implement ablitiy to select nodes, then make dragging affect selected nodes,
 //       then implement box select.
 
@@ -142,12 +145,14 @@ struct FirstPerson(bool);
 
 struct Cursor;
 
+struct Hoverable;
+struct Hovered;
+
+struct Selected;
+
 struct Draggable;
 struct Dragged;
 struct Dropped;
-
-struct Hoverable;
-struct Hovered;
 
 struct BoxSelectCursor;
 
@@ -189,10 +194,7 @@ fn workspace(
     }
 }
 
-fn mode(
-    mut mode: ResMut<State<ModeState>>,
-    input: Res<Input<KeyCode>>,
-) {
+fn mode(mut mode: ResMut<State<ModeState>>, input: Res<Input<KeyCode>>) {
     let mode_current = *mode.current();
 
     if input.just_pressed(KeyCode::Escape) && mode_current != ModeState::None {
@@ -218,18 +220,22 @@ fn box_select_setup(
     let box_material = materials.add(box_image.into());
     materials.get_mut(&box_material).unwrap().color.set_a(0.25);
 
-    commands.spawn(SpriteBundle {
-        transform: Transform::from_translation(workspace.cursor_world.extend(0.)),
-        material: materials.add(crosshair_image.into()),
-        ..Default::default()
-    })
-    .with(BoxSelectCursor)
-    .spawn(SpriteBundle {
-        material: box_material,
-        visible: Visible { is_visible: false, is_transparent: true },
-        ..Default::default()
-    })
-    .with(BoxSelect::default());
+    commands
+        .spawn(SpriteBundle {
+            transform: Transform::from_translation(workspace.cursor_world.extend(0.)),
+            material: materials.add(crosshair_image.into()),
+            ..Default::default()
+        })
+        .with(BoxSelectCursor)
+        .spawn(SpriteBundle {
+            material: box_material,
+            visible: Visible {
+                is_visible: false,
+                is_transparent: true,
+            },
+            ..Default::default()
+        })
+        .with(BoxSelect::default());
 }
 
 fn box_select(
@@ -238,9 +244,10 @@ fn box_select(
     q_workspace: Query<&Workspace>,
     mut q_box_select_cursor: Query<&mut Transform, With<BoxSelectCursor>>,
     mut q_box_select: Query<(&mut Transform, &mut Visible, &Sprite, &mut BoxSelect)>,
+    q_draggable: Query<(Entity, &Transform, &Sprite), With<Draggable>>,
+    commands: &mut Commands,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
-
 
     for mut transform in q_box_select_cursor.iter_mut() {
         transform.translation = workspace.cursor_world.extend(0.);
@@ -253,24 +260,59 @@ fn box_select(
         }
 
         if i_mouse_button.just_released(MouseButton::Left)
-        && visible.is_visible
-        && *mode.current() != ModeState::None {
+            && visible.is_visible
+            && *mode.current() != ModeState::None
+        {
             mode.overwrite_next(ModeState::None).unwrap();
             return;
         }
 
         if visible.is_visible {
-            box_select.end = box_select.start - workspace.cursor_world;
+            box_select.end = workspace.cursor_world;
 
             let new_transform = Transform {
-                translation: (box_select.start - box_select.end / 2.0).extend(0.),
+                translation: ((box_select.start + box_select.end) / 2.0).extend(0.),
                 rotation: Quat::identity(),
-                scale: (box_select.end / sprite.size).extend(1.0),
+                scale: ((box_select.start - box_select.end) / sprite.size).extend(1.0),
             };
 
             *transform = new_transform;
+
+            // Node intersection
+            let box_box = (box_select.start, box_select.end);
+
+            for (entity, transform, sprite) in q_draggable.iter() {
+                let size_half = sprite.size / 2.0;
+
+                let drag_box = (
+                    transform.translation.truncate() - size_half,
+                    transform.translation.truncate() + size_half,
+                );
+
+                if box_intersect(box_box, drag_box) {
+                    commands.insert_one(entity, Selected);
+                } else {
+                    commands.remove_one::<Selected>(entity);
+                }
+            }
         }
     }
+}
+
+fn interval_intersect(i_1: (f32, f32), i_2: (f32, f32)) -> bool {
+    let i_1 = (i_1.0.min(i_1.1), i_1.0.max(i_1.1));
+    let i_2 = (i_2.0.min(i_2.1), i_2.0.max(i_2.1));
+
+    i_1.1 >= i_2.0 && i_2.1 >= i_1.0
+}
+
+fn box_intersect(box_1: (Vec2, Vec2), box_2: (Vec2, Vec2)) -> bool {
+    let x_1 = (box_1.0.x, box_1.1.x);
+    let x_2 = (box_2.0.x, box_2.1.x);
+    let y_1 = (box_1.0.y, box_1.1.y);
+    let y_2 = (box_2.0.y, box_2.1.y);
+
+    interval_intersect(x_1, x_2) && interval_intersect(y_1, y_2)
 }
 
 fn box_select_cleanup(
@@ -357,26 +399,34 @@ fn hoverable(
 fn material(
     mut materials: ResMut<Assets<ColorMaterial>>,
     q_hoverable: Query<
-        (&Handle<ColorMaterial>, Option<&Hovered>, Option<&Dragged>),
+        (
+            &Handle<ColorMaterial>,
+            Option<&Hovered>,
+            Option<&Selected>,
+            Option<&Dragged>,
+        ),
         With<Hoverable>,
     >,
 ) {
     let mut first = true;
 
-    for (material, hovered, dragged) in q_hoverable.iter() {
-        let (red, green, alpha) = if dragged.is_some() {
-            (0.0, 1.0, 1.0)
+    for (material, hovered, selected, dragged) in q_hoverable.iter() {
+        let (red, green, blue, alpha) = if dragged.is_some() {
+            (1.0, 0.0, 0.0, 1.0)
         } else if first && hovered.is_some() {
             first = false;
-            (1.0, 0.0, 1.0)
+            (0.0, 1.0, 0.0, 1.0)
+        } else if selected.is_some() {
+            (0.0, 0.0, 1.0, 1.0)
         } else if hovered.is_some() {
-            (1.0, 1.0, 0.5)
+            (1.0, 1.0, 1.0, 0.5)
         } else {
-            (1.0, 1.0, 1.0)
+            (1.0, 1.0, 1.0, 1.0)
         };
 
         materials.get_mut(material).unwrap().color.set_r(red);
         materials.get_mut(material).unwrap().color.set_g(green);
+        materials.get_mut(material).unwrap().color.set_b(blue);
         materials.get_mut(material).unwrap().color.set_a(alpha);
     }
 }
@@ -556,5 +606,36 @@ fn first_person(
                 first_person.0 = false;
             }
         }
+    }
+}
+
+fn deselect(
+    input: Res<Input<KeyCode>>,
+    commands: &mut Commands,
+    q_selected: Query<Entity, With<Selected>>,
+) {
+    if input.just_pressed(KeyCode::A) {
+        for entity in q_selected.iter() {
+            commands.remove_one::<Selected>(entity);
+        }
+    }
+}
+
+fn select_single(
+    i_mouse_button: Res<Input<MouseButton>>,
+    commands: &mut Commands,
+    q_hovered: Query<Entity, (With<Hovered>, Without<Selected>)>,
+    q_not_hovered: Query<Entity, (Without<Hovered>, With<Selected>)>,
+) {
+    if !i_mouse_button.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    for entity in q_not_hovered.iter() {
+        commands.remove_one::<Selected>(entity);
+    }
+
+    for entity in q_hovered.iter() {
+        commands.insert_one(entity, Selected);
     }
 }
