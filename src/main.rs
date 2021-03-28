@@ -3,6 +3,7 @@
 use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Camera, window::WindowFocused};
 
 const MODE: &str = "mode";
+const FIRST_PERSON: &str = "first_person";
 
 fn main() {
     App::build()
@@ -15,7 +16,13 @@ fn main() {
             ..Default::default()
         })
         .add_resource(State::new(ModeState::None))
+        .add_resource(State::new(FirstPersonState::Off))
         .add_stage_before(stage::UPDATE, MODE, StateStage::<ModeState>::default())
+        .add_stage_after(
+            MODE,
+            FIRST_PERSON,
+            StateStage::<FirstPersonState>::default(),
+        )
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();
@@ -34,6 +41,18 @@ impl Default for ModeState {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum FirstPersonState {
+    Off,
+    On,
+}
+
+impl Default for FirstPersonState {
+    fn default() -> Self {
+        Self::Off
+    }
+}
+
 pub struct KanterPlugin;
 
 impl Plugin for KanterPlugin {
@@ -41,6 +60,7 @@ impl Plugin for KanterPlugin {
         app.add_startup_system(setup.system())
             .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
             .add_system_to_stage(stage::PRE_UPDATE, mode.system())
+            .add_system_to_stage(stage::PRE_UPDATE, first_person_input.system())
             .on_state_enter(MODE, ModeState::BoxSelect, box_select_setup.system())
             .on_state_update(MODE, ModeState::BoxSelect, box_select.system())
             .on_state_exit(MODE, ModeState::BoxSelect, box_select_cleanup.system())
@@ -51,14 +71,29 @@ impl Plugin for KanterPlugin {
             .on_state_update(MODE, ModeState::None, select_single.system())
             .on_state_update(MODE, ModeState::None, draggable.system())
             .on_state_update(MODE, ModeState::None, hoverable.system())
-            .add_system_to_stage(stage::UPDATE, camera.system())
-            .add_system_to_stage(stage::UPDATE, cursor_transform.system())
-            .add_system_to_stage(stage::UPDATE, first_person.system())
+            .on_state_enter(
+                FIRST_PERSON,
+                FirstPersonState::On,
+                first_person_on_setup.system(),
+            )
+            .on_state_update(
+                FIRST_PERSON,
+                FirstPersonState::On,
+                first_person_on_update.system(),
+            )
+            .on_state_exit(
+                FIRST_PERSON,
+                FirstPersonState::On,
+                first_person_on_cleanup.system(),
+            )
+            .on_state_update(
+                FIRST_PERSON,
+                FirstPersonState::Off,
+                first_person_off_update.system(),
+            )
             .add_system_to_stage(stage::UPDATE, deselect.system())
             .add_system_to_stage(stage::POST_UPDATE, drag.system())
             .add_system_to_stage(stage::POST_UPDATE, drop.system())
-            .add_system_to_stage(stage::POST_UPDATE, cursor_visibility.system())
-            .add_system_to_stage(stage::POST_UPDATE, crosshair_visibility.system())
             .add_system_to_stage(stage::POST_UPDATE, material.system());
     }
 }
@@ -78,21 +113,21 @@ fn setup(
     let crosshair_image = asset_server.load("crosshair.png");
 
     commands
-        .spawn((Workspace::default(), FirstPerson(false)))
+        .spawn((Workspace::default(), ()))
         .spawn(Camera2dBundle::default())
         .with_children(|parent| {
             parent
                 .spawn(SpriteBundle {
                     material: materials.add(crosshair_image.into()),
+                    visible: Visible {
+                        is_visible: false,
+                        is_transparent: true,
+                    },
                     ..Default::default()
                 })
                 .with(Crosshair);
         })
-        .spawn((
-            Transform::default(),
-            GlobalTransform::default(),
-            Cursor,
-        ));
+        .spawn((Transform::default(), GlobalTransform::default(), Cursor));
 
     for _ in 0..4 {
         commands
@@ -106,14 +141,6 @@ fn setup(
     }
 }
 
-// TODO: Handle first person mode with states.
-// TODO: Make cursor data global and not per workspace.
-// TODO: Remove as many unwraps as possible to reduce risk of crashes.
-// TODO: Have easy global access to re-used textures.
-// TODO: Try removing `Dropped` component and instead check for the deletion of `Dragged` component.
-// TODO: Save state before grabbing and restore it if escape is pressed, undo system?
-// TODO: Stop drag and drop if escape is pressed.
-
 #[derive(Default)]
 struct Workspace {
     cursor_screen: Vec2,
@@ -121,8 +148,6 @@ struct Workspace {
     cursor_delta: Vec2,
     cursor_moved: bool,
 }
-
-struct FirstPerson(bool);
 
 struct Cursor;
 
@@ -188,6 +213,28 @@ fn mode(mut mode: ResMut<State<ModeState>>, input: Res<Input<KeyCode>>) {
 
     if input.just_pressed(KeyCode::G) && mode_current != ModeState::Grab {
         mode.set_next(ModeState::Grab).unwrap();
+    }
+}
+
+fn first_person_input(
+    mut first_person_state: ResMut<State<FirstPersonState>>,
+    mut state_global: ResMut<StateGlobal>,
+    e_window_focused: Res<Events<WindowFocused>>,
+    input: Res<Input<KeyCode>>,
+) {
+    if input.just_pressed(KeyCode::Tab) {
+        if *first_person_state.current() == FirstPersonState::Off {
+            first_person_state.set_next(FirstPersonState::On).unwrap();
+        } else {
+            first_person_state.set_next(FirstPersonState::Off).unwrap();
+        }
+    }
+
+    let event_window_focused = state_global.er_window_focused.latest(&e_window_focused);
+    if let Some(event_window_focused) = event_window_focused {
+        if !event_window_focused.focused {
+            first_person_state.set_next(FirstPersonState::Off).unwrap();
+        }
     }
 }
 
@@ -311,31 +358,6 @@ fn box_select_cleanup(
 
     for q_box_select_e in q_box_select.iter() {
         commands.despawn(q_box_select_e);
-    }
-}
-
-fn cursor_transform(
-    commands: &mut Commands,
-    q_workspace: Query<(&Workspace, &FirstPerson)>,
-    q_camera: Query<Entity, With<Camera>>,
-    mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
-) {
-    for (workspace, first_person) in q_workspace.iter() {
-        if first_person.0 {
-            for camera_e in q_camera.iter() {
-                for (cursor_e, mut transform) in q_cursor.iter_mut() {
-                    transform.translation.x = 0.;
-                    transform.translation.y = 0.;
-                    commands.insert_one(cursor_e, Parent(camera_e));
-                }
-            }
-        } else {
-            for (cursor_e, mut transform) in q_cursor.iter_mut() {
-                transform.translation.x = workspace.cursor_world.x;
-                transform.translation.y = workspace.cursor_world.y;
-                commands.remove_one::<Parent>(cursor_e);
-            }
-        }
     }
 }
 
@@ -472,75 +494,77 @@ struct StateGlobal {
     er_window_focused: EventReader<WindowFocused>,
 }
 
-fn camera(
-    mut q_camera: Query<&mut Transform, With<Camera>>,
-    q_workspace: Query<(&Workspace, &FirstPerson)>,
+fn first_person_on_update(
+    mut windows: ResMut<Windows>,
+    mut q_camera: Query<(Entity, &mut Transform), With<Camera>>,
+    q_workspace: Query<&Workspace>,
 ) {
-    for (workspace, first_person) in q_workspace.iter() {
-        if !first_person.0 {
-            return;
-        }
-
-        for mut transform in q_camera.iter_mut() {
+    for workspace in q_workspace.iter() {
+        for (_camera_e, mut transform) in q_camera.iter_mut() {
             transform.translation.x += workspace.cursor_delta.x;
             transform.translation.y -= workspace.cursor_delta.y;
         }
     }
+
+    let window = windows.get_primary_mut().unwrap();
+    let window_size = Vec2::new(window.width(), window.height());
+    window.set_cursor_position(window_size / 2.0);
 }
 
-fn cursor_visibility(
-    mut windows: ResMut<Windows>,
-    q_first_person: Query<&FirstPerson, Changed<FirstPerson>>,
+fn first_person_off_update(
+    mut q_cursor: Query<&mut Transform, With<Cursor>>,
+    q_workspace: Query<&Workspace>,
 ) {
-    for first_person in q_first_person.iter() {
-        let window = windows.get_primary_mut().unwrap();
-        window.set_cursor_visibility(!first_person.0);
-
-        let window_size = Vec2::new(window.width(), window.height());
-        if first_person.0 {
-            window.set_cursor_position(window_size / 2.0);
+    for workspace in q_workspace.iter() {
+        for mut transform in q_cursor.iter_mut() {
+            transform.translation.x = workspace.cursor_world.x;
+            transform.translation.y = workspace.cursor_world.y;
         }
     }
 }
 
-fn crosshair_visibility(
-    q_workspace: Query<&FirstPerson>,
-    mut query: Query<&mut Visible, With<Crosshair>>,
+fn first_person_on_setup(
+    mut windows: ResMut<Windows>,
+    mut q_camera: Query<Entity, With<Camera>>,
+    mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
+    mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
+    commands: &mut Commands,
 ) {
-    for first_person in q_workspace.iter() {
-        for mut visible in query.iter_mut() {
-            visible.is_visible = first_person.0;
+    let window = windows.get_primary_mut().unwrap();
+    window.set_cursor_visibility(false);
+
+    for mut crosshair in q_crosshair.iter_mut() {
+        crosshair.is_visible = true;
+    }
+
+    for (cursor_e, _transform) in q_cursor.iter_mut() {
+        commands.remove_one::<Parent>(cursor_e);
+    }
+
+    for camera_e in q_camera.iter_mut() {
+        for (cursor_e, mut transform) in q_cursor.iter_mut() {
+            transform.translation.x = 0.;
+            transform.translation.y = 0.;
+            commands.insert_one(cursor_e, Parent(camera_e));
         }
     }
 }
 
-fn first_person(
-    input: Res<Input<KeyCode>>,
+fn first_person_on_cleanup(
     mut windows: ResMut<Windows>,
-    e_window_focused: Res<Events<WindowFocused>>,
-    mut state_global: ResMut<StateGlobal>,
-    mut q_first_person: Query<&mut FirstPerson>,
+    mut q_cursor: Query<Entity, With<Cursor>>,
+    mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
+    commands: &mut Commands,
 ) {
-    for mut first_person in q_first_person.iter_mut() {
-        if input.just_pressed(KeyCode::Tab) {
-            first_person.0 = !first_person.0;
-        }
-        if input.just_pressed(KeyCode::Escape) {
-            first_person.0 = false;
-        }
+    let window = windows.get_primary_mut().unwrap();
+    window.set_cursor_visibility(true);
 
-        if first_person.0 {
-            let window = windows.get_primary_mut().unwrap();
-            let window_size = Vec2::new(window.width(), window.height());
-            window.set_cursor_position(window_size / 2.0);
-        }
+    for mut crosshair in q_crosshair.iter_mut() {
+        crosshair.is_visible = false;
+    }
 
-        let event_window_focused = state_global.er_window_focused.latest(&e_window_focused);
-        if let Some(event_window_focused) = event_window_focused {
-            if !event_window_focused.focused {
-                first_person.0 = false;
-            }
-        }
+    for cursor_e in q_cursor.iter_mut() {
+        commands.remove_one::<Parent>(cursor_e);
     }
 }
 
