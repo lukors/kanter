@@ -47,11 +47,12 @@ impl Plugin for KanterPlugin {
             .on_state_enter(MODE, ModeState::Grab, grab_setup.system())
             .on_state_update(MODE, ModeState::Grab, grab.system())
             .on_state_exit(MODE, ModeState::Grab, grab_cleanup.system())
+            .on_state_exit(MODE, ModeState::None, none_setup.system())
             .on_state_update(MODE, ModeState::None, select_single.system())
             .on_state_update(MODE, ModeState::None, draggable.system())
+            .on_state_update(MODE, ModeState::None, hoverable.system())
             .add_system_to_stage(stage::UPDATE, camera.system())
             .add_system_to_stage(stage::UPDATE, cursor_transform.system())
-            .add_system_to_stage(stage::UPDATE, hoverable.system())
             .add_system_to_stage(stage::UPDATE, first_person.system())
             .add_system_to_stage(stage::UPDATE, deselect.system())
             .add_system_to_stage(stage::POST_UPDATE, drag.system())
@@ -105,7 +106,6 @@ fn setup(
     }
 }
 
-// TODO: Make hover system not run when dragging.
 // TODO: Handle first person mode with states.
 // TODO: Make cursor data global and not per workspace.
 // TODO: Remove as many unwraps as possible to reduce risk of crashes.
@@ -572,6 +572,12 @@ fn select_single(
 
     for entity in q_hovered.iter() {
         commands.insert_one(entity, Selected);
+    }
+}
+
+fn none_setup(commands: &mut Commands, q_hovered: Query<Entity, With<Hovered>>) {
+    for entity in q_hovered.iter() {
+        commands.remove_one::<Hovered>(entity);
     }
 }
 
