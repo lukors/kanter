@@ -117,7 +117,6 @@ fn setup(
 
 // TODO: Break out stuff from Workspace into individual components if they don't need to be grouped.
 //       This allows for more fine grained control over when systems run, resulting in cleaner code.
-//       At least first_person can be broken out (it has been broken out now).
 // TODO: Add a camera entity component to workspace so its more reliable to get to.
 // TODO: Fix bug where first person selection aim is off after dropping a node outside the window,
 //       can debug this by using box select in first person mode.
@@ -548,15 +547,10 @@ fn workspace_matches(r_aw: &Res<ActiveWorkspace>, entity: Entity) -> bool {
 }
 
 fn cursor_visibility(
-    r_aw: Res<ActiveWorkspace>,
     mut windows: ResMut<Windows>,
-    q_workspace: Query<(Entity, &FirstPerson), Changed<FirstPerson>>,
+    q_first_person: Query<&FirstPerson, Changed<FirstPerson>>,
 ) {
-    for (workspace_e, first_person) in q_workspace.iter() {
-        if !workspace_matches(&r_aw, workspace_e) {
-            continue;
-        }
-
+    for first_person in q_first_person.iter() {
         let window = windows.get_primary_mut().unwrap();
         window.set_cursor_visibility(!first_person.0);
 
@@ -588,22 +582,24 @@ fn crosshair_visibility(
 }
 
 fn first_person(
-    r_aw: Res<ActiveWorkspace>,
     input: Res<Input<KeyCode>>,
+    mut windows: ResMut<Windows>,
     e_window_focused: Res<Events<WindowFocused>>,
     mut state_global: ResMut<StateGlobal>,
-    mut q_workspace: Query<(Entity, &mut FirstPerson)>,
+    mut q_first_person: Query<&mut FirstPerson>,
 ) {
-    for (workspace_e, mut first_person) in q_workspace.iter_mut() {
-        if !workspace_matches(&r_aw, workspace_e) {
-            continue;
-        }
-
+    for mut first_person in q_first_person.iter_mut() {
         if input.just_pressed(KeyCode::Tab) {
             first_person.0 = !first_person.0;
         }
         if input.just_pressed(KeyCode::Escape) {
             first_person.0 = false;
+        }
+
+        if first_person.0 {
+            let window = windows.get_primary_mut().unwrap();
+            let window_size = Vec2::new(window.width(), window.height());
+            window.set_cursor_position(window_size / 2.0);
         }
 
         let event_window_focused = state_global.er_window_focused.latest(&e_window_focused);
