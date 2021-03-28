@@ -38,8 +38,7 @@ pub struct KanterPlugin;
 
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_resource(ActiveWorkspace(None))
-            .add_startup_system(setup.system())
+        app.add_startup_system(setup.system())
             .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
             .add_system_to_stage(stage::PRE_UPDATE, mode.system())
             .on_state_enter(MODE, ModeState::BoxSelect, box_select_setup.system())
@@ -70,7 +69,6 @@ const NODE_SIZE_VEC: Vec2 = Vec2 {
 };
 
 fn setup(
-    mut r_aw: ResMut<ActiveWorkspace>,
     commands: &mut Commands,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -78,28 +76,21 @@ fn setup(
     let test_image = asset_server.load("image_2.png");
     let crosshair_image = asset_server.load("crosshair.png");
 
-    r_aw.0 = commands
-        .spawn((Workspace::default(), FirstPerson(false)))
-        .current_entity();
-    let r_aw_e = r_aw.0.unwrap();
-
     commands
+        .spawn((Workspace::default(), FirstPerson(false)))
         .spawn(Camera2dBundle::default())
-        .with(Owner(r_aw_e))
         .with_children(|parent| {
             parent
                 .spawn(SpriteBundle {
                     material: materials.add(crosshair_image.into()),
                     ..Default::default()
                 })
-                .with(Crosshair)
-                .with(Owner(r_aw_e));
+                .with(Crosshair);
         })
         .spawn((
             Transform::default(),
             GlobalTransform::default(),
             Cursor,
-            Owner(r_aw_e),
         ));
 
     for _ in 0..4 {
@@ -110,8 +101,7 @@ fn setup(
                 ..Default::default()
             })
             .with(Hoverable)
-            .with(Draggable)
-            .with(Owner(r_aw_e));
+            .with(Draggable);
     }
 }
 
@@ -123,9 +113,6 @@ fn setup(
 // TODO: Try removing `Dropped` component and instead check for the deletion of `Dragged` component.
 // TODO: Save state before grabbing and restore it if escape is pressed, undo system?
 // TODO: Stop drag and drop if escape is pressed.
-
-struct ActiveWorkspace(Option<Entity>);
-struct Owner(Entity);
 
 #[derive(Default)]
 struct Workspace {
