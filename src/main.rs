@@ -122,7 +122,6 @@ fn setup(
 //       can debug this by using box select in first person mode.
 // TODO: Handle first person mode with states.
 // TODO: Make cursor data global and not per workspace.
-// TODO: Remove owner concept to simplify the code, can add back later if I want it.
 // TODO: Remove as many unwraps as possible to reduce risk of crashes.
 // TODO: Test box select with OS level DPI scaling on.
 // TODO: Have easy global access to re-used textures.
@@ -335,39 +334,22 @@ fn box_select_cleanup(
 }
 
 fn cursor_transform(
-    r_aw: Res<ActiveWorkspace>,
     commands: &mut Commands,
-    q_workspace: Query<(Entity, &Workspace, &FirstPerson)>,
-    q_camera: Query<(Entity, &Owner), With<Camera>>,
-    mut q_cursor: Query<(Entity, &Owner, &mut Transform), With<Cursor>>,
+    q_workspace: Query<(&Workspace, &FirstPerson)>,
+    q_camera: Query<Entity, With<Camera>>,
+    mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
 ) {
-    for (workspace_e, workspace, first_person) in q_workspace.iter() {
-        if !workspace_matches(&r_aw, workspace_e) {
-            continue;
-        }
-
+    for (workspace, first_person) in q_workspace.iter() {
         if first_person.0 {
-            for (camera_e, owner) in q_camera.iter() {
-                if !owner_matches(&r_aw, owner) {
-                    continue;
-                }
-
-                for (cursor_e, owner, mut transform) in q_cursor.iter_mut() {
-                    if !owner_matches(&r_aw, owner) {
-                        continue;
-                    }
-
+            for camera_e in q_camera.iter() {
+                for (cursor_e, mut transform) in q_cursor.iter_mut() {
                     transform.translation.x = 0.;
                     transform.translation.y = 0.;
                     commands.insert_one(cursor_e, Parent(camera_e));
                 }
             }
         } else {
-            for (cursor_e, owner, mut transform) in q_cursor.iter_mut() {
-                if !owner_matches(&r_aw, owner) {
-                    continue;
-                }
-
+            for (cursor_e, mut transform) in q_cursor.iter_mut() {
                 transform.translation.x = workspace.cursor_world.x;
                 transform.translation.y = workspace.cursor_world.y;
                 commands.remove_one::<Parent>(cursor_e);
@@ -510,39 +492,18 @@ struct StateGlobal {
 }
 
 fn camera(
-    r_aw: Res<ActiveWorkspace>,
-    mut q_camera: Query<(&Owner, &mut Transform), With<Camera>>,
-    q_workspace: Query<(Entity, &Workspace, &FirstPerson)>,
+    mut q_camera: Query<&mut Transform, With<Camera>>,
+    q_workspace: Query<(&Workspace, &FirstPerson)>,
 ) {
-    for (workspace_e, workspace, first_person) in q_workspace.iter() {
-        if !workspace_matches(&r_aw, workspace_e) {
-            continue;
-        }
-
+    for (workspace, first_person) in q_workspace.iter() {
         if !first_person.0 {
             return;
         }
 
-        for (owner, mut transform) in q_camera.iter_mut() {
-            if !owner_matches(&r_aw, owner) {
-                continue;
-            }
-
+        for mut transform in q_camera.iter_mut() {
             transform.translation.x += workspace.cursor_delta.x;
             transform.translation.y -= workspace.cursor_delta.y;
         }
-    }
-}
-
-fn owner_matches(r_aw: &Res<ActiveWorkspace>, owner: &Owner) -> bool {
-    workspace_matches(r_aw, owner.0)
-}
-
-fn workspace_matches(r_aw: &Res<ActiveWorkspace>, entity: Entity) -> bool {
-    if let Some(r_aw_e) = r_aw.0 {
-        entity == r_aw_e
-    } else {
-        false
     }
 }
 
@@ -562,20 +523,11 @@ fn cursor_visibility(
 }
 
 fn crosshair_visibility(
-    r_aw: Res<ActiveWorkspace>,
-    q_workspace: Query<(Entity, &FirstPerson)>,
-    mut query: Query<(&Owner, &mut Visible), With<Crosshair>>,
+    q_workspace: Query<&FirstPerson>,
+    mut query: Query<&mut Visible, With<Crosshair>>,
 ) {
-    for (workspace_e, first_person) in q_workspace.iter() {
-        if !workspace_matches(&r_aw, workspace_e) {
-            continue;
-        }
-
-        for (owner, mut visible) in query.iter_mut() {
-            if !owner_matches(&r_aw, owner) {
-                continue;
-            }
-
+    for first_person in q_workspace.iter() {
+        for mut visible in query.iter_mut() {
             visible.is_visible = first_person.0;
         }
     }
