@@ -115,18 +115,12 @@ fn setup(
     }
 }
 
-// TODO: Break out stuff from Workspace into individual components if they don't need to be grouped.
-//       This allows for more fine grained control over when systems run, resulting in cleaner code.
-// TODO: Add a camera entity component to workspace so its more reliable to get to.
-// TODO: Fix bug where first person selection aim is off after dropping a node outside the window,
-//       can debug this by using box select in first person mode.
+// TODO: Make hover system not run when dragging.
 // TODO: Handle first person mode with states.
 // TODO: Make cursor data global and not per workspace.
 // TODO: Remove as many unwraps as possible to reduce risk of crashes.
-// TODO: Test box select with OS level DPI scaling on.
 // TODO: Have easy global access to re-used textures.
 // TODO: Try removing `Dropped` component and instead check for the deletion of `Dragged` component.
-// TODO: Make hover system not run when dragging.
 // TODO: Save state before grabbing and restore it if escape is pressed, undo system?
 // TODO: Stop drag and drop if escape is pressed.
 
