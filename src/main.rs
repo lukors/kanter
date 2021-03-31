@@ -593,17 +593,17 @@ fn select_single(
     i_mouse_button: Res<Input<MouseButton>>,
     commands: &mut Commands,
     q_hovered: Query<Entity, (With<Hovered>, Without<Selected>)>,
-    q_not_hovered: Query<Entity, (Without<Hovered>, With<Selected>)>,
+    q_selected: Query<Entity, With<Selected>>,
 ) {
     if !i_mouse_button.just_pressed(MouseButton::Left) {
         return;
     }
 
-    for entity in q_not_hovered.iter() {
+    for entity in q_selected.iter() {
         commands.remove_one::<Selected>(entity);
     }
 
-    for entity in q_hovered.iter() {
+    if let Some(entity) = q_hovered.iter().next() {
         commands.insert_one(entity, Selected);
     }
 }
