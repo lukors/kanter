@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Camera, window::WindowFocused};
+use bevy::{app::AppExit, input::mouse::MouseMotion, prelude::*, render::camera::Camera, window::WindowFocused};
 
 const MODE: &str = "mode";
 const FIRST_PERSON: &str = "first_person";
@@ -61,6 +61,7 @@ impl Plugin for KanterPlugin {
             .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
             .add_system_to_stage(stage::PRE_UPDATE, mode.system())
             .add_system_to_stage(stage::PRE_UPDATE, first_person_input.system())
+            .add_system_to_stage(stage::PRE_UPDATE, quit_hotkey.system())
             .on_state_enter(MODE, ModeState::BoxSelect, box_select_setup.system())
             .on_state_update(MODE, ModeState::BoxSelect, box_select.system())
             .on_state_exit(MODE, ModeState::BoxSelect, box_select_cleanup.system())
@@ -197,6 +198,14 @@ fn workspace(
         }
 
         workspace.cursor_delta = event_cursor_delta;
+    }
+}
+
+fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: ResMut<Events<AppExit>>) {
+    if input.pressed(KeyCode::RControl) || input.pressed(KeyCode::LControl) {
+        if input.just_pressed(KeyCode::Q) {
+            app_exit_events.send(AppExit);
+        }
     }
 }
 
