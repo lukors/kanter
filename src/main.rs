@@ -1,7 +1,13 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::{
-    app::AppExit, input::mouse::MouseMotion, prelude::*, render::{camera::Camera, texture::{Extent3d, TextureDimension, TextureFormat}},
+    app::AppExit,
+    input::mouse::MouseMotion,
+    prelude::*,
+    render::{
+        camera::Camera,
+        texture::{Extent3d, TextureDimension, TextureFormat},
+    },
     window::WindowFocused,
 };
 use native_dialog::FileDialog;
@@ -313,7 +319,12 @@ fn add_setup(
         None => return,
     };
 
-    let texture = Texture::new_fill(Extent3d::new(128, 128, 1), TextureDimension::D2, &[50, 50, 150, 255], TextureFormat::Rgba8Unorm);
+    let texture = Texture::new_fill(
+        Extent3d::new(128, 128, 1),
+        TextureDimension::D2,
+        &[50, 50, 150, 255],
+        TextureFormat::Rgba8Unorm,
+    );
     let image = textures.add(texture);
     commands
         .spawn(SpriteBundle {
@@ -660,7 +671,11 @@ fn none_setup(commands: &mut Commands, q_hovered: Query<Entity, With<Hovered>>) 
     }
 }
 
-fn grab_setup(mut mode: ResMut<State<ModeState>>, commands: &mut Commands, q_selected: Query<Entity, With<Selected>>) {
+fn grab_setup(
+    mut mode: ResMut<State<ModeState>>,
+    commands: &mut Commands,
+    q_selected: Query<Entity, With<Selected>>,
+) {
     if q_selected.iter().count() == 0 {
         mode.overwrite_next(ModeState::None).unwrap();
     }
