@@ -1,6 +1,10 @@
 #![allow(clippy::type_complexity)]
 
-use bevy::{app::AppExit, input::mouse::MouseMotion, prelude::*, render::camera::Camera, window::WindowFocused};
+use bevy::{
+    app::AppExit, input::mouse::MouseMotion, prelude::*, render::{camera::Camera, texture::{Extent3d, TextureDimension, TextureFormat}},
+    window::WindowFocused,
+};
+use native_dialog::FileDialog;
 
 const MODE: &str = "mode";
 const FIRST_PERSON: &str = "first_person";
@@ -31,6 +35,7 @@ fn main() {
 #[derive(Clone, Copy, PartialEq)]
 enum ModeState {
     None,
+    Add,
     BoxSelect,
     Grab,
 }
@@ -62,6 +67,7 @@ impl Plugin for KanterPlugin {
             .add_system_to_stage(stage::PRE_UPDATE, mode.system())
             .add_system_to_stage(stage::PRE_UPDATE, first_person_input.system())
             .add_system_to_stage(stage::PRE_UPDATE, quit_hotkey.system())
+            .on_state_enter(MODE, ModeState::Add, add_setup.system())
             .on_state_enter(MODE, ModeState::BoxSelect, box_select_setup.system())
             .on_state_update(MODE, ModeState::BoxSelect, box_select.system())
             .on_state_exit(MODE, ModeState::BoxSelect, box_select_cleanup.system())
@@ -202,10 +208,10 @@ fn workspace(
 }
 
 fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: ResMut<Events<AppExit>>) {
-    if input.pressed(KeyCode::RControl) || input.pressed(KeyCode::LControl) {
-        if input.just_pressed(KeyCode::Q) {
-            app_exit_events.send(AppExit);
-        }
+    if (input.pressed(KeyCode::RControl) || input.pressed(KeyCode::LControl))
+        && input.just_pressed(KeyCode::Q)
+    {
+        app_exit_events.send(AppExit);
     }
 }
 
@@ -216,12 +222,23 @@ fn mode(mut mode: ResMut<State<ModeState>>, input: Res<Input<KeyCode>>) {
         mode.set_next(ModeState::None).unwrap();
     }
 
-    if input.just_pressed(KeyCode::B) && mode_current != ModeState::BoxSelect {
+    // Gate to avoid cancelling a running mode.
+    if mode_current != ModeState::None {
+        return;
+    }
+
+    if input.just_pressed(KeyCode::B) {
         mode.set_next(ModeState::BoxSelect).unwrap();
     }
 
-    if input.just_pressed(KeyCode::G) && mode_current != ModeState::Grab {
+    if input.just_pressed(KeyCode::G) {
         mode.set_next(ModeState::Grab).unwrap();
+    }
+
+    if (input.pressed(KeyCode::LShift) || input.pressed(KeyCode::RShift))
+        && input.just_pressed(KeyCode::A)
+    {
+        mode.set_next(ModeState::Add).unwrap();
     }
 }
 
@@ -277,6 +294,35 @@ fn box_select_setup(
             ..Default::default()
         })
         .with(BoxSelect::default());
+}
+
+fn add_setup(
+    commands: &mut Commands,
+    mut textures: ResMut<Assets<Texture>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let path = FileDialog::new()
+        // .set_location("~/Desktop")
+        .add_filter("PNG Image", &["png"])
+        .add_filter("JPEG Image", &["jpg", "jpeg"])
+        .show_open_single_file()
+        .unwrap();
+
+    let path = match path {
+        Some(path) => path,
+        None => return,
+    };
+
+    let texture = Texture::new_fill(Extent3d::new(128, 128, 1), TextureDimension::D2, &[50, 50, 150, 255], TextureFormat::Rgba8Unorm);
+    let image = textures.add(texture);
+    commands
+        .spawn(SpriteBundle {
+            material: materials.add(image.into()),
+            sprite: Sprite::new(NODE_SIZE_VEC),
+            ..Default::default()
+        })
+        .with(Hoverable)
+        .with(Draggable);
 }
 
 fn box_select(

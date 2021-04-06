@@ -8,4 +8,6 @@ edition = "2018"
 
 [dependencies]
 bevy = "0.4"
+kanter_core = { git = "https://github.com/lukors/kanter_core.git", branch = "master" }
+native-dialog = "0.5.5"
 # bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "1f3d506" }
