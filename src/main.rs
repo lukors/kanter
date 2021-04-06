@@ -10,6 +10,12 @@ use bevy::{
     },
     window::WindowFocused,
 };
+use kanter_core::{
+    dag::TextureProcessor,
+    node::{Node, NodeType, ResizePolicy},
+    node_data::Size,
+    node_graph::SlotId,
+};
 use native_dialog::FileDialog;
 
 const MODE: &str = "mode";
@@ -319,10 +325,99 @@ fn add_setup(
         None => return,
     };
 
-    let texture = Texture::new_fill(
-        Extent3d::new(128, 128, 1),
+    let mut tex_pro = TextureProcessor::new();
+
+    let n_in = tex_pro
+        .node_graph
+        .add_node(Node::new(NodeType::Image(
+            path.into_os_string().into_string().unwrap(),
+        )))
+        .unwrap();
+    let n_resize_1 = tex_pro
+        .node_graph
+        .add_node(Node::new(NodeType::Resize(
+            Some(ResizePolicy::SpecificSize(Size::new(
+                NODE_SIZE as u32,
+                NODE_SIZE as u32,
+            ))),
+            None,
+        )))
+        .unwrap();
+    let n_resize_2 = tex_pro
+        .node_graph
+        .add_node(Node::new(NodeType::Resize(
+            Some(ResizePolicy::SpecificSize(Size::new(
+                NODE_SIZE as u32,
+                NODE_SIZE as u32,
+            ))),
+            None,
+        )))
+        .unwrap();
+    let n_resize_3 = tex_pro
+        .node_graph
+        .add_node(Node::new(NodeType::Resize(
+            Some(ResizePolicy::SpecificSize(Size::new(
+                NODE_SIZE as u32,
+                NODE_SIZE as u32,
+            ))),
+            None,
+        )))
+        .unwrap();
+    let n_resize_4 = tex_pro
+        .node_graph
+        .add_node(Node::new(NodeType::Resize(
+            Some(ResizePolicy::SpecificSize(Size::new(
+                NODE_SIZE as u32,
+                NODE_SIZE as u32,
+            ))),
+            None,
+        )))
+        .unwrap();
+    let n_out = tex_pro
+        .node_graph
+        .add_node(Node::new(NodeType::OutputRgba))
+        .unwrap();
+
+    tex_pro
+        .node_graph
+        .connect(n_in, n_resize_1, SlotId(0), SlotId(0))
+        .unwrap();
+    tex_pro
+        .node_graph
+        .connect(n_in, n_resize_2, SlotId(1), SlotId(0))
+        .unwrap();
+    tex_pro
+        .node_graph
+        .connect(n_in, n_resize_3, SlotId(2), SlotId(0))
+        .unwrap();
+    tex_pro
+        .node_graph
+        .connect(n_in, n_resize_4, SlotId(3), SlotId(0))
+        .unwrap();
+
+    tex_pro
+        .node_graph
+        .connect(n_resize_1, n_out, SlotId(0), SlotId(0))
+        .unwrap();
+    tex_pro
+        .node_graph
+        .connect(n_resize_2, n_out, SlotId(0), SlotId(1))
+        .unwrap();
+    tex_pro
+        .node_graph
+        .connect(n_resize_3, n_out, SlotId(0), SlotId(2))
+        .unwrap();
+    tex_pro
+        .node_graph
+        .connect(n_resize_4, n_out, SlotId(0), SlotId(3))
+        .unwrap();
+
+    tex_pro.process();
+
+    let texture = Texture::new(
+        Extent3d::new(NODE_SIZE as u32, NODE_SIZE as u32, 1),
         TextureDimension::D2,
-        &[50, 50, 150, 255],
+        tex_pro.get_output(n_out).unwrap(),
         TextureFormat::Rgba8Unorm,
     );
     let image = textures.add(texture);
