@@ -660,7 +660,11 @@ fn none_setup(commands: &mut Commands, q_hovered: Query<Entity, With<Hovered>>) 
     }
 }
 
-fn grab_setup(commands: &mut Commands, q_selected: Query<Entity, With<Selected>>) {
+fn grab_setup(mut mode: ResMut<State<ModeState>>, commands: &mut Commands, q_selected: Query<Entity, With<Selected>>) {
+    if q_selected.iter().count() == 0 {
+        mode.overwrite_next(ModeState::None).unwrap();
+    }
+
     for entity in q_selected.iter() {
         commands.insert_one(entity, Dragged);
     }
