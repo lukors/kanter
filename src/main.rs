@@ -270,7 +270,7 @@ fn first_person_input(
 
     let event_window_focused = state_global.er_window_focused.latest(&e_window_focused);
     if let Some(event_window_focused) = event_window_focused {
-        if !event_window_focused.focused {
+        if !event_window_focused.focused && *first_person_state.current() != FirstPersonState::Off {
             first_person_state.set_next(FirstPersonState::Off).unwrap();
         }
     }
