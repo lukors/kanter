@@ -18,9 +18,6 @@ use kanter_core::{
 };
 use native_dialog::FileDialog;
 
-const MODE: &str = "mode";
-const FIRST_PERSON: &str = "first_person";
-
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ToolState {
     None,
@@ -68,75 +65,100 @@ impl Plugin for KanterPlugin {
         app.add_startup_system(setup.system())
             .add_state(ToolState::None)
             .add_state(FirstPersonState::Off)
-            .add_system_set_to_stage(CoreStage::PreUpdate, SystemSet::new()
-                .with_system(workspace.system())
-                .with_system(tool_input.system())
-                .with_system(first_person_input.system())
-                .with_system(quit_hotkey.system())
+            .add_system_set_to_stage(
+                CoreStage::PreUpdate,
+                SystemSet::new()
+                    .with_system(workspace.system())
+                    .with_system(tool_input.system())
+                    .with_system(first_person_input.system())
+                    .with_system(quit_hotkey.system()),
             )
-            .add_system_set_to_stage(CoreStage::Update, SystemSet::new()
-                .with_system(add_setup.system().with_run_criteria(State::on_enter(ToolState::Add)))
-                .with_system(box_select_setup.system().with_run_criteria(State::on_enter(ToolState::BoxSelect)))
-                .with_system(box_select.system().with_run_criteria(State::on_update(ToolState::BoxSelect)))
-                .with_system(box_select_cleanup.system().with_run_criteria(State::on_exit(ToolState::BoxSelect)))
+            .add_system_set_to_stage(
+                CoreStage::Update,
+                SystemSet::new()
+                    .with_system(
+                        add_setup
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Add)),
+                    )
+                    .with_system(
+                        box_select_setup
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::BoxSelect)),
+                    )
+                    .with_system(
+                        box_select
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::BoxSelect)),
+                    )
+                    .with_system(
+                        box_select_cleanup
+                            .system()
+                            .with_run_criteria(State::on_exit(ToolState::BoxSelect)),
+                    )
+                    .with_system(
+                        grab_setup
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Grab)),
+                    )
+                    .with_system(
+                        grab.system()
+                            .with_run_criteria(State::on_update(ToolState::Grab)),
+                    )
+                    .with_system(
+                        grab_cleanup
+                            .system()
+                            .with_run_criteria(State::on_exit(ToolState::Grab)),
+                    )
+                    .with_system(
+                        select_single
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::None)),
+                    )
+                    .with_system(
+                        draggable
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::None)),
+                    )
+                    .with_system(
+                        hoverable
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::None)),
+                    )
+                    .with_system(
+                        none_cleanup
+                            .system()
+                            .with_run_criteria(State::on_exit(ToolState::None)),
+                    )
+                    .with_system(
+                        first_person_on_setup
+                            .system()
+                            .with_run_criteria(State::on_enter(FirstPersonState::On)),
+                    )
+                    .with_system(
+                        first_person_on_update
+                            .system()
+                            .with_run_criteria(State::on_update(FirstPersonState::On)),
+                    )
+                    .with_system(
+                        first_person_on_cleanup
+                            .system()
+                            .with_run_criteria(State::on_exit(FirstPersonState::On)),
+                    )
+                    .with_system(
+                        first_person_off_update
+                            .system()
+                            .with_run_criteria(State::on_update(FirstPersonState::Off)),
+                    ),
             )
-                // .on_state_update(MODE, ToolState::BoxSelect, box_select.system())
-                // .on_state_exit(MODE, ToolState::BoxSelect, box_select_cleanup.system())
-                // .on_state_enter(MODE, ToolState::Grab, grab_setup.system())
-                // .on_state_update(MODE, ToolState::Grab, grab.system())
-                // .on_state_exit(MODE, ToolState::Grab, grab_cleanup.system())
-                // .on_state_exit(MODE, ToolState::None, none_setup.system())
-                // .on_state_update(MODE, ToolState::None, select_single.system())
-                // .on_state_update(MODE, ToolState::None, draggable.system())
-                // .on_state_update(MODE, ToolState::None, hoverable.system())
-
-            // .add_stage_before(stage::UPDATE, MODE, StateStage::<ToolState>::default())
-            // .add_stage_after(
-            //     MODE,
-            //     FIRST_PERSON,
-            //     StateStage::<FirstPersonState>::default(),
-            // )
-            // .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
-            // .add_system_to_stage(stage::PRE_UPDATE, mode.system())
-            // .add_system_to_stage(stage::PRE_UPDATE, first_person_input.system())
-            // .add_system_to_stage(stage::PRE_UPDATE, quit_hotkey.system())
-            // .on_state_enter(MODE, ToolState::Add, add_setup.system())
-
-            // IMLPEMENT WALL
-            // .on_state_enter(MODE, ToolState::BoxSelect, box_select_setup.system())
-            // .on_state_update(MODE, ToolState::BoxSelect, box_select.system())
-            // .on_state_exit(MODE, ToolState::BoxSelect, box_select_cleanup.system())
-            // .on_state_enter(MODE, ToolState::Grab, grab_setup.system())
-            // .on_state_update(MODE, ToolState::Grab, grab.system())
-            // .on_state_exit(MODE, ToolState::Grab, grab_cleanup.system())
-            // .on_state_exit(MODE, ToolState::None, none_setup.system())
-            // .on_state_update(MODE, ToolState::None, select_single.system())
-            // .on_state_update(MODE, ToolState::None, draggable.system())
-            // .on_state_update(MODE, ToolState::None, hoverable.system())
-            // .on_state_enter(
-            //     FIRST_PERSON,
-            //     FirstPersonState::On,
-            //     first_person_on_setup.system(),
-            // )
-            // .on_state_update(
-            //     FIRST_PERSON,
-            //     FirstPersonState::On,
-            //     first_person_on_update.system(),
-            // )
-            // .on_state_exit(
-            //     FIRST_PERSON,
-            //     FirstPersonState::On,
-            //     first_person_on_cleanup.system(),
-            // )
-            // .on_state_update(
-            //     FIRST_PERSON,
-            //     FirstPersonState::Off,
-            //     first_person_off_update.system(),
-            // )
-            // .add_system_to_stage(stage::UPDATE, deselect.system())
-            // .add_system_to_stage(stage::POST_UPDATE, drag.system())
-            // .add_system_to_stage(stage::POST_UPDATE, drop.system())
-            .add_system_to_stage(CoreStage::PostUpdate, material.system());
+            .add_system_set_to_stage(
+                CoreStage::PostUpdate,
+                SystemSet::new()
+                    .with_system(deselect.system())
+                    .with_system(drag.system())
+                    .with_system(drop.system())
+                    .with_system(material.system()),
+            );
     }
 }
 
@@ -151,7 +173,8 @@ fn setup(
     let crosshair_image = asset_server.load("crosshair.png");
 
     commands.spawn().insert(Workspace::default());
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d())
+    commands
+        .spawn_bundle(OrthographicCameraBundle::new_2d())
         .with_children(|parent| {
             parent
                 .spawn_bundle(SpriteBundle {
@@ -164,7 +187,11 @@ fn setup(
                 })
                 .insert(Crosshair);
         });
-    commands.spawn().insert(Transform::default()).insert(GlobalTransform::default()).insert(Cursor);
+    commands
+        .spawn()
+        .insert(Transform::default())
+        .insert(GlobalTransform::default())
+        .insert(Cursor);
 
     for _ in 0..4 {
         commands
@@ -251,7 +278,6 @@ fn tool_input(mut tool_state: ResMut<State<ToolState>>, input: Res<Input<KeyCode
         if input.just_pressed(KeyCode::Escape) && tool_current != ToolState::None {
             tool_state.replace(ToolState::None).unwrap();
         }
-
     }
 
     // Gate to avoid cancelling a running tool_state by activating another tool.
@@ -309,13 +335,15 @@ fn box_select_setup(
     let box_material = materials.add(box_image.into());
     materials.get_mut(&box_material).unwrap().color.set_a(0.25);
 
-    commands.spawn_bundle(SpriteBundle {
+    commands
+        .spawn_bundle(SpriteBundle {
             transform: Transform::from_translation(workspace.cursor_world.extend(0.)),
             material: materials.add(crosshair_image.into()),
             ..Default::default()
         })
         .insert(BoxSelectCursor);
-    commands.spawn_bundle(SpriteBundle {
+    commands
+        .spawn_bundle(SpriteBundle {
             material: box_material,
             visible: Visible {
                 is_visible: false,
@@ -439,7 +467,8 @@ fn add_setup(
         TextureFormat::Rgba8Unorm,
     );
     let image = textures.add(texture);
-    commands.spawn_bundle(SpriteBundle {
+    commands
+        .spawn_bundle(SpriteBundle {
             material: materials.add(image.into()),
             sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
             ..Default::default()
@@ -453,8 +482,18 @@ fn box_select(
     mut tool_state: ResMut<State<ToolState>>,
     q_workspace: Query<&Workspace>,
     mut q_box_select_cursor: Query<&mut Transform, With<BoxSelectCursor>>,
-    mut q_box_select: Query<(&mut Transform, &mut Visible, &Sprite, &mut BoxSelect), Without<BoxSelectCursor>>,
-    q_draggable: Query<(Entity, &Transform, &Sprite), (With<Draggable>, Without<BoxSelectCursor>, Without<BoxSelect>)>,
+    mut q_box_select: Query<
+        (&mut Transform, &mut Visible, &Sprite, &mut BoxSelect),
+        Without<BoxSelectCursor>,
+    >,
+    q_draggable: Query<
+        (Entity, &Transform, &Sprite),
+        (
+            With<Draggable>,
+            Without<BoxSelectCursor>,
+            Without<BoxSelect>,
+        ),
+    >,
     mut commands: Commands,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
@@ -770,7 +809,7 @@ fn select_single(
     }
 }
 
-fn none_setup(mut commands: Commands, q_hovered: Query<Entity, With<Hovered>>) {
+fn none_cleanup(mut commands: Commands, q_hovered: Query<Entity, With<Hovered>>) {
     for entity in q_hovered.iter() {
         commands.entity(entity).remove::<Hovered>();
     }
