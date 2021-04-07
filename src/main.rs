@@ -21,9 +21,27 @@ use native_dialog::FileDialog;
 const MODE: &str = "mode";
 const FIRST_PERSON: &str = "first_person";
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
+pub enum ToolState {
+    None,
+    Add,
+    BoxSelect,
+    Grab,
+}
+
+impl Default for ToolState {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
+pub enum FrameStage {
+    Input,
+}
+
 fn main() {
     App::build()
-        .init_resource::<StateGlobal>()
         .insert_resource(WindowDescriptor {
             title: "Bevy".to_string(),
             width: 1024.0,
@@ -31,34 +49,12 @@ fn main() {
             vsync: true,
             ..Default::default()
         })
-        .insert_resource(State::new(ModeState::None))
-        .insert_resource(State::new(FirstPersonState::Off))
-        .add_stage_before(stage::UPDATE, MODE, StateStage::<ModeState>::default())
-        .add_stage_after(
-            MODE,
-            FIRST_PERSON,
-            StateStage::<FirstPersonState>::default(),
-        )
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();
 }
 
-#[derive(Clone, Copy, PartialEq)]
-enum ModeState {
-    None,
-    Add,
-    BoxSelect,
-    Grab,
-}
-
-impl Default for ModeState {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum FirstPersonState {
     Off,
     On,
@@ -75,53 +71,67 @@ pub struct KanterPlugin;
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_startup_system(setup.system())
-            .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
-            .add_system_to_stage(stage::PRE_UPDATE, mode.system())
-            .add_system_to_stage(stage::PRE_UPDATE, first_person_input.system())
-            .add_system_to_stage(stage::PRE_UPDATE, quit_hotkey.system())
-            .on_state_enter(MODE, ModeState::Add, add_setup.system())
-            .on_state_enter(MODE, ModeState::BoxSelect, box_select_setup.system())
-            .on_state_update(MODE, ModeState::BoxSelect, box_select.system())
-            .on_state_exit(MODE, ModeState::BoxSelect, box_select_cleanup.system())
-            .on_state_enter(MODE, ModeState::Grab, grab_setup.system())
-            .on_state_update(MODE, ModeState::Grab, grab.system())
-            .on_state_exit(MODE, ModeState::Grab, grab_cleanup.system())
-            .on_state_exit(MODE, ModeState::None, none_setup.system())
-            .on_state_update(MODE, ModeState::None, select_single.system())
-            .on_state_update(MODE, ModeState::None, draggable.system())
-            .on_state_update(MODE, ModeState::None, hoverable.system())
-            .on_state_enter(
-                FIRST_PERSON,
-                FirstPersonState::On,
-                first_person_on_setup.system(),
-            )
-            .on_state_update(
-                FIRST_PERSON,
-                FirstPersonState::On,
-                first_person_on_update.system(),
-            )
-            .on_state_exit(
-                FIRST_PERSON,
-                FirstPersonState::On,
-                first_person_on_cleanup.system(),
-            )
-            .on_state_update(
-                FIRST_PERSON,
-                FirstPersonState::Off,
-                first_person_off_update.system(),
-            )
-            .add_system_to_stage(stage::UPDATE, deselect.system())
-            .add_system_to_stage(stage::POST_UPDATE, drag.system())
-            .add_system_to_stage(stage::POST_UPDATE, drop.system())
-            .add_system_to_stage(stage::POST_UPDATE, material.system());
+            .add_state(ToolState::None)
+            .add_state(FirstPersonState::Off)
+            .add_system_set(SystemSet::new()
+                .label(FrameStage::Input)
+                .with_system(workspace.system())
+                .with_system(tool_input.system())
+                .with_system(first_person_input.system())
+                .with_system(quit_hotkey.system())
+            );
+
+            // .add_stage_before(stage::UPDATE, MODE, StateStage::<ToolState>::default())
+            // .add_stage_after(
+            //     MODE,
+            //     FIRST_PERSON,
+            //     StateStage::<FirstPersonState>::default(),
+            // )
+            // .add_system_to_stage(stage::PRE_UPDATE, workspace.system())
+            // .add_system_to_stage(stage::PRE_UPDATE, mode.system())
+            // .add_system_to_stage(stage::PRE_UPDATE, first_person_input.system())
+            // .add_system_to_stage(stage::PRE_UPDATE, quit_hotkey.system())
+
+            // IMLPEMENT WALL
+            // .on_state_enter(MODE, ToolState::Add, add_setup.system())
+            // .on_state_enter(MODE, ToolState::BoxSelect, box_select_setup.system())
+            // .on_state_update(MODE, ToolState::BoxSelect, box_select.system())
+            // .on_state_exit(MODE, ToolState::BoxSelect, box_select_cleanup.system())
+            // .on_state_enter(MODE, ToolState::Grab, grab_setup.system())
+            // .on_state_update(MODE, ToolState::Grab, grab.system())
+            // .on_state_exit(MODE, ToolState::Grab, grab_cleanup.system())
+            // .on_state_exit(MODE, ToolState::None, none_setup.system())
+            // .on_state_update(MODE, ToolState::None, select_single.system())
+            // .on_state_update(MODE, ToolState::None, draggable.system())
+            // .on_state_update(MODE, ToolState::None, hoverable.system())
+            // .on_state_enter(
+            //     FIRST_PERSON,
+            //     FirstPersonState::On,
+            //     first_person_on_setup.system(),
+            // )
+            // .on_state_update(
+            //     FIRST_PERSON,
+            //     FirstPersonState::On,
+            //     first_person_on_update.system(),
+            // )
+            // .on_state_exit(
+            //     FIRST_PERSON,
+            //     FirstPersonState::On,
+            //     first_person_on_cleanup.system(),
+            // )
+            // .on_state_update(
+            //     FIRST_PERSON,
+            //     FirstPersonState::Off,
+            //     first_person_off_update.system(),
+            // )
+            // .add_system_to_stage(stage::UPDATE, deselect.system())
+            // .add_system_to_stage(stage::POST_UPDATE, drag.system())
+            // .add_system_to_stage(stage::POST_UPDATE, drop.system())
+            // .add_system_to_stage(stage::POST_UPDATE, material.system());
     }
 }
 
 const NODE_SIZE: f32 = 128.;
-const NODE_SIZE_VEC: Vec2 = Vec2 {
-    x: NODE_SIZE,
-    y: NODE_SIZE,
-};
 
 fn setup(
     mut commands: Commands,
@@ -131,12 +141,11 @@ fn setup(
     let test_image = asset_server.load("image_2.png");
     let crosshair_image = asset_server.load("crosshair.png");
 
-    commands
-        .spawn((Workspace::default(), ()))
-        .spawn(Camera2dBundle::default())
+    commands.spawn().insert(Workspace::default());
+    commands.spawn_bundle(OrthographicCameraBundle::new_2d())
         .with_children(|parent| {
             parent
-                .spawn(SpriteBundle {
+                .spawn_bundle(SpriteBundle {
                     material: materials.add(crosshair_image.into()),
                     visible: Visible {
                         is_visible: false,
@@ -144,19 +153,19 @@ fn setup(
                     },
                     ..Default::default()
                 })
-                .with(Crosshair);
-        })
-        .spawn((Transform::default(), GlobalTransform::default(), Cursor));
+                .insert(Crosshair);
+        });
+    commands.spawn().insert(Transform::default()).insert(GlobalTransform::default()).insert(Cursor);
 
     for _ in 0..4 {
         commands
-            .spawn(SpriteBundle {
+            .spawn_bundle(SpriteBundle {
                 material: materials.add(test_image.clone().into()),
-                sprite: Sprite::new(NODE_SIZE_VEC),
+                sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
                 ..Default::default()
             })
-            .with(Hoverable)
-            .with(Draggable);
+            .insert(Hoverable)
+            .insert(Draggable);
     }
 }
 
@@ -188,16 +197,17 @@ struct BoxSelect {
 }
 
 fn workspace(
-    mut state_global: ResMut<StateGlobal>,
+    mut er_mouse_motion: EventReader<MouseMotion>,
+    mut er_cursor_moved: EventReader<CursorMoved>,
     windows: Res<Windows>,
     mut q_workspace: Query<&mut Workspace>,
     q_camera: Query<&Transform, With<Camera>>,
 ) {
-    let mut event_cursor_delta: Vec2 = Vec2::zero();
-    for event_motion in state_global.er_mouse_motion.iter() {
+    let mut event_cursor_delta: Vec2 = Vec2::ZERO;
+    for event_motion in er_mouse_motion.iter() {
         event_cursor_delta += event_motion.delta;
     }
-    let event_cursor_screen = state_global.er_cursor_moved.iter().last();
+    let event_cursor_screen = er_cursor_moved.iter().last();
 
     for mut workspace in q_workspace.iter_mut() {
         if let Some(event_cursor_screen) = event_cursor_screen {
@@ -225,50 +235,53 @@ fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: EventWriter<AppE
     }
 }
 
-fn mode(mut mode: ResMut<State<ModeState>>, input: Res<Input<KeyCode>>) {
-    let mode_current = *mode.current();
+fn tool_input(mut tool_state: ResMut<State<ToolState>>, input: Res<Input<KeyCode>>) {
+    let tool_current = tool_state.current().clone();
 
-    if input.just_pressed(KeyCode::Escape) && mode_current != ModeState::None {
-        mode.set_next(ModeState::None).unwrap();
+    if tool_current != ToolState::None {
+        if input.just_pressed(KeyCode::Escape) && tool_current != ToolState::None {
+            tool_state.replace(ToolState::None).unwrap();
+        }
+
     }
 
-    // Gate to avoid cancelling a running mode.
-    if mode_current != ModeState::None {
+    // Gate to avoid cancelling a running tool_state by activating another tool.
+    if tool_current != ToolState::None {
         return;
     }
 
     if input.just_pressed(KeyCode::B) {
-        mode.set_next(ModeState::BoxSelect).unwrap();
+        tool_state.set(ToolState::BoxSelect).unwrap();
     }
 
     if input.just_pressed(KeyCode::G) {
-        mode.set_next(ModeState::Grab).unwrap();
+        tool_state.set(ToolState::Grab).unwrap();
     }
 
     if (input.pressed(KeyCode::LShift) || input.pressed(KeyCode::RShift))
         && input.just_pressed(KeyCode::A)
     {
-        mode.set_next(ModeState::Add).unwrap();
+        tool_state.set(ToolState::Add).unwrap();
     }
 }
 
 fn first_person_input(
     mut first_person_state: ResMut<State<FirstPersonState>>,
-    mut state_global: ResMut<StateGlobal>,
+    mut er_window_focused: EventReader<WindowFocused>,
     input: Res<Input<KeyCode>>,
 ) {
     if input.just_pressed(KeyCode::Tab) {
         if *first_person_state.current() == FirstPersonState::Off {
-            first_person_state.set_next(FirstPersonState::On).unwrap();
+            first_person_state.set(FirstPersonState::On).unwrap();
         } else {
-            first_person_state.set_next(FirstPersonState::Off).unwrap();
+            first_person_state.set(FirstPersonState::Off).unwrap();
         }
     }
 
-    let event_window_focused = state_global.er_window_focused.iter().last();
+    let event_window_focused = er_window_focused.iter().last();
     if let Some(event_window_focused) = event_window_focused {
         if !event_window_focused.focused && *first_person_state.current() != FirstPersonState::Off {
-            first_person_state.set_next(FirstPersonState::Off).unwrap();
+            first_person_state.set(FirstPersonState::Off).unwrap();
         }
     }
 }
@@ -287,14 +300,13 @@ fn box_select_setup(
     let box_material = materials.add(box_image.into());
     materials.get_mut(&box_material).unwrap().color.set_a(0.25);
 
-    commands
-        .spawn(SpriteBundle {
+    commands.spawn_bundle(SpriteBundle {
             transform: Transform::from_translation(workspace.cursor_world.extend(0.)),
             material: materials.add(crosshair_image.into()),
             ..Default::default()
         })
-        .with(BoxSelectCursor)
-        .spawn(SpriteBundle {
+        .insert(BoxSelectCursor);
+    commands.spawn_bundle(SpriteBundle {
             material: box_material,
             visible: Visible {
                 is_visible: false,
@@ -302,7 +314,7 @@ fn box_select_setup(
             },
             ..Default::default()
         })
-        .with(BoxSelect::default());
+        .insert(BoxSelect::default());
 }
 
 fn add_setup(
@@ -418,19 +430,18 @@ fn add_setup(
         TextureFormat::Rgba8Unorm,
     );
     let image = textures.add(texture);
-    commands
-        .spawn(SpriteBundle {
+    commands.spawn_bundle(SpriteBundle {
             material: materials.add(image.into()),
-            sprite: Sprite::new(NODE_SIZE_VEC),
+            sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
             ..Default::default()
         })
-        .with(Hoverable)
-        .with(Draggable);
+        .insert(Hoverable)
+        .insert(Draggable);
 }
 
 fn box_select(
     i_mouse_button: Res<Input<MouseButton>>,
-    mut mode: ResMut<State<ModeState>>,
+    mut tool_state: ResMut<State<ToolState>>,
     q_workspace: Query<&Workspace>,
     mut q_box_select_cursor: Query<&mut Transform, With<BoxSelectCursor>>,
     mut q_box_select: Query<(&mut Transform, &mut Visible, &Sprite, &mut BoxSelect)>,
@@ -451,9 +462,9 @@ fn box_select(
 
         if i_mouse_button.just_released(MouseButton::Left)
             && visible.is_visible
-            && *mode.current() != ModeState::None
+            && *tool_state.current() != ToolState::None
         {
-            mode.overwrite_next(ModeState::None).unwrap();
+            tool_state.replace(ToolState::None).unwrap();
             return;
         }
 
@@ -462,7 +473,7 @@ fn box_select(
 
             let new_transform = Transform {
                 translation: ((box_select.start + box_select.end) / 2.0).extend(0.),
-                rotation: Quat::identity(),
+                rotation: Quat::IDENTITY,
                 scale: ((box_select.start - box_select.end) / sprite.size).extend(1.0),
             };
 
@@ -480,9 +491,9 @@ fn box_select(
                 );
 
                 if box_intersect(box_box, drag_box) {
-                    commands.insert(entity, Selected);
+                    commands.entity(entity).insert(Selected);
                 } else {
-                    commands.remove_one::<Selected>(entity);
+                    commands.entity(entity).remove::<Selected>();
                 }
             }
         }
@@ -511,11 +522,11 @@ fn box_select_cleanup(
     q_box_select: Query<Entity, With<BoxSelect>>,
 ) {
     for box_select_cursor_e in q_box_select_cursor.iter() {
-        commands.despawn(box_select_cursor_e);
+        commands.entity(box_select_cursor_e).despawn();
     }
 
     for q_box_select_e in q_box_select.iter() {
-        commands.despawn(q_box_select_e);
+        commands.entity(q_box_select_e).despawn();
     }
 }
 
@@ -536,9 +547,9 @@ fn hoverable(
                 && transform.translation.y - half_height < workspace.cursor_world.y
                 && transform.translation.y + half_height > workspace.cursor_world.y
             {
-                commands.insert(entity, Hovered);
+                commands.entity(entity).insert(Hovered);
             } else {
-                commands.remove_one::<Hovered>(entity);
+                commands.entity(entity).remove::<Hovered>();
             }
         }
     }
@@ -600,13 +611,13 @@ fn draggable(
 ) {
     if i_mouse_button.just_pressed(MouseButton::Left) {
         if let Some(entity) = q_pressed.iter().next() {
-            commands.insert(entity, Dragged);
+            commands.entity(entity).insert(Dragged);
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
         for entity in q_released.iter() {
-            commands.remove_one::<Dragged>(entity);
+            commands.entity(entity).remove::<Dragged>();
 
-            commands.insert(entity, Dropped);
+            commands.entity(entity).insert(Dropped);
         }
     }
 }
@@ -620,7 +631,7 @@ fn drag(
         for (entity, mut transform, global_transform) in q_dragged.iter_mut() {
             let global_pos = global_transform.translation - cursor_transform.translation;
 
-            commands.insert(entity, Parent(cursor_e));
+            commands.entity(entity).insert(Parent(cursor_e));
 
             transform.translation.x = global_pos.x;
             transform.translation.y = global_pos.y;
@@ -638,19 +649,12 @@ fn drop(
         transform.translation.x = global_pos.x;
         transform.translation.y = global_pos.y;
 
-        commands.remove_one::<Parent>(entity);
-        commands.remove_one::<Dropped>(entity);
+        commands.entity(entity).remove::<Parent>();
+        commands.entity(entity).remove::<Dropped>();
     }
 }
 
 struct Crosshair;
-
-#[derive(Default)]
-struct StateGlobal {
-    er_mouse_motion: EventReader<MouseMotion>,
-    er_cursor_moved: EventReader<CursorMoved>,
-    er_window_focused: EventReader<WindowFocused>,
-}
 
 fn first_person_on_update(
     mut windows: ResMut<Windows>,
@@ -696,14 +700,14 @@ fn first_person_on_setup(
     }
 
     for (cursor_e, _transform) in q_cursor.iter_mut() {
-        commands.remove_one::<Parent>(cursor_e);
+        commands.entity(cursor_e).remove::<Parent>();
     }
 
     for camera_e in q_camera.iter_mut() {
         for (cursor_e, mut transform) in q_cursor.iter_mut() {
             transform.translation.x = 0.;
             transform.translation.y = 0.;
-            commands.insert(cursor_e, Parent(camera_e));
+            commands.entity(cursor_e).insert(Parent(camera_e));
         }
     }
 }
@@ -722,7 +726,7 @@ fn first_person_on_cleanup(
     }
 
     for cursor_e in q_cursor.iter_mut() {
-        commands.remove_one::<Parent>(cursor_e);
+        commands.entity(cursor_e).remove::<Parent>();
     }
 }
 
@@ -733,7 +737,7 @@ fn deselect(
 ) {
     if input.just_pressed(KeyCode::A) {
         for entity in q_selected.iter() {
-            commands.remove_one::<Selected>(entity);
+            commands.entity(entity).remove::<Selected>();
         }
     }
 }
@@ -749,43 +753,43 @@ fn select_single(
     }
 
     for entity in q_selected.iter() {
-        commands.remove_one::<Selected>(entity);
+        commands.entity(entity).remove::<Selected>();
     }
 
     if let Some(entity) = q_hovered.iter().next() {
-        commands.insert(entity, Selected);
+        commands.entity(entity).insert(Selected);
     }
 }
 
 fn none_setup(mut commands: Commands, q_hovered: Query<Entity, With<Hovered>>) {
     for entity in q_hovered.iter() {
-        commands.remove_one::<Hovered>(entity);
+        commands.entity(entity).remove::<Hovered>();
     }
 }
 
 fn grab_setup(
-    mut mode: ResMut<State<ModeState>>,
+    mut tool_state: ResMut<State<ToolState>>,
     mut commands: Commands,
     q_selected: Query<Entity, With<Selected>>,
 ) {
     if q_selected.iter().count() == 0 {
-        mode.overwrite_next(ModeState::None).unwrap();
+        tool_state.replace(ToolState::None).unwrap();
     }
 
     for entity in q_selected.iter() {
-        commands.insert(entity, Dragged);
+        commands.entity(entity).insert(Dragged);
     }
 }
 
-fn grab(mut mode: ResMut<State<ModeState>>, i_mouse_button: Res<Input<MouseButton>>) {
+fn grab(mut tool_state: ResMut<State<ToolState>>, i_mouse_button: Res<Input<MouseButton>>) {
     if i_mouse_button.just_pressed(MouseButton::Left) {
-        mode.overwrite_next(ModeState::None).unwrap();
+        tool_state.replace(ToolState::None).unwrap();
     }
 }
 
 fn grab_cleanup(mut commands: Commands, q_dragged: Query<Entity, With<Dragged>>) {
     for entity in q_dragged.iter() {
-        commands.remove_one::<Dragged>(entity);
-        commands.insert(entity, Dropped);
+        commands.entity(entity).remove::<Dragged>();
+        commands.entity(entity).insert(Dropped);
     }
 }
