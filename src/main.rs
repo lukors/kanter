@@ -21,7 +21,7 @@ use native_dialog::FileDialog;
 const MODE: &str = "mode";
 const FIRST_PERSON: &str = "first_person";
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ToolState {
     None,
     Add,
@@ -33,11 +33,6 @@ impl Default for ToolState {
     fn default() -> Self {
         Self::None
     }
-}
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
-pub enum FrameStage {
-    Input,
 }
 
 fn main() {
@@ -73,13 +68,27 @@ impl Plugin for KanterPlugin {
         app.add_startup_system(setup.system())
             .add_state(ToolState::None)
             .add_state(FirstPersonState::Off)
-            .add_system_set(SystemSet::new()
-                .label(FrameStage::Input)
+            .add_system_set_to_stage(CoreStage::PreUpdate, SystemSet::new()
                 .with_system(workspace.system())
                 .with_system(tool_input.system())
                 .with_system(first_person_input.system())
                 .with_system(quit_hotkey.system())
-            );
+            )
+            .add_system_set_to_stage(CoreStage::Update, SystemSet::new()
+                .with_system(add_setup.system().with_run_criteria(State::on_enter(ToolState::Add)))
+                .with_system(box_select_setup.system().with_run_criteria(State::on_enter(ToolState::BoxSelect)))
+                .with_system(box_select.system().with_run_criteria(State::on_update(ToolState::BoxSelect)))
+                .with_system(box_select_cleanup.system().with_run_criteria(State::on_exit(ToolState::BoxSelect)))
+            )
+                // .on_state_update(MODE, ToolState::BoxSelect, box_select.system())
+                // .on_state_exit(MODE, ToolState::BoxSelect, box_select_cleanup.system())
+                // .on_state_enter(MODE, ToolState::Grab, grab_setup.system())
+                // .on_state_update(MODE, ToolState::Grab, grab.system())
+                // .on_state_exit(MODE, ToolState::Grab, grab_cleanup.system())
+                // .on_state_exit(MODE, ToolState::None, none_setup.system())
+                // .on_state_update(MODE, ToolState::None, select_single.system())
+                // .on_state_update(MODE, ToolState::None, draggable.system())
+                // .on_state_update(MODE, ToolState::None, hoverable.system())
 
             // .add_stage_before(stage::UPDATE, MODE, StateStage::<ToolState>::default())
             // .add_stage_after(
@@ -91,9 +100,9 @@ impl Plugin for KanterPlugin {
             // .add_system_to_stage(stage::PRE_UPDATE, mode.system())
             // .add_system_to_stage(stage::PRE_UPDATE, first_person_input.system())
             // .add_system_to_stage(stage::PRE_UPDATE, quit_hotkey.system())
+            // .on_state_enter(MODE, ToolState::Add, add_setup.system())
 
             // IMLPEMENT WALL
-            // .on_state_enter(MODE, ToolState::Add, add_setup.system())
             // .on_state_enter(MODE, ToolState::BoxSelect, box_select_setup.system())
             // .on_state_update(MODE, ToolState::BoxSelect, box_select.system())
             // .on_state_exit(MODE, ToolState::BoxSelect, box_select_cleanup.system())
@@ -127,7 +136,7 @@ impl Plugin for KanterPlugin {
             // .add_system_to_stage(stage::UPDATE, deselect.system())
             // .add_system_to_stage(stage::POST_UPDATE, drag.system())
             // .add_system_to_stage(stage::POST_UPDATE, drop.system())
-            // .add_system_to_stage(stage::POST_UPDATE, material.system());
+            .add_system_to_stage(CoreStage::PostUpdate, material.system());
     }
 }
 
@@ -444,8 +453,8 @@ fn box_select(
     mut tool_state: ResMut<State<ToolState>>,
     q_workspace: Query<&Workspace>,
     mut q_box_select_cursor: Query<&mut Transform, With<BoxSelectCursor>>,
-    mut q_box_select: Query<(&mut Transform, &mut Visible, &Sprite, &mut BoxSelect)>,
-    q_draggable: Query<(Entity, &Transform, &Sprite), With<Draggable>>,
+    mut q_box_select: Query<(&mut Transform, &mut Visible, &Sprite, &mut BoxSelect), Without<BoxSelectCursor>>,
+    q_draggable: Query<(Entity, &Transform, &Sprite), (With<Draggable>, Without<BoxSelectCursor>, Without<BoxSelect>)>,
     mut commands: Commands,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
