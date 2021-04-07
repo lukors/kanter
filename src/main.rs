@@ -189,17 +189,15 @@ struct BoxSelect {
 
 fn workspace(
     mut state_global: ResMut<StateGlobal>,
-    e_cursor_moved: Res<Events<CursorMoved>>,
-    e_mouse_motion: Res<Events<MouseMotion>>,
     windows: Res<Windows>,
     mut q_workspace: Query<&mut Workspace>,
     q_camera: Query<&Transform, With<Camera>>,
 ) {
     let mut event_cursor_delta: Vec2 = Vec2::zero();
-    for event_motion in state_global.er_mouse_motion.iter(&e_mouse_motion) {
+    for event_motion in state_global.er_mouse_motion.iter() {
         event_cursor_delta += event_motion.delta;
     }
-    let event_cursor_screen = state_global.er_cursor_moved.latest(&e_cursor_moved);
+    let event_cursor_screen = state_global.er_cursor_moved.iter().last();
 
     for mut workspace in q_workspace.iter_mut() {
         if let Some(event_cursor_screen) = event_cursor_screen {
