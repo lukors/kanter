@@ -124,7 +124,7 @@ const NODE_SIZE_VEC: Vec2 = Vec2 {
 };
 
 fn setup(
-    commands: &mut Commands,
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
@@ -279,7 +279,7 @@ fn first_person_input(
 fn box_select_setup(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    commands: &mut Commands,
+    mut commands: Commands,
     q_workspace: Query<&Workspace>,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
@@ -309,7 +309,7 @@ fn box_select_setup(
 }
 
 fn add_setup(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut textures: ResMut<Assets<Texture>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
@@ -438,7 +438,7 @@ fn box_select(
     mut q_box_select_cursor: Query<&mut Transform, With<BoxSelectCursor>>,
     mut q_box_select: Query<(&mut Transform, &mut Visible, &Sprite, &mut BoxSelect)>,
     q_draggable: Query<(Entity, &Transform, &Sprite), With<Draggable>>,
-    commands: &mut Commands,
+    mut commands: Commands,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
 
@@ -483,7 +483,7 @@ fn box_select(
                 );
 
                 if box_intersect(box_box, drag_box) {
-                    commands.insert_one(entity, Selected);
+                    commands.insert(entity, Selected);
                 } else {
                     commands.remove_one::<Selected>(entity);
                 }
@@ -509,7 +509,7 @@ fn box_intersect(box_1: (Vec2, Vec2), box_2: (Vec2, Vec2)) -> bool {
 }
 
 fn box_select_cleanup(
-    commands: &mut Commands,
+    mut commands: Commands,
     q_box_select_cursor: Query<Entity, With<BoxSelectCursor>>,
     q_box_select: Query<Entity, With<BoxSelect>>,
 ) {
@@ -523,7 +523,7 @@ fn box_select_cleanup(
 }
 
 fn hoverable(
-    commands: &mut Commands,
+    mut commands: Commands,
     q_workspace: Query<&Workspace>,
     q_hoverable: Query<(Entity, &Transform, &Sprite), (With<Hoverable>, Without<Dragged>)>,
 ) {
@@ -539,7 +539,7 @@ fn hoverable(
                 && transform.translation.y - half_height < workspace.cursor_world.y
                 && transform.translation.y + half_height > workspace.cursor_world.y
             {
-                commands.insert_one(entity, Hovered);
+                commands.insert(entity, Hovered);
             } else {
                 commands.remove_one::<Hovered>(entity);
             }
@@ -596,26 +596,26 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
 }
 
 fn draggable(
-    commands: &mut Commands,
+    mut commands: Commands,
     i_mouse_button: Res<Input<MouseButton>>,
     q_pressed: Query<Entity, (With<Hovered>, With<Draggable>)>,
     q_released: Query<Entity, With<Dragged>>,
 ) {
     if i_mouse_button.just_pressed(MouseButton::Left) {
         if let Some(entity) = q_pressed.iter().next() {
-            commands.insert_one(entity, Dragged);
+            commands.insert(entity, Dragged);
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
         for entity in q_released.iter() {
             commands.remove_one::<Dragged>(entity);
 
-            commands.insert_one(entity, Dropped);
+            commands.insert(entity, Dropped);
         }
     }
 }
 
 fn drag(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut q_dragged: Query<(Entity, &mut Transform, &GlobalTransform), Added<Dragged>>,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
 ) {
@@ -623,7 +623,7 @@ fn drag(
         for (entity, mut transform, global_transform) in q_dragged.iter_mut() {
             let global_pos = global_transform.translation - cursor_transform.translation;
 
-            commands.insert_one(entity, Parent(cursor_e));
+            commands.insert(entity, Parent(cursor_e));
 
             transform.translation.x = global_pos.x;
             transform.translation.y = global_pos.y;
@@ -632,7 +632,7 @@ fn drag(
 }
 
 fn drop(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut q_dropped: Query<(Entity, &mut Transform, &GlobalTransform), Added<Dropped>>,
 ) {
     for (entity, mut transform, global_transform) in q_dropped.iter_mut() {
@@ -689,7 +689,7 @@ fn first_person_on_setup(
     mut q_camera: Query<Entity, With<Camera>>,
     mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
     mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
-    commands: &mut Commands,
+    mut commands: Commands,
 ) {
     let window = windows.get_primary_mut().unwrap();
     window.set_cursor_visibility(false);
@@ -706,7 +706,7 @@ fn first_person_on_setup(
         for (cursor_e, mut transform) in q_cursor.iter_mut() {
             transform.translation.x = 0.;
             transform.translation.y = 0.;
-            commands.insert_one(cursor_e, Parent(camera_e));
+            commands.insert(cursor_e, Parent(camera_e));
         }
     }
 }
@@ -715,7 +715,7 @@ fn first_person_on_cleanup(
     mut windows: ResMut<Windows>,
     mut q_cursor: Query<Entity, With<Cursor>>,
     mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
-    commands: &mut Commands,
+    mut commands: Commands,
 ) {
     let window = windows.get_primary_mut().unwrap();
     window.set_cursor_visibility(true);
@@ -731,7 +731,7 @@ fn first_person_on_cleanup(
 
 fn deselect(
     input: Res<Input<KeyCode>>,
-    commands: &mut Commands,
+    mut commands: Commands,
     q_selected: Query<Entity, With<Selected>>,
 ) {
     if input.just_pressed(KeyCode::A) {
@@ -743,7 +743,7 @@ fn deselect(
 
 fn select_single(
     i_mouse_button: Res<Input<MouseButton>>,
-    commands: &mut Commands,
+    mut commands: Commands,
     q_hovered: Query<Entity, (With<Hovered>, Without<Selected>)>,
     q_selected: Query<Entity, With<Selected>>,
 ) {
@@ -756,11 +756,11 @@ fn select_single(
     }
 
     if let Some(entity) = q_hovered.iter().next() {
-        commands.insert_one(entity, Selected);
+        commands.insert(entity, Selected);
     }
 }
 
-fn none_setup(commands: &mut Commands, q_hovered: Query<Entity, With<Hovered>>) {
+fn none_setup(mut commands: Commands, q_hovered: Query<Entity, With<Hovered>>) {
     for entity in q_hovered.iter() {
         commands.remove_one::<Hovered>(entity);
     }
@@ -768,7 +768,7 @@ fn none_setup(commands: &mut Commands, q_hovered: Query<Entity, With<Hovered>>) 
 
 fn grab_setup(
     mut mode: ResMut<State<ModeState>>,
-    commands: &mut Commands,
+    mut commands: Commands,
     q_selected: Query<Entity, With<Selected>>,
 ) {
     if q_selected.iter().count() == 0 {
@@ -776,7 +776,7 @@ fn grab_setup(
     }
 
     for entity in q_selected.iter() {
-        commands.insert_one(entity, Dragged);
+        commands.insert(entity, Dragged);
     }
 }
 
@@ -786,9 +786,9 @@ fn grab(mut mode: ResMut<State<ModeState>>, i_mouse_button: Res<Input<MouseButto
     }
 }
 
-fn grab_cleanup(commands: &mut Commands, q_dragged: Query<Entity, With<Dragged>>) {
+fn grab_cleanup(mut commands: Commands, q_dragged: Query<Entity, With<Dragged>>) {
     for entity in q_dragged.iter() {
         commands.remove_one::<Dragged>(entity);
-        commands.insert_one(entity, Dropped);
+        commands.insert(entity, Dropped);
     }
 }
