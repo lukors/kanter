@@ -41,6 +41,7 @@ fn main() {
             vsync: true,
             ..Default::default()
         })
+        .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();
@@ -58,6 +59,12 @@ impl Default for FirstPersonState {
     }
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
+struct InputLabel;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, AmbiguitySetLabel)]
+struct AmbiguitySet;
+
 pub struct KanterPlugin;
 
 impl Plugin for KanterPlugin {
@@ -69,46 +76,60 @@ impl Plugin for KanterPlugin {
                 CoreStage::PreUpdate,
                 SystemSet::new()
                     .with_system(workspace.system())
-                    .with_system(tool_input.system())
-                    .with_system(first_person_input.system())
-                    .with_system(quit_hotkey.system()),
+
             )
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
+                    .label(InputLabel)
+                    .with_system(tool_input.system()
+                        .chain(first_person_input.system())
+                    ),
+            )
+            .add_system_set_to_stage(
+                CoreStage::Update,
+                SystemSet::new()
+                    .after(InputLabel)
                     .with_system(
                         add_setup
                             .system()
-                            .with_run_criteria(State::on_enter(ToolState::Add)),
+                            .with_run_criteria(State::on_enter(ToolState::Add))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         box_select_setup
                             .system()
-                            .with_run_criteria(State::on_enter(ToolState::BoxSelect)),
+                            .with_run_criteria(State::on_enter(ToolState::BoxSelect))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         box_select
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::BoxSelect)),
+                            .with_run_criteria(State::on_update(ToolState::BoxSelect))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         box_select_cleanup
                             .system()
-                            .with_run_criteria(State::on_exit(ToolState::BoxSelect)),
+                            .with_run_criteria(State::on_exit(ToolState::BoxSelect))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_setup
                             .system()
-                            .with_run_criteria(State::on_enter(ToolState::Grab)),
+                            .with_run_criteria(State::on_enter(ToolState::Grab))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab.system()
-                            .with_run_criteria(State::on_update(ToolState::Grab)),
+                            .with_run_criteria(State::on_update(ToolState::Grab))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_cleanup
                             .system()
-                            .with_run_criteria(State::on_exit(ToolState::Grab)),
+                            .with_run_criteria(State::on_exit(ToolState::Grab))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         select_single
@@ -133,22 +154,26 @@ impl Plugin for KanterPlugin {
                     .with_system(
                         first_person_on_setup
                             .system()
-                            .with_run_criteria(State::on_enter(FirstPersonState::On)),
+                            .with_run_criteria(State::on_enter(FirstPersonState::On))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         first_person_on_update
                             .system()
-                            .with_run_criteria(State::on_update(FirstPersonState::On)),
+                            .with_run_criteria(State::on_update(FirstPersonState::On))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         first_person_on_cleanup
                             .system()
-                            .with_run_criteria(State::on_exit(FirstPersonState::On)),
+                            .with_run_criteria(State::on_exit(FirstPersonState::On))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         first_person_off_update
                             .system()
-                            .with_run_criteria(State::on_update(FirstPersonState::Off)),
+                            .with_run_criteria(State::on_update(FirstPersonState::Off))
+                            .in_ambiguity_set(AmbiguitySet),
                     ),
             )
             .add_system_set_to_stage(
@@ -157,7 +182,8 @@ impl Plugin for KanterPlugin {
                     .with_system(deselect.system())
                     .with_system(drag.system())
                     .with_system(drop.system())
-                    .with_system(material.system()),
+                    .with_system(material.system())
+                    .with_system(quit_hotkey.system()),
             );
     }
 }
@@ -487,7 +513,7 @@ fn box_select(
         Without<BoxSelectCursor>,
     >,
     q_draggable: Query<
-        (Entity, &Transform, &Sprite),
+        (Entity, &GlobalTransform, &Sprite),
         (
             With<Draggable>,
             Without<BoxSelectCursor>,
@@ -581,19 +607,19 @@ fn box_select_cleanup(
 fn hoverable(
     mut commands: Commands,
     q_workspace: Query<&Workspace>,
-    q_hoverable: Query<(Entity, &Transform, &Sprite), (With<Hoverable>, Without<Dragged>)>,
+    q_hoverable: Query<(Entity, &GlobalTransform, &Sprite), (With<Hoverable>, Without<Dragged>)>,
 ) {
     let workspace = q_workspace.iter().next().unwrap();
 
     if workspace.cursor_moved {
-        for (entity, transform, sprite) in q_hoverable.iter() {
+        for (entity, global_transform, sprite) in q_hoverable.iter() {
             let half_width = sprite.size.x / 2.;
             let half_height = sprite.size.y / 2.;
 
-            if transform.translation.x - half_width < workspace.cursor_world.x
-                && transform.translation.x + half_width > workspace.cursor_world.x
-                && transform.translation.y - half_height < workspace.cursor_world.y
-                && transform.translation.y + half_height > workspace.cursor_world.y
+            if global_transform.translation.x - half_width < workspace.cursor_world.x
+                && global_transform.translation.x + half_width > workspace.cursor_world.x
+                && global_transform.translation.y - half_height < workspace.cursor_world.y
+                && global_transform.translation.y + half_height > workspace.cursor_world.y
             {
                 commands.entity(entity).insert(Hovered);
             } else {
@@ -689,14 +715,9 @@ fn drag(
 
 fn drop(
     mut commands: Commands,
-    mut q_dropped: Query<(Entity, &mut Transform, &GlobalTransform), Added<Dropped>>,
+    mut q_dropped: Query<Entity, Added<Dropped>>,
 ) {
-    for (entity, mut transform, global_transform) in q_dropped.iter_mut() {
-        let global_pos = global_transform.translation;
-
-        transform.translation.x = global_pos.x;
-        transform.translation.y = global_pos.y;
-
+    for entity in q_dropped.iter_mut() {
         commands.entity(entity).remove::<Parent>();
         commands.entity(entity).remove::<Dropped>();
     }
