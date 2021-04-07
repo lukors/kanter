@@ -60,7 +60,11 @@ impl Default for FirstPersonState {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
-struct InputLabel;
+enum Stage {
+    Input,
+    Update,
+    Apply,
+}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, AmbiguitySetLabel)]
 struct AmbiguitySet;
@@ -81,7 +85,7 @@ impl Plugin for KanterPlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .label(InputLabel)
+                    .label(Stage::Input)
                     .with_system(tool_input.system()
                         .chain(first_person_input.system())
                     ),
@@ -89,7 +93,8 @@ impl Plugin for KanterPlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .after(InputLabel)
+                    .label(Stage::Update)
+                    .after(Stage::Input)
                     .with_system(
                         add_setup
                             .system()
@@ -177,12 +182,18 @@ impl Plugin for KanterPlugin {
                     ),
             )
             .add_system_set_to_stage(
-                CoreStage::PostUpdate,
+                CoreStage::Update,
                 SystemSet::new()
+                    .label(Stage::Apply)
+                    .after(Stage::Update)
                     .with_system(deselect.system())
                     .with_system(drag.system())
                     .with_system(drop.system())
                     .with_system(material.system())
+            )
+            .add_system_set_to_stage(
+                CoreStage::PostUpdate,
+                SystemSet::new()
                     .with_system(quit_hotkey.system()),
             );
     }
