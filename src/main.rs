@@ -24,15 +24,15 @@ const FIRST_PERSON: &str = "first_person";
 fn main() {
     App::build()
         .init_resource::<StateGlobal>()
-        .add_resource(WindowDescriptor {
+        .insert_resource(WindowDescriptor {
             title: "Bevy".to_string(),
             width: 1024.0,
             height: 768.0,
             vsync: true,
             ..Default::default()
         })
-        .add_resource(State::new(ModeState::None))
-        .add_resource(State::new(FirstPersonState::Off))
+        .insert_resource(State::new(ModeState::None))
+        .insert_resource(State::new(FirstPersonState::Off))
         .add_stage_before(stage::UPDATE, MODE, StateStage::<ModeState>::default())
         .add_stage_after(
             MODE,
@@ -217,7 +217,7 @@ fn workspace(
     }
 }
 
-fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: ResMut<Events<AppExit>>) {
+fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: EventWriter<AppExit>) {
     if (input.pressed(KeyCode::RControl) || input.pressed(KeyCode::LControl))
         && input.just_pressed(KeyCode::Q)
     {
@@ -255,7 +255,6 @@ fn mode(mut mode: ResMut<State<ModeState>>, input: Res<Input<KeyCode>>) {
 fn first_person_input(
     mut first_person_state: ResMut<State<FirstPersonState>>,
     mut state_global: ResMut<StateGlobal>,
-    e_window_focused: Res<Events<WindowFocused>>,
     input: Res<Input<KeyCode>>,
 ) {
     if input.just_pressed(KeyCode::Tab) {
@@ -266,7 +265,7 @@ fn first_person_input(
         }
     }
 
-    let event_window_focused = state_global.er_window_focused.latest(&e_window_focused);
+    let event_window_focused = state_global.er_window_focused.iter().last();
     if let Some(event_window_focused) = event_window_focused {
         if !event_window_focused.focused && *first_person_state.current() != FirstPersonState::Off {
             first_person_state.set_next(FirstPersonState::Off).unwrap();
