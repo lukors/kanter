@@ -78,17 +78,13 @@ impl Plugin for KanterPlugin {
             .add_state(FirstPersonState::Off)
             .add_system_set_to_stage(
                 CoreStage::PreUpdate,
-                SystemSet::new()
-                    .with_system(workspace.system())
-
+                SystemSet::new().with_system(workspace.system()),
             )
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
                     .label(Stage::Input)
-                    .with_system(tool_input.system()
-                        .chain(first_person_input.system())
-                    ),
+                    .with_system(tool_input.system().chain(first_person_input.system())),
             )
             .add_system_set_to_stage(
                 CoreStage::Update,
@@ -189,12 +185,11 @@ impl Plugin for KanterPlugin {
                     .with_system(deselect.system())
                     .with_system(drag.system())
                     .with_system(drop.system())
-                    .with_system(material.system())
+                    .with_system(material.system()),
             )
             .add_system_set_to_stage(
                 CoreStage::PostUpdate,
-                SystemSet::new()
-                    .with_system(quit_hotkey.system()),
+                SystemSet::new().with_system(quit_hotkey.system()),
             );
     }
 }
@@ -724,10 +719,7 @@ fn drag(
     }
 }
 
-fn drop(
-    mut commands: Commands,
-    mut q_dropped: Query<Entity, Added<Dropped>>,
-) {
+fn drop(mut commands: Commands, mut q_dropped: Query<Entity, Added<Dropped>>) {
     for entity in q_dropped.iter_mut() {
         commands.entity(entity).remove::<Parent>();
         commands.entity(entity).remove::<Dropped>();
@@ -829,8 +821,7 @@ fn select_single(
     q_selected: Query<Entity, With<Selected>>,
     q_dropped: Query<&Dropped>,
 ) {
-    if !i_mouse_button.just_pressed(MouseButton::Left)
-    || q_dropped.iter().count() > 0 {
+    if !i_mouse_button.just_pressed(MouseButton::Left) || q_dropped.iter().count() > 0 {
         return;
     }
 
