@@ -827,8 +827,10 @@ fn select_single(
     mut commands: Commands,
     q_hovered: Query<Entity, (With<Hovered>, Without<Selected>)>,
     q_selected: Query<Entity, With<Selected>>,
+    q_dropped: Query<&Dropped>,
 ) {
-    if !i_mouse_button.just_pressed(MouseButton::Left) {
+    if !i_mouse_button.just_pressed(MouseButton::Left)
+    || q_dropped.iter().count() > 0 {
         return;
     }
 
