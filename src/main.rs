@@ -41,7 +41,7 @@ fn main() {
             vsync: true,
             ..Default::default()
         })
-        .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
+        // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();
