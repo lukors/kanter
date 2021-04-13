@@ -10,12 +10,7 @@ use bevy::{
     },
     window::WindowFocused,
 };
-use kanter_core::{
-    dag::TextureProcessor,
-    node::{Node, NodeType, ResizePolicy},
-    node_data::Size,
-    node_graph::SlotId,
-};
+use kanter_core::{dag::TextureProcessor, node::{Node, NodeType, ResizeFilter, ResizePolicy}, node_data::Size, node_graph::{NodeId, SlotId}};
 use native_dialog::FileDialog;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -73,7 +68,8 @@ pub struct KanterPlugin;
 
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system())
+        app.insert_non_send_resource(TextureProcessor::new())
+            .add_startup_system(setup.system())
             .add_state(ToolState::None)
             .add_state(FirstPersonState::Off)
             .add_system_set_to_stage(
@@ -185,7 +181,8 @@ impl Plugin for KanterPlugin {
                     .with_system(deselect.system())
                     .with_system(drag.system())
                     .with_system(drop.system())
-                    .with_system(material.system()),
+                    .with_system(material.system())
+                    .with_system(sync_graph.system()),
             )
             .add_system_set_to_stage(
                 CoreStage::PostUpdate,
@@ -201,7 +198,6 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let test_image = asset_server.load("image_2.png");
     let crosshair_image = asset_server.load("crosshair.png");
 
     commands.spawn().insert(Workspace::default());
@@ -224,18 +220,7 @@ fn setup(
         .insert(Transform::default())
         .insert(GlobalTransform::default())
         .insert(Cursor);
-
-    for _ in 0..4 {
-        commands
-            .spawn_bundle(SpriteBundle {
-                material: materials.add(test_image.clone().into()),
-                sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
-                ..Default::default()
-            })
-            .insert(Hoverable)
-            .insert(Draggable);
     }
-}
 
 #[derive(Default)]
 struct Workspace {
@@ -387,9 +372,7 @@ fn box_select_setup(
 }
 
 fn add_setup(
-    mut commands: Commands,
-    mut textures: ResMut<Assets<Texture>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut tex_pro: ResMut<TextureProcessor>,
 ) {
     let path = FileDialog::new()
         // .set_location("~/Desktop")
@@ -403,110 +386,35 @@ fn add_setup(
         None => return,
     };
 
-    let mut tex_pro = TextureProcessor::new();
+    tex_pro.node_graph.add_node(Node::new(NodeType::Image(path.to_string_lossy().to_string()))).unwrap();
 
-    let n_in = tex_pro
-        .node_graph
-        .add_node(Node::new(NodeType::Image(
-            path.into_os_string().into_string().unwrap(),
-        )))
-        .unwrap();
-    let n_resize_1 = tex_pro
-        .node_graph
-        .add_node(Node::new(NodeType::Resize(
-            Some(ResizePolicy::SpecificSize(Size::new(
-                NODE_SIZE as u32,
-                NODE_SIZE as u32,
-            ))),
-            None,
-        )))
-        .unwrap();
-    let n_resize_2 = tex_pro
-        .node_graph
-        .add_node(Node::new(NodeType::Resize(
-            Some(ResizePolicy::SpecificSize(Size::new(
-                NODE_SIZE as u32,
-                NODE_SIZE as u32,
-            ))),
-            None,
-        )))
-        .unwrap();
-    let n_resize_3 = tex_pro
-        .node_graph
-        .add_node(Node::new(NodeType::Resize(
-            Some(ResizePolicy::SpecificSize(Size::new(
-                NODE_SIZE as u32,
-                NODE_SIZE as u32,
-            ))),
-            None,
-        )))
-        .unwrap();
-    let n_resize_4 = tex_pro
-        .node_graph
-        .add_node(Node::new(NodeType::Resize(
-            Some(ResizePolicy::SpecificSize(Size::new(
-                NODE_SIZE as u32,
-                NODE_SIZE as u32,
-            ))),
-            None,
-        )))
-        .unwrap();
-    let n_out = tex_pro
-        .node_graph
-        .add_node(Node::new(NodeType::OutputRgba))
-        .unwrap();
+}
 
-    tex_pro
-        .node_graph
-        .connect(n_in, n_resize_1, SlotId(0), SlotId(0))
-        .unwrap();
-    tex_pro
-        .node_graph
-        .connect(n_in, n_resize_2, SlotId(1), SlotId(0))
-        .unwrap();
-    tex_pro
-        .node_graph
-        .connect(n_in, n_resize_3, SlotId(2), SlotId(0))
-        .unwrap();
-    tex_pro
-        .node_graph
-        .connect(n_in, n_resize_4, SlotId(3), SlotId(0))
-        .unwrap();
+fn sync_graph(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    q_hoverable: Query<(Entity, &NodeId)>,
+    tex_pro: Res<TextureProcessor>,
+) {
 
-    tex_pro
-        .node_graph
-        .connect(n_resize_1, n_out, SlotId(0), SlotId(0))
-        .unwrap();
-    tex_pro
-        .node_graph
-        .connect(n_resize_2, n_out, SlotId(0), SlotId(1))
-        .unwrap();
-    tex_pro
-        .node_graph
-        .connect(n_resize_3, n_out, SlotId(0), SlotId(2))
-        .unwrap();
-    tex_pro
-        .node_graph
-        .connect(n_resize_4, n_out, SlotId(0), SlotId(3))
-        .unwrap();
+    let node_ids = tex_pro.node_graph.node_ids();
+    let existing_ids: Vec<NodeId> = q_hoverable.iter().map(|(_e, &node_id)| node_id).collect();
+    let new_ids: Vec<NodeId> = node_ids.into_iter().filter(|node_id| !existing_ids.contains(node_id)).collect();
+    // let new_ids: Vec<(Entity, &NodeId)> = q_hoverable.iter().filter(|(_e, &node_id)| !node_ids.contains(&node_id)).collect();
 
-    tex_pro.process();
+    for node_id in new_ids {
+        let node_type = tex_pro.node_graph.node_with_id(node_id).expect("Tried getting a node that doesn't exist, this should be impossible.").node_type.clone();
 
-    let texture = Texture::new(
-        Extent3d::new(NODE_SIZE as u32, NODE_SIZE as u32, 1),
-        TextureDimension::D2,
-        tex_pro.get_output(n_out).unwrap(),
-        TextureFormat::Rgba8Unorm,
-    );
-    let image = textures.add(texture);
     commands
         .spawn_bundle(SpriteBundle {
-            material: materials.add(image.into()),
+                material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
             sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
             ..Default::default()
         })
         .insert(Hoverable)
-        .insert(Draggable);
+            .insert(Draggable)
+            .insert(node_id)
+            .insert(node_type);
 }
 
 fn box_select(
