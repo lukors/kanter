@@ -220,7 +220,7 @@ fn setup(
         .insert(Transform::default())
         .insert(GlobalTransform::default())
         .insert(Cursor);
-    }
+}
 
 #[derive(Default)]
 struct Workspace {
@@ -372,6 +372,7 @@ fn box_select_setup(
 }
 
 fn add_setup(
+    mut tool_state: ResMut<State<ToolState>>,
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
     let path = FileDialog::new()
@@ -387,35 +388,147 @@ fn add_setup(
     };
 
     tex_pro.node_graph.add_node(Node::new(NodeType::Image(path.to_string_lossy().to_string()))).unwrap();
-
+    tool_state.replace(ToolState::Grab).unwrap();
 }
 
 fn sync_graph(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    q_hoverable: Query<(Entity, &NodeId)>,
+    q_node_id: Query<&NodeId>,
     tex_pro: Res<TextureProcessor>,
 ) {
-
     let node_ids = tex_pro.node_graph.node_ids();
-    let existing_ids: Vec<NodeId> = q_hoverable.iter().map(|(_e, &node_id)| node_id).collect();
+    let existing_ids: Vec<NodeId> = q_node_id.iter().map(|id| *id).collect();
     let new_ids: Vec<NodeId> = node_ids.into_iter().filter(|node_id| !existing_ids.contains(node_id)).collect();
-    // let new_ids: Vec<(Entity, &NodeId)> = q_hoverable.iter().filter(|(_e, &node_id)| !node_ids.contains(&node_id)).collect();
 
     for node_id in new_ids {
         let node_type = tex_pro.node_graph.node_with_id(node_id).expect("Tried getting a node that doesn't exist, this should be impossible.").node_type.clone();
-
-    commands
-        .spawn_bundle(SpriteBundle {
+        
+        commands
+            .spawn_bundle(SpriteBundle {
                 material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
-            sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
-            ..Default::default()
-        })
-        .insert(Hoverable)
+                sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
+                ..Default::default()
+            })
+            .insert(Hoverable)
+            .insert(Selected)
             .insert(Draggable)
+            .insert(Dragged)
             .insert(node_id)
             .insert(node_type);
+    }
 }
+
+// fn add_image_thunb(
+//     mut commands: Commands,
+//     mut textures: ResMut<Assets<Texture>>,
+//     mut materials: ResMut<Assets<ColorMaterial>>,
+// ) {
+//     let mut tex_pro_thumb = TextureProcessor::new();
+
+//     let n_in = tex_pro_thumb
+//         .node_graph
+//         .add_node(Node::new(NodeType::Image(
+//             path.into_os_string().into_string().unwrap(),
+//         )))
+//         .unwrap();
+//     let n_resize_1 = tex_pro_thumb
+//         .node_graph
+//         .add_node(Node::new(NodeType::Resize(
+//             Some(ResizePolicy::SpecificSize(Size::new(
+//                 NODE_SIZE as u32,
+//                 NODE_SIZE as u32,
+//             ))),
+//             Some(ResizeFilter::Nearest),
+//         )))
+//         .unwrap();
+//     let n_resize_2 = tex_pro_thumb
+//         .node_graph
+//         .add_node(Node::new(NodeType::Resize(
+//             Some(ResizePolicy::SpecificSize(Size::new(
+//                 NODE_SIZE as u32,
+//                 NODE_SIZE as u32,
+//             ))),
+//             Some(ResizeFilter::Nearest),
+//         )))
+//         .unwrap();
+//     let n_resize_3 = tex_pro_thumb
+//         .node_graph
+//         .add_node(Node::new(NodeType::Resize(
+//             Some(ResizePolicy::SpecificSize(Size::new(
+//                 NODE_SIZE as u32,
+//                 NODE_SIZE as u32,
+//             ))),
+//             Some(ResizeFilter::Nearest),
+//         )))
+//         .unwrap();
+//     let n_resize_4 = tex_pro_thumb
+//         .node_graph
+//         .add_node(Node::new(NodeType::Resize(
+//             Some(ResizePolicy::SpecificSize(Size::new(
+//                 NODE_SIZE as u32,
+//                 NODE_SIZE as u32,
+//             ))),
+//             Some(ResizeFilter::Nearest),
+//         )))
+//         .unwrap();
+//     let n_out = tex_pro_thumb
+//         .node_graph
+//         .add_node(Node::new(NodeType::OutputRgba))
+//         .unwrap();
+
+//     tex_pro_thumb
+//         .node_graph
+//         .connect(n_in, n_resize_1, SlotId(0), SlotId(0))
+//         .unwrap();
+//     tex_pro_thumb
+//         .node_graph
+//         .connect(n_in, n_resize_2, SlotId(1), SlotId(0))
+//         .unwrap();
+//     tex_pro_thumb
+//         .node_graph
+//         .connect(n_in, n_resize_3, SlotId(2), SlotId(0))
+//         .unwrap();
+//     tex_pro_thumb
+//         .node_graph
+//         .connect(n_in, n_resize_4, SlotId(3), SlotId(0))
+//         .unwrap();
+
+//     tex_pro_thumb
+//         .node_graph
+//         .connect(n_resize_1, n_out, SlotId(0), SlotId(0))
+//         .unwrap();
+//     tex_pro_thumb
+//         .node_graph
+//         .connect(n_resize_2, n_out, SlotId(0), SlotId(1))
+//         .unwrap();
+//     tex_pro_thumb
+//         .node_graph
+//         .connect(n_resize_3, n_out, SlotId(0), SlotId(2))
+//         .unwrap();
+//     tex_pro_thumb
+//         .node_graph
+//         .connect(n_resize_4, n_out, SlotId(0), SlotId(3))
+//         .unwrap();
+
+//     tex_pro_thumb.process();
+
+//     let texture = Texture::new(
+//         Extent3d::new(NODE_SIZE as u32, NODE_SIZE as u32, 1),
+//         TextureDimension::D2,
+//         tex_pro_thumb.get_output(n_out).unwrap(),
+//         TextureFormat::Rgba8Unorm,
+//     );
+//     let image = textures.add(texture);
+//     commands
+//         .spawn_bundle(SpriteBundle {
+//             material: materials.add(image.into()),
+//             sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
+//             ..Default::default()
+//         })
+//         .insert(Hoverable)
+//         .insert(Draggable);
+// }
 
 fn box_select(
     i_mouse_button: Res<Input<MouseButton>>,
