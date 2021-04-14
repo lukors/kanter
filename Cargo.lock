@@ -1991,6 +1991,7 @@ name = "kanter_bevy"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "image 0.20.1",
  "kanter_core",
  "native-dialog",
 ]

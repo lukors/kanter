@@ -1,5 +1,7 @@
 #![allow(clippy::type_complexity)]
 
+use std::path::Path;
+
 use bevy::{
     app::AppExit, input::mouse::MouseMotion, prelude::*, render::camera::Camera,
     window::WindowFocused,
@@ -79,7 +81,11 @@ impl Plugin for KanterPlugin {
                 CoreStage::Update,
                 SystemSet::new()
                     .label(Stage::Input)
-                    .with_system(tool_input.system().chain(first_person_input.system()))
+                    .with_system(
+                        tool_input
+                            .system()
+                            .chain(first_person_input.system().chain(process_hotkey.system())),
+                    )
                     .with_system(
                         add_update
                             .system()
@@ -315,6 +321,33 @@ fn workspace(
     }
 }
 
+fn process_hotkey(input: Res<Input<KeyCode>>, mut tex_pro: ResMut<TextureProcessor>, q_selected: Query<&NodeId, With<Selected>>) {
+    if input.just_pressed(KeyCode::F12) {
+        
+        let mut out_id: Option<NodeId> = None;
+        for node_id in q_selected.iter() {
+            if tex_pro.node_graph.node_with_id(*node_id).unwrap().node_type == NodeType::OutputRgba {
+                out_id = Some(*node_id);
+            }
+        }
+        if out_id.is_none() {
+            return;
+        }
+
+        tex_pro.process();
+        
+        let size = 256;
+        image::save_buffer(
+            &Path::new(&"test.png"),
+            &image::RgbaImage::from_vec(size, size, tex_pro.get_output(out_id.unwrap()).unwrap()).unwrap(),
+            size,
+            size,
+            image::ColorType::RGBA(8),
+        )
+        .unwrap();
+    }
+}
+
 fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: EventWriter<AppExit>) {
     if (input.pressed(KeyCode::RControl) || input.pressed(KeyCode::LControl))
         && input.just_pressed(KeyCode::Q)
@@ -437,21 +470,21 @@ fn add_update(
                 Some(NodeType::Image(path.to_string_lossy().to_string()))
             }
             KeyCode::O => {
-                let path = FileDialog::new()
-                    // .set_location("~/Desktop")
-                    .add_filter("PNG Image", &["png"])
-                    .show_save_single_file()
-                    .unwrap();
+                // let path = FileDialog::new()
+                //     // .set_location("~/Desktop")
+                //     .add_filter("PNG Image", &["png"])
+                //     .show_save_single_file()
+                //     .unwrap();
 
-                let path = match path {
-                    Some(path) => path,
-                    None => {
-                        println!("Error: Invalid open file path");
-                        return;
-                    }
-                };
+                // let path = match path {
+                //     Some(path) => path,
+                //     None => {
+                //         println!("Error: Invalid open file path");
+                //         return;
+                //     }
+                // };
 
-                Some(NodeType::Write(path.to_string_lossy().to_string()))
+                Some(NodeType::OutputRgba)
             }
             _ => None,
         };
@@ -939,11 +972,11 @@ fn drag(
 fn drop(mut commands: Commands, mut q_dropped: Query<(Entity, Option<&Slot>), Added<Dropped>>) {
     for (entity, slot_id) in q_dropped.iter_mut() {
         if let Some(_) = slot_id {
-            // IMPLMENET
+            
         } else {
             commands.entity(entity).remove::<Parent>();
-            commands.entity(entity).remove::<Dropped>();
         }
+        commands.entity(entity).remove::<Dropped>();
     }
 }
 
