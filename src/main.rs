@@ -467,7 +467,8 @@ fn sync_graph(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     q_node_id: Query<&NodeId>,
-    q_edge: Query<&Edge>,
+    q_edge: Query<Entity, With<Edge>>,
+    q_slot: Query<(&Slot, &GlobalTransform)>,
     tex_pro: Res<TextureProcessor>,
 ) {
     let node_ids = tex_pro.node_graph.node_ids();
@@ -492,9 +493,8 @@ fn sync_graph(
             .id();
 
         let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
-        let input_capacity = node.capacity(Side::Input);
-
-        for i in 0..input_capacity {
+        
+        for i in 0..node.capacity(Side::Input) {
             commands
                 .spawn_bundle(SpriteBundle {
                     material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
@@ -515,21 +515,78 @@ fn sync_graph(
                 })
                 .insert(Parent(node_e));
         }
+        
+        for i in 0..node.capacity(Side::Output) {
+            commands
+                .spawn_bundle(SpriteBundle {
+                    material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                    sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                    transform: Transform::from_translation(Vec3::new(
+                        NODE_SIZE / 2.,
+                        NODE_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE * i as f32,
+                        1.,
+                    )),
+                    ..Default::default()
+                })
+                .insert(Hoverable)
+                .insert(Draggable)
+                .insert(Slot{
+                    node_id,
+                    side: Side::Output,
+                    slot_id: SlotId(i as u32),
+                })
+                .insert(Parent(node_e));
+        }
     }
 
-    // for edge_e in q_edge {
-    //     commands.entity(edge_e).despawn_recursive();
-    // }
+    for edge_e in q_edge.iter() {
+        commands.entity(edge_e).despawn_recursive();
+    }
 
-    // for edge in tex_pro.node_graph.edges {
-        
-        
-    //     commands.spawn_bundle(SpriteBundle {
-    //         material: materials.add(Color::rgb(0., 0., 0.).into()),
-    //         sprite: Sprite::new(Vec2::new(5., 5.)),
-    //         ..Default::default()
-    //     })
-    // }
+    for edge in tex_pro.node_graph.edges.iter() {
+        let output_slot = Slot{
+            node_id: edge.output_id,
+            side: Side::Output,
+            slot_id: edge.output_slot,
+        };
+        let input_slot = Slot{
+            node_id: edge.input_id,
+            side: Side::Input,
+            slot_id: edge.input_slot,
+        };
+        let mut start = Vec2::ZERO;
+        let mut end = Vec2::ZERO;
+
+        for (slot, slot_t) in q_slot.iter() {
+            if slot.node_id == output_slot.node_id
+            && slot.slot_id == output_slot.slot_id
+            && slot.side == output_slot.side {
+                start = slot_t.translation.truncate();
+            } else if slot.node_id == input_slot.node_id
+            && slot.slot_id == input_slot.slot_id
+            && slot.side == input_slot.side {
+                end = slot_t.translation.truncate();
+            }
+        }
+
+        let mut sprite = Sprite::new(Vec2::new(5., 5.));
+        let mut transform = Transform::default();
+
+        stretch_between(&mut sprite, &mut transform, start, end);
+
+        commands.spawn_bundle(SpriteBundle {
+            material: materials.add(Color::rgb(0., 0., 0.).into()),
+            sprite,
+            transform,
+            ..Default::default()
+        })
+        .insert(Edge{
+            input_slot,
+            output_slot,
+            start,
+            end,
+        });
+    }
 }
 
 // fn add_image_thunb(
