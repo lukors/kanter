@@ -266,11 +266,11 @@ struct Slot {
     slot_id: SlotId,
 }
 
-struct GrabbedEdge{
+struct GrabbedEdge {
     start: Vec2,
     slot: Slot,
 }
-struct Edge{
+struct Edge {
     start: Vec2,
     end: Vec2,
     output_slot: Slot,
@@ -493,7 +493,7 @@ fn sync_graph(
             .id();
 
         let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
-        
+
         for i in 0..node.capacity(Side::Input) {
             commands
                 .spawn_bundle(SpriteBundle {
@@ -508,14 +508,14 @@ fn sync_graph(
                 })
                 .insert(Hoverable)
                 .insert(Draggable)
-                .insert(Slot{
+                .insert(Slot {
                     node_id,
                     side: Side::Input,
                     slot_id: SlotId(i as u32),
                 })
                 .insert(Parent(node_e));
         }
-        
+
         for i in 0..node.capacity(Side::Output) {
             commands
                 .spawn_bundle(SpriteBundle {
@@ -530,7 +530,7 @@ fn sync_graph(
                 })
                 .insert(Hoverable)
                 .insert(Draggable)
-                .insert(Slot{
+                .insert(Slot {
                     node_id,
                     side: Side::Output,
                     slot_id: SlotId(i as u32),
@@ -544,12 +544,12 @@ fn sync_graph(
     }
 
     for edge in tex_pro.node_graph.edges.iter() {
-        let output_slot = Slot{
+        let output_slot = Slot {
             node_id: edge.output_id,
             side: Side::Output,
             slot_id: edge.output_slot,
         };
-        let input_slot = Slot{
+        let input_slot = Slot {
             node_id: edge.input_id,
             side: Side::Input,
             slot_id: edge.input_slot,
@@ -559,12 +559,14 @@ fn sync_graph(
 
         for (slot, slot_t) in q_slot.iter() {
             if slot.node_id == output_slot.node_id
-            && slot.slot_id == output_slot.slot_id
-            && slot.side == output_slot.side {
+                && slot.slot_id == output_slot.slot_id
+                && slot.side == output_slot.side
+            {
                 start = slot_t.translation.truncate();
             } else if slot.node_id == input_slot.node_id
-            && slot.slot_id == input_slot.slot_id
-            && slot.side == input_slot.side {
+                && slot.slot_id == input_slot.slot_id
+                && slot.side == input_slot.side
+            {
                 end = slot_t.translation.truncate();
             }
         }
@@ -574,18 +576,19 @@ fn sync_graph(
 
         stretch_between(&mut sprite, &mut transform, start, end);
 
-        commands.spawn_bundle(SpriteBundle {
-            material: materials.add(Color::rgb(0., 0., 0.).into()),
-            sprite,
-            transform,
-            ..Default::default()
-        })
-        .insert(Edge{
-            input_slot,
-            output_slot,
-            start,
-            end,
-        });
+        commands
+            .spawn_bundle(SpriteBundle {
+                material: materials.add(Color::rgb(0., 0., 0.).into()),
+                sprite,
+                transform,
+                ..Default::default()
+            })
+            .insert(Edge {
+                input_slot,
+                output_slot,
+                start,
+                end,
+            });
     }
 }
 
@@ -810,7 +813,11 @@ fn hoverable(
 
     if workspace.cursor_moved {
         for (entity, global_transform, sprite) in q_hoverable.iter() {
-            if box_contains_point(global_transform.translation.truncate(), sprite.size, workspace.cursor_world) {
+            if box_contains_point(
+                global_transform.translation.truncate(),
+                sprite.size,
+                workspace.cursor_world,
+            ) {
                 commands.entity(entity).insert(Hovered);
             } else {
                 commands.entity(entity).remove::<Hovered>();
@@ -819,13 +826,13 @@ fn hoverable(
     }
 }
 
-fn box_contains_point(box_pos: Vec2, box_size: Vec2, point: Vec2) -> bool{
+fn box_contains_point(box_pos: Vec2, box_size: Vec2, point: Vec2) -> bool {
     let half_size = box_size / 2.;
-    
+
     box_pos.x - half_size.x < point.x
-    && box_pos.x + half_size.x > point.x
-    && box_pos.y - half_size.y < point.y
-    && box_pos.y + half_size.y > point.y
+        && box_pos.x + half_size.x > point.x
+        && box_pos.y - half_size.y < point.y
+        && box_pos.y + half_size.y > point.y
 }
 
 fn material(
@@ -905,22 +912,23 @@ fn drag(
     if let Some((cursor_e, cursor_transform)) = q_cursor.iter().next() {
         for (entity, mut transform, global_transform, slot) in q_dragged.iter_mut() {
             if let Some(slot) = slot {
-                commands.spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(0., 0., 0.).into()),
-                    sprite: Sprite::new(Vec2::new(5., 5.)),
-                    ..Default::default()
-                })
-                .insert(GrabbedEdge {
-                    start: global_transform.translation.truncate(),
-                    slot: slot.clone(),
-                });
+                commands
+                    .spawn_bundle(SpriteBundle {
+                        material: materials.add(Color::rgb(0., 0., 0.).into()),
+                        sprite: Sprite::new(Vec2::new(5., 5.)),
+                        ..Default::default()
+                    })
+                    .insert(GrabbedEdge {
+                        start: global_transform.translation.truncate(),
+                        slot: slot.clone(),
+                    });
 
                 tool_state.replace(ToolState::GrabEdge).unwrap();
             } else {
                 let global_pos = global_transform.translation - cursor_transform.translation;
-    
+
                 commands.entity(entity).insert(Parent(cursor_e));
-    
+
                 transform.translation.x = global_pos.x;
                 transform.translation.y = global_pos.y;
             }
@@ -939,14 +947,19 @@ fn drop(mut commands: Commands, mut q_dropped: Query<(Entity, Option<&Slot>), Ad
     }
 }
 
-fn grab_edge (
+fn grab_edge(
     mut q_edge: Query<(&mut Transform, &GrabbedEdge, &mut Sprite)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
 ) {
     let cursor_t = q_cursor.iter().next().unwrap();
-    
+
     for (mut edge_t, edge, mut sprite) in q_edge.iter_mut() {
-        stretch_between(&mut sprite, &mut edge_t, edge.start, cursor_t.translation.truncate());
+        stretch_between(
+            &mut sprite,
+            &mut edge_t,
+            edge.start,
+            cursor_t.translation.truncate(),
+        );
     }
 }
 
@@ -960,7 +973,7 @@ fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, 
     sprite.size = Vec2::new(distance, 5.);
 }
 
-fn grab_edge_drop (
+fn grab_edge_drop(
     mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
     mut tex_pro: ResMut<TextureProcessor>,
@@ -975,10 +988,25 @@ fn grab_edge_drop (
 
     let cursor_t = q_cursor.iter().next().unwrap();
     let edge_slot = &q_edge.iter().next().unwrap().1.slot;
-    
+
     for (slot_t, slot_sprite, slot) in q_slot.iter() {
-        if box_contains_point(slot_t.translation.truncate(), slot_sprite.size, cursor_t.translation.truncate()) {
-            if tex_pro.node_graph.try_connect_arbitrary(slot.node_id, slot.side, slot.slot_id, edge_slot.node_id, edge_slot.side, edge_slot.slot_id).is_err() {
+        if box_contains_point(
+            slot_t.translation.truncate(),
+            slot_sprite.size,
+            cursor_t.translation.truncate(),
+        ) {
+            if tex_pro
+                .node_graph
+                .try_connect_arbitrary(
+                    slot.node_id,
+                    slot.side,
+                    slot.slot_id,
+                    edge_slot.node_id,
+                    edge_slot.side,
+                    edge_slot.slot_id,
+                )
+                .is_err()
+            {
                 println!("Failed to connect nodes");
             }
         }
