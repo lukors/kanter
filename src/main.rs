@@ -1,16 +1,14 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::{
-    app::AppExit,
-    input::mouse::MouseMotion,
-    prelude::*,
-    render::{
-        camera::Camera,
-        texture::{Extent3d, TextureDimension, TextureFormat},
-    },
+    app::AppExit, input::mouse::MouseMotion, prelude::*, render::camera::Camera,
     window::WindowFocused,
 };
-use kanter_core::{dag::TextureProcessor, node::{Node, NodeType, ResizeFilter, ResizePolicy}, node_data::Size, node_graph::{NodeId, SlotId}};
+use kanter_core::{
+    dag::TextureProcessor,
+    node::{Node, NodeType, Side},
+    node_graph::{NodeId, SlotId},
+};
 use native_dialog::FileDialog;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -19,6 +17,7 @@ pub enum ToolState {
     Add,
     BoxSelect,
     Grab,
+    GrabEdge,
 }
 
 impl Default for ToolState {
@@ -80,7 +79,12 @@ impl Plugin for KanterPlugin {
                 CoreStage::Update,
                 SystemSet::new()
                     .label(Stage::Input)
-                    .with_system(tool_input.system().chain(first_person_input.system())),
+                    .with_system(tool_input.system().chain(first_person_input.system()))
+                    .with_system(
+                        add_update
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::Add)),
+                    ),
             )
             .add_system_set_to_stage(
                 CoreStage::Update,
@@ -126,6 +130,18 @@ impl Plugin for KanterPlugin {
                         grab_cleanup
                             .system()
                             .with_run_criteria(State::on_exit(ToolState::Grab))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        grab_edge
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::GrabEdge))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        grab_edge_drop
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::GrabEdge))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
@@ -192,6 +208,8 @@ impl Plugin for KanterPlugin {
 }
 
 const NODE_SIZE: f32 = 128.;
+const SLOT_SIZE: f32 = 16.;
+const SLOT_DISTANCE: f32 = 32.;
 
 fn setup(
     mut commands: Commands,
@@ -241,6 +259,23 @@ struct Draggable;
 struct Dragged;
 struct Dropped;
 
+#[derive(Clone)]
+struct Slot {
+    node_id: NodeId,
+    side: Side,
+    slot_id: SlotId,
+}
+
+struct GrabbedEdge{
+    start: Vec2,
+    slot: Slot,
+}
+struct Edge{
+    start: Vec2,
+    end: Vec2,
+    output_slot: Slot,
+    input_slot: Slot,
+}
 struct BoxSelectCursor;
 
 #[derive(Default)]
@@ -371,40 +406,79 @@ fn box_select_setup(
         .insert(BoxSelect::default());
 }
 
-fn add_setup(
+fn add_setup() {
+    // Not yet implemented
+    // Should show instructions for what buttons to press, 'I' for input, 'O' for output.
+}
+
+fn add_update(
+    input: Res<Input<KeyCode>>,
     mut tool_state: ResMut<State<ToolState>>,
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
-    let path = FileDialog::new()
-        // .set_location("~/Desktop")
-        .add_filter("PNG Image", &["png"])
-        .add_filter("JPEG Image", &["jpg", "jpeg"])
-        .show_open_single_file()
-        .unwrap();
+    for input in input.get_pressed() {
+        let node_type = match input {
+            KeyCode::I => {
+                let path = FileDialog::new()
+                    // .set_location("~/Desktop")
+                    .add_filter("PNG Image", &["png"])
+                    .add_filter("JPEG Image", &["jpg", "jpeg"])
+                    .show_open_single_file()
+                    .unwrap();
 
-    let path = match path {
-        Some(path) => path,
-        None => return,
-    };
+                let path = match path {
+                    Some(path) => path,
+                    None => {
+                        println!("Error: Invalid save file path");
+                        return;
+                    }
+                };
 
-    tex_pro.node_graph.add_node(Node::new(NodeType::Image(path.to_string_lossy().to_string()))).unwrap();
-    tool_state.replace(ToolState::Grab).unwrap();
+                Some(NodeType::Image(path.to_string_lossy().to_string()))
+            }
+            KeyCode::O => {
+                let path = FileDialog::new()
+                    // .set_location("~/Desktop")
+                    .add_filter("PNG Image", &["png"])
+                    .show_save_single_file()
+                    .unwrap();
+
+                let path = match path {
+                    Some(path) => path,
+                    None => {
+                        println!("Error: Invalid open file path");
+                        return;
+                    }
+                };
+
+                Some(NodeType::Write(path.to_string_lossy().to_string()))
+            }
+            _ => None,
+        };
+
+        if let Some(node_type) = node_type {
+            tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
+            tool_state.replace(ToolState::Grab).unwrap();
+        }
+    }
 }
 
 fn sync_graph(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     q_node_id: Query<&NodeId>,
+    q_edge: Query<&Edge>,
     tex_pro: Res<TextureProcessor>,
 ) {
     let node_ids = tex_pro.node_graph.node_ids();
     let existing_ids: Vec<NodeId> = q_node_id.iter().map(|id| *id).collect();
-    let new_ids: Vec<NodeId> = node_ids.into_iter().filter(|node_id| !existing_ids.contains(node_id)).collect();
+    let new_ids: Vec<NodeId> = node_ids
+        .into_iter()
+        .filter(|node_id| !existing_ids.contains(node_id))
+        .collect();
 
     for node_id in new_ids {
-        let node_type = tex_pro.node_graph.node_with_id(node_id).expect("Tried getting a node that doesn't exist, this should be impossible.").node_type.clone();
-        
-        commands
+        let node_e = commands
             .spawn_bundle(SpriteBundle {
                 material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
                 sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
@@ -415,8 +489,47 @@ fn sync_graph(
             .insert(Draggable)
             .insert(Dragged)
             .insert(node_id)
-            .insert(node_type);
+            .id();
+
+        let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
+        let input_capacity = node.capacity(Side::Input);
+
+        for i in 0..input_capacity {
+            commands
+                .spawn_bundle(SpriteBundle {
+                    material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                    sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                    transform: Transform::from_translation(Vec3::new(
+                        -NODE_SIZE / 2.,
+                        NODE_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE * i as f32,
+                        1.,
+                    )),
+                    ..Default::default()
+                })
+                .insert(Hoverable)
+                .insert(Draggable)
+                .insert(Slot{
+                    node_id,
+                    side: Side::Input,
+                    slot_id: SlotId(i as u32),
+                })
+                .insert(Parent(node_e));
+        }
     }
+
+    // for edge_e in q_edge {
+    //     commands.entity(edge_e).despawn_recursive();
+    // }
+
+    // for edge in tex_pro.node_graph.edges {
+        
+        
+    //     commands.spawn_bundle(SpriteBundle {
+    //         material: materials.add(Color::rgb(0., 0., 0.).into()),
+    //         sprite: Sprite::new(Vec2::new(5., 5.)),
+    //         ..Default::default()
+    //     })
+    // }
 }
 
 // fn add_image_thunb(
@@ -640,20 +753,22 @@ fn hoverable(
 
     if workspace.cursor_moved {
         for (entity, global_transform, sprite) in q_hoverable.iter() {
-            let half_width = sprite.size.x / 2.;
-            let half_height = sprite.size.y / 2.;
-
-            if global_transform.translation.x - half_width < workspace.cursor_world.x
-                && global_transform.translation.x + half_width > workspace.cursor_world.x
-                && global_transform.translation.y - half_height < workspace.cursor_world.y
-                && global_transform.translation.y + half_height > workspace.cursor_world.y
-            {
+            if box_contains_point(global_transform.translation.truncate(), sprite.size, workspace.cursor_world) {
                 commands.entity(entity).insert(Hovered);
             } else {
                 commands.entity(entity).remove::<Hovered>();
             }
         }
     }
+}
+
+fn box_contains_point(box_pos: Vec2, box_size: Vec2, point: Vec2) -> bool{
+    let half_size = box_size / 2.;
+    
+    box_pos.x - half_size.x < point.x
+    && box_pos.x + half_size.x > point.x
+    && box_pos.y - half_size.y < point.y
+    && box_pos.y + half_size.y > point.y
 }
 
 fn material(
@@ -724,27 +839,99 @@ fn draggable(
 }
 
 fn drag(
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut tool_state: ResMut<State<ToolState>>,
     mut commands: Commands,
-    mut q_dragged: Query<(Entity, &mut Transform, &GlobalTransform), Added<Dragged>>,
+    mut q_dragged: Query<(Entity, &mut Transform, &GlobalTransform, Option<&Slot>), Added<Dragged>>,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
 ) {
     if let Some((cursor_e, cursor_transform)) = q_cursor.iter().next() {
-        for (entity, mut transform, global_transform) in q_dragged.iter_mut() {
-            let global_pos = global_transform.translation - cursor_transform.translation;
+        for (entity, mut transform, global_transform, slot) in q_dragged.iter_mut() {
+            if let Some(slot) = slot {
+                commands.spawn_bundle(SpriteBundle {
+                    material: materials.add(Color::rgb(0., 0., 0.).into()),
+                    sprite: Sprite::new(Vec2::new(5., 5.)),
+                    ..Default::default()
+                })
+                .insert(GrabbedEdge {
+                    start: global_transform.translation.truncate(),
+                    slot: slot.clone(),
+                });
 
-            commands.entity(entity).insert(Parent(cursor_e));
-
-            transform.translation.x = global_pos.x;
-            transform.translation.y = global_pos.y;
+                tool_state.replace(ToolState::GrabEdge).unwrap();
+            } else {
+                let global_pos = global_transform.translation - cursor_transform.translation;
+    
+                commands.entity(entity).insert(Parent(cursor_e));
+    
+                transform.translation.x = global_pos.x;
+                transform.translation.y = global_pos.y;
+            }
         }
     }
 }
 
-fn drop(mut commands: Commands, mut q_dropped: Query<Entity, Added<Dropped>>) {
-    for entity in q_dropped.iter_mut() {
-        commands.entity(entity).remove::<Parent>();
-        commands.entity(entity).remove::<Dropped>();
+fn drop(mut commands: Commands, mut q_dropped: Query<(Entity, Option<&Slot>), Added<Dropped>>) {
+    for (entity, slot_id) in q_dropped.iter_mut() {
+        if let Some(_) = slot_id {
+            // IMPLMENET
+        } else {
+            commands.entity(entity).remove::<Parent>();
+            commands.entity(entity).remove::<Dropped>();
+        }
     }
+}
+
+fn grab_edge (
+    mut q_edge: Query<(&mut Transform, &GrabbedEdge, &mut Sprite)>,
+    q_cursor: Query<&GlobalTransform, With<Cursor>>,
+) {
+    let cursor_t = q_cursor.iter().next().unwrap();
+    
+    for (mut edge_t, edge, mut sprite) in q_edge.iter_mut() {
+        stretch_between(&mut sprite, &mut edge_t, edge.start, cursor_t.translation.truncate());
+    }
+}
+
+fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, end: Vec2) {
+    let midpoint = start - (start - end) / 2.;
+    let distance = start.distance(end);
+    let rotation = Vec2::X.angle_between(start - end);
+
+    transform.translation = midpoint.extend(0.0);
+    transform.rotation = Quat::from_rotation_z(rotation);
+    sprite.size = Vec2::new(distance, 5.);
+}
+
+fn grab_edge_drop (
+    mut commands: Commands,
+    mut tool_state: ResMut<State<ToolState>>,
+    mut tex_pro: ResMut<TextureProcessor>,
+    i_mouse_button: Res<Input<MouseButton>>,
+    q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
+    q_cursor: Query<&GlobalTransform, With<Cursor>>,
+    q_edge: Query<(Entity, &GrabbedEdge)>,
+) {
+    if !i_mouse_button.just_released(MouseButton::Left) {
+        return;
+    }
+
+    let cursor_t = q_cursor.iter().next().unwrap();
+    let edge_slot = &q_edge.iter().next().unwrap().1.slot;
+    
+    for (slot_t, slot_sprite, slot) in q_slot.iter() {
+        if box_contains_point(slot_t.translation.truncate(), slot_sprite.size, cursor_t.translation.truncate()) {
+            if tex_pro.node_graph.try_connect_arbitrary(slot.node_id, slot.side, slot.slot_id, edge_slot.node_id, edge_slot.side, edge_slot.slot_id).is_err() {
+                println!("Failed to connect nodes");
+            }
+        }
+    }
+
+    for (edge_e, _) in q_edge.iter() {
+        commands.entity(edge_e).despawn_recursive();
+    }
+
+    tool_state.replace(ToolState::None).unwrap();
 }
 
 struct Crosshair;
