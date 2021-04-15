@@ -11,4 +11,3 @@ bevy = "0.5"
 kanter_core = { git = "https://github.com/lukors/kanter_core.git", branch = "main" }
 native-dialog = "0.5.5"
 image = "0.20.1"
-# bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "1f3d506" }
