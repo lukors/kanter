@@ -322,7 +322,7 @@ fn workspace(
 }
 
 fn process_hotkey(input: Res<Input<KeyCode>>, mut tex_pro: ResMut<TextureProcessor>, q_selected: Query<&NodeId, With<Selected>>) {
-    if input.just_pressed(KeyCode::F12) {
+    if (input.pressed(KeyCode::LControl) || input.pressed(KeyCode::RControl)) && input.just_pressed(KeyCode::E) {
         
         let mut out_id: Option<NodeId> = None;
         for node_id in q_selected.iter() {
