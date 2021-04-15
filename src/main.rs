@@ -335,11 +335,27 @@ fn process_hotkey(input: Res<Input<KeyCode>>, mut tex_pro: ResMut<TextureProcess
         }
 
         tex_pro.process();
-        
         let size = 256;
+
+        let texels = match tex_pro.get_output(out_id.unwrap()) {
+            Ok(buf) => buf,
+            Err(e) => {
+                println!("Error when trying to get pixels from image: {:?}", e);
+                return;
+            }
+        };
+        
+        let buffer = match image::RgbaImage::from_vec(size, size, texels) {
+            None => {
+                println!("Output image buffer not big enough to contain texels.");
+                return;
+            }
+            Some(buf) => buf,
+        };
+        
         image::save_buffer(
             &Path::new(&"test.png"),
-            &image::RgbaImage::from_vec(size, size, tex_pro.get_output(out_id.unwrap()).unwrap()).unwrap(),
+            &buffer,
             size,
             size,
             image::ColorType::RGBA(8),
