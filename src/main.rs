@@ -1059,7 +1059,7 @@ fn grab_edge_drop(
         ) {
             if tex_pro
                 .node_graph
-                .try_connect_arbitrary(
+                .connect_arbitrary(
                     slot.node_id,
                     slot.side,
                     slot.slot_id,
