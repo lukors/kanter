@@ -18,8 +18,10 @@ pub enum ToolState {
     None,
     Add,
     BoxSelect,
+    Export,
     Grab,
     GrabEdge,
+    Process,
 }
 
 impl Default for ToolState {
@@ -81,11 +83,7 @@ impl Plugin for KanterPlugin {
                 CoreStage::Update,
                 SystemSet::new()
                     .label(Stage::Input)
-                    .with_system(
-                        tool_input
-                            .system()
-                            .chain(first_person_input.system().chain(process_hotkey.system())),
-                    )
+                    .with_system(hotkeys.system())
                     .with_system(
                         add_update
                             .system()
@@ -119,6 +117,12 @@ impl Plugin for KanterPlugin {
                         box_select_cleanup
                             .system()
                             .with_run_criteria(State::on_exit(ToolState::BoxSelect))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        export
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Export))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
@@ -204,7 +208,12 @@ impl Plugin for KanterPlugin {
                     .with_system(drag.system())
                     .with_system(drop.system())
                     .with_system(material.system())
-                    .with_system(sync_graph.system()),
+                    .with_system(sync_graph.system())
+                    .with_system(
+                        process
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Process)),
+                    ),
             )
             .add_system_set_to_stage(
                 CoreStage::PostUpdate,
@@ -321,38 +330,30 @@ fn workspace(
     }
 }
 
-fn process_hotkey(input: Res<Input<KeyCode>>, mut tex_pro: ResMut<TextureProcessor>, q_selected: Query<&NodeId, With<Selected>>) {
-    if (input.pressed(KeyCode::LControl) || input.pressed(KeyCode::RControl)) && input.just_pressed(KeyCode::E) {
-        
-        let mut out_id: Option<NodeId> = None;
-        for node_id in q_selected.iter() {
-            if tex_pro.node_graph.node_with_id(*node_id).unwrap().node_type == NodeType::OutputRgba {
-                out_id = Some(*node_id);
-            }
-        }
-        if out_id.is_none() {
-            return;
-        }
-
-        tex_pro.process();
+fn export(
+    tex_pro: Res<TextureProcessor>,
+    q_selected: Query<&NodeId, With<Selected>>,
+    mut tool_state: ResMut<State<ToolState>>,
+) {
+    for node_id in q_selected.iter() {
         let size = 256;
 
-        let texels = match tex_pro.get_output(out_id.unwrap()) {
+        let texels = match tex_pro.get_output(*node_id) {
             Ok(buf) => buf,
             Err(e) => {
                 println!("Error when trying to get pixels from image: {:?}", e);
-                return;
+                continue;
             }
         };
-        
+
         let buffer = match image::RgbaImage::from_vec(size, size, texels) {
             None => {
                 println!("Output image buffer not big enough to contain texels.");
-                return;
+                continue;
             }
             Some(buf) => buf,
         };
-        
+
         image::save_buffer(
             &Path::new(&"test.png"),
             &buffer,
@@ -362,6 +363,12 @@ fn process_hotkey(input: Res<Input<KeyCode>>, mut tex_pro: ResMut<TextureProcess
         )
         .unwrap();
     }
+    tool_state.replace(ToolState::None).unwrap();
+}
+
+fn process(mut tex_pro: ResMut<TextureProcessor>, mut tool_state: ResMut<State<ToolState>>) {
+    tex_pro.process();
+    tool_state.replace(ToolState::None).unwrap();
 }
 
 fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: EventWriter<AppExit>) {
@@ -372,38 +379,16 @@ fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: EventWriter<AppE
     }
 }
 
-fn tool_input(mut tool_state: ResMut<State<ToolState>>, input: Res<Input<KeyCode>>) {
-    let tool_current = tool_state.current().clone();
-
-    if tool_current != ToolState::None {
-        if input.just_pressed(KeyCode::Escape) && tool_current != ToolState::None {
-            tool_state.replace(ToolState::None).unwrap();
-        }
-    }
-
-    // Gate to avoid cancelling a running tool_state by activating another tool.
-    if tool_current != ToolState::None {
-        return;
-    }
-
-    if input.just_pressed(KeyCode::B) {
-        tool_state.set(ToolState::BoxSelect).unwrap();
-    }
-
-    if input.just_pressed(KeyCode::G) {
-        tool_state.set(ToolState::Grab).unwrap();
-    }
-
-    if (input.pressed(KeyCode::LShift) || input.pressed(KeyCode::RShift))
-        && input.just_pressed(KeyCode::A)
-    {
-        tool_state.set(ToolState::Add).unwrap();
-    }
+fn control_pressed(input: &Res<Input<KeyCode>>) -> bool {
+    input.pressed(KeyCode::LControl) || input.pressed(KeyCode::RControl)
+}
+fn shift_pressed(input: &Res<Input<KeyCode>>) -> bool {
+    input.pressed(KeyCode::LShift) || input.pressed(KeyCode::RShift)
 }
 
-fn first_person_input(
+fn hotkeys(
     mut first_person_state: ResMut<State<FirstPersonState>>,
-    mut er_window_focused: EventReader<WindowFocused>,
+    mut tool_state: ResMut<State<ToolState>>,
     input: Res<Input<KeyCode>>,
 ) {
     if input.just_pressed(KeyCode::Tab) {
@@ -414,10 +399,39 @@ fn first_person_input(
         }
     }
 
-    let event_window_focused = er_window_focused.iter().last();
-    if let Some(event_window_focused) = event_window_focused {
-        if !event_window_focused.focused && *first_person_state.current() != FirstPersonState::Off {
-            first_person_state.set(FirstPersonState::Off).unwrap();
+    let tool_current = tool_state.current().clone();
+
+    if tool_current == ToolState::None {
+        for key_code in input.get_just_pressed() {
+            let new_tool = match key_code {
+                KeyCode::A => {
+                    if shift_pressed(&input) {
+                        Some(tool_state.set(ToolState::Add))
+                    } else {
+                        None
+                    }
+                }
+                KeyCode::B => Some(tool_state.set(ToolState::BoxSelect)),
+                KeyCode::E => {
+                    if control_pressed(&input) {
+                        Some(tool_state.set(ToolState::Export))
+                    } else {
+                        None
+                    }
+                }
+                KeyCode::F12 => Some(tool_state.set(ToolState::Process)),
+                KeyCode::G => Some(tool_state.set(ToolState::Grab)),
+                _ => None,
+            };
+
+            if let Some(new_tool) = new_tool {
+                new_tool.unwrap();
+                break;
+            }
+        }
+    } else {
+        if input.just_pressed(KeyCode::Escape) && tool_current != ToolState::None {
+            tool_state.replace(ToolState::None).unwrap();
         }
     }
 }
@@ -988,7 +1002,6 @@ fn drag(
 fn drop(mut commands: Commands, mut q_dropped: Query<(Entity, Option<&Slot>), Added<Dropped>>) {
     for (entity, slot_id) in q_dropped.iter_mut() {
         if let Some(_) = slot_id {
-            
         } else {
             commands.entity(entity).remove::<Parent>();
         }
@@ -1071,6 +1084,8 @@ fn grab_edge_drop(
 struct Crosshair;
 
 fn first_person_on_update(
+    mut first_person_state: ResMut<State<FirstPersonState>>,
+    mut er_window_focused: EventReader<WindowFocused>,
     mut windows: ResMut<Windows>,
     mut q_camera: Query<(Entity, &mut Transform), With<Camera>>,
     q_workspace: Query<&Workspace>,
@@ -1085,6 +1100,12 @@ fn first_person_on_update(
     let window = windows.get_primary_mut().unwrap();
     let window_size = Vec2::new(window.width(), window.height());
     window.set_cursor_position(window_size / 2.0);
+
+    if let Some(event_window_focused) = er_window_focused.iter().last() {
+        if !event_window_focused.focused && *first_person_state.current() != FirstPersonState::Off {
+            first_person_state.set(FirstPersonState::Off).unwrap();
+        }
+    }
 }
 
 fn first_person_off_update(
