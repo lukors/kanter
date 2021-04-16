@@ -1041,11 +1041,13 @@ fn drag(
                     {
                         edge_visible.is_visible = false;
 
-                        if let Some((input_slot_gtransform, input_slot)) = q_slot.iter().find(|(_, slot)| {
-                            slot.node_id == edge.input_slot.node_id
-                                && slot.slot_id == edge.input_slot.slot_id
-                                && slot.side == Side::Input
-                        }) {
+                        if let Some((input_slot_gtransform, input_slot)) =
+                            q_slot.iter().find(|(_, slot)| {
+                                slot.node_id == edge.input_slot.node_id
+                                    && slot.slot_id == edge.input_slot.slot_id
+                                    && slot.side == Side::Input
+                            })
+                        {
                             commands
                                 .spawn_bundle(SpriteBundle {
                                     material: materials.add(Color::rgb(0., 0., 0.).into()),
@@ -1067,11 +1069,13 @@ fn drag(
                     {
                         edge_visible.is_visible = false;
 
-                        if let Some((output_slot_gtransform, output_slot)) = q_slot.iter().find(|(_, slot)| {
-                            slot.node_id == edge.output_slot.node_id
-                                && slot.slot_id == edge.output_slot.slot_id
-                                && slot.side == Side::Output
-                        }) {
+                        if let Some((output_slot_gtransform, output_slot)) =
+                            q_slot.iter().find(|(_, slot)| {
+                                slot.node_id == edge.output_slot.node_id
+                                    && slot.slot_id == edge.output_slot.slot_id
+                                    && slot.side == Side::Output
+                            })
+                        {
                             commands
                                 .spawn_bundle(SpriteBundle {
                                     material: materials.add(Color::rgb(0., 0., 0.).into()),
@@ -1100,7 +1104,6 @@ fn drag(
                 });
         }
         tool_state.replace(ToolState::GrabEdge).unwrap();
-
     } else {
         if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
             for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
@@ -1185,7 +1188,11 @@ fn drop_edge(
                     {
                         if let Some(source_slot) = source_slot {
                             if source_slot.0 != *slot {
-                                tex_pro.node_graph.disconnect_slot(source_slot.0.node_id, source_slot.0.side, source_slot.0.slot_id);
+                                tex_pro.node_graph.disconnect_slot(
+                                    source_slot.0.node_id,
+                                    source_slot.0.side,
+                                    source_slot.0.slot_id,
+                                );
                             }
                         }
                         continue 'outer;
@@ -1195,7 +1202,11 @@ fn drop_edge(
                     }
                 }
             }
-            tex_pro.node_graph.disconnect_slot(grabbed_edge.slot.node_id, grabbed_edge.slot.side, grabbed_edge.slot.slot_id)
+            tex_pro.node_graph.disconnect_slot(
+                grabbed_edge.slot.node_id,
+                grabbed_edge.slot.side,
+                grabbed_edge.slot.slot_id,
+            )
         }
 
         for (edge_e, _, _) in q_grabbed_edge.iter() {
