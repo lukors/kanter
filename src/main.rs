@@ -90,18 +90,18 @@ impl Plugin for KanterPlugin {
                 CoreStage::Update,
                 SystemSet::new()
                     .label(Stage::Input)
-                    .with_system(hotkeys.system())
-                )
-                .add_system_set_to_stage(
-                    CoreStage::Update,
-                    SystemSet::new()
+                    .with_system(hotkeys.system()),
+            )
+            .add_system_set_to_stage(
+                CoreStage::Update,
+                SystemSet::new()
                     .label(Stage::Update)
                     .after(Stage::Input)
                     .with_system(
                         add_setup
-                        .system()
-                        .with_run_criteria(State::on_enter(ToolState::Add))
-                        .in_ambiguity_set(AmbiguitySet),
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Add))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         add_update
@@ -215,8 +215,20 @@ impl Plugin for KanterPlugin {
                     .after(Stage::Update)
                     .with_system(deselect.system())
                     .with_system(drop.system())
-                    .with_system(sync_graph.system().chain(drag.system()).chain(update_edges.system()).chain(material.system()).label("material"))
-                    .with_system(process.system().with_run_criteria(State::on_enter(ToolState::Process)).after("material"))
+                    .with_system(
+                        sync_graph
+                            .system()
+                            .chain(drag.system())
+                            .chain(update_edges.system())
+                            .chain(material.system())
+                            .label("material"),
+                    )
+                    .with_system(
+                        process
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Process))
+                            .after("material"),
+                    ),
             )
             .add_system_set_to_stage(
                 CoreStage::PostUpdate,
@@ -342,7 +354,13 @@ fn export(
     mut tool_state: ResMut<State<ToolState>>,
 ) {
     for node_id in q_selected.iter() {
-        let size = 256;
+        let size: TPSize = match tex_pro.get_node_size(*node_id) {
+            Some(s) => s,
+            None => {
+                println!("Unable to get the size of the node");
+                continue;
+            }
+        };
 
         let texels = match tex_pro.get_output(*node_id) {
             Ok(buf) => buf,
@@ -352,7 +370,7 @@ fn export(
             }
         };
 
-        let buffer = match image::RgbaImage::from_vec(size, size, texels) {
+        let buffer = match image::RgbaImage::from_vec(size.width, size.height, texels) {
             None => {
                 println!("Output image buffer not big enough to contain texels.");
                 continue;
@@ -360,11 +378,31 @@ fn export(
             Some(buf) => buf,
         };
 
+        let path = match FileDialog::new()
+            // .set_location("~/Desktop")
+            .add_filter("PNG Image", &["png"])
+            .show_save_single_file()
+        {
+            Ok(path) => path,
+            Err(e) => {
+                println!("Unable to get export path: {:?}", e);
+                continue;
+            }
+        };
+
+        let path = match path {
+            Some(path) => path,
+            None => {
+                println!("Unable to get export path");
+                continue;
+            }
+        };
+
         image::save_buffer(
-            &Path::new(&"test.png"),
+            &Path::new(&path),
             &buffer,
-            size,
-            size,
+            size.width,
+            size.height,
             image::ColorType::RGBA(8),
         )
         .unwrap();
@@ -980,10 +1018,13 @@ fn drag(
     mut commands: Commands,
     q_dragged_slot: Query<(&GlobalTransform, &Slot), Added<Dragged>>,
     q_slot: Query<(&GlobalTransform, &Slot)>,
-    mut qs_node: QuerySet<(Query<
-        (Entity, &mut Transform, &GlobalTransform),
-        (Added<Dragged>, With<NodeId>, Without<Slot>)>,
-        Query<Entity, (Added<NodeId>, Without<Slot>)>)>,
+    mut qs_node: QuerySet<(
+        Query<
+            (Entity, &mut Transform, &GlobalTransform),
+            (Added<Dragged>, With<NodeId>, Without<Slot>),
+        >,
+        Query<Entity, (Added<NodeId>, Without<Slot>)>,
+    )>,
     mut q_edge: Query<(&mut Visible, &Edge)>,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
     input: Res<Input<KeyCode>>,
@@ -1073,7 +1114,6 @@ fn drag(
                     let global_pos = global_transform.translation - cursor_transform.translation;
                     transform.translation.x = global_pos.x;
                     transform.translation.y = global_pos.y;
-
                 }
             }
         }
