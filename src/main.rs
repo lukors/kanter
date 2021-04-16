@@ -2,8 +2,22 @@
 
 use std::{path::Path, sync::Arc};
 
-use bevy::{app::AppExit, input::mouse::MouseMotion, prelude::*, render::{camera::Camera, texture::{Extent3d, TextureDimension, TextureFormat}}, window::WindowFocused};
-use kanter_core::{dag::TextureProcessor, node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side}, node_data::Size as TPSize, node_graph::{NodeId, SlotId}};
+use bevy::{
+    app::AppExit,
+    input::mouse::MouseMotion,
+    prelude::*,
+    render::{
+        camera::Camera,
+        texture::{Extent3d, TextureDimension, TextureFormat},
+    },
+    window::WindowFocused,
+};
+use kanter_core::{
+    dag::TextureProcessor,
+    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side},
+    node_data::Size as TPSize,
+    node_graph::{NodeId, SlotId},
+};
 use native_dialog::FileDialog;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -373,14 +387,19 @@ fn process(
     tex_pro.process();
 
     for (node_e, node_id) in q_node.iter_mut() {
-        if let Some(texture) = generate_thumbnail(&tex_pro, *node_id, Size::new(NODE_SIZE as f32, NODE_SIZE as f32)) {
+        if let Some(texture) = generate_thumbnail(
+            &tex_pro,
+            *node_id,
+            Size::new(NODE_SIZE as f32, NODE_SIZE as f32),
+        ) {
             let texture_handle = textures.add(texture);
             commands.entity(node_e).remove::<ColorMaterial>();
-            commands.entity(node_e).insert(materials.add(texture_handle.into()));
+            commands
+                .entity(node_e)
+                .insert(materials.add(texture_handle.into()));
         }
     }
 
-    
     tool_state.replace(ToolState::None).unwrap();
 }
 
@@ -705,9 +724,8 @@ fn generate_thumbnail(
     node_id: NodeId,
     size: Size,
 ) -> Option<Texture> {
-    
     let mut tex_pro_thumb = TextureProcessor::new();
-    
+
     let mut node_datas = tex_pro.get_node_data(node_id);
 
     let n_out = tex_pro_thumb
@@ -716,28 +734,30 @@ fn generate_thumbnail(
         .unwrap();
 
     for (i, node_data) in node_datas.iter().take(4).enumerate() {
-        if let Ok(end_id) = tex_pro_thumb.embed_node_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32)) {
+        if let Ok(end_id) = tex_pro_thumb
+            .embed_node_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32))
+        {
             let n_node_data = tex_pro_thumb
                 .node_graph
                 .add_node(Node::new(NodeType::NodeData(end_id)))
                 .unwrap();
-            
+
             let n_resize = tex_pro_thumb
                 .node_graph
                 .add_node(Node::new(NodeType::Resize(
-                Some(ResizePolicy::SpecificSize(TPSize::new(
-                    size.width as u32,
-                    size.height as u32,
-                ))),
-                Some(ResizeFilter::Nearest),
-            )))
-            .unwrap();
+                    Some(ResizePolicy::SpecificSize(TPSize::new(
+                        size.width as u32,
+                        size.height as u32,
+                    ))),
+                    Some(ResizeFilter::Nearest),
+                )))
+                .unwrap();
 
             tex_pro_thumb
                 .node_graph
                 .connect(n_node_data, n_resize, SlotId(0), SlotId(0))
                 .unwrap();
-            
+
             tex_pro_thumb
                 .node_graph
                 .connect(n_resize, n_out, SlotId(0), node_data.slot_id)
@@ -748,8 +768,7 @@ fn generate_thumbnail(
     tex_pro_thumb.process();
 
     if let Ok(output) = tex_pro_thumb.get_output(n_out) {
-        Some(
-            Texture::new(
+        Some(Texture::new(
             Extent3d::new(size.width as u32, size.height as u32, 1),
             TextureDimension::D2,
             output,
@@ -758,7 +777,7 @@ fn generate_thumbnail(
     } else {
         None
     }
-    
+
     // let image = textures.add(texture);
     // commands
     //     .spawn_bundle(SpriteBundle {
