@@ -91,21 +91,22 @@ impl Plugin for KanterPlugin {
                 SystemSet::new()
                     .label(Stage::Input)
                     .with_system(hotkeys.system())
-                    .with_system(
-                        add_update
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Add)),
-                    ),
-            )
-            .add_system_set_to_stage(
-                CoreStage::Update,
-                SystemSet::new()
+                )
+                .add_system_set_to_stage(
+                    CoreStage::Update,
+                    SystemSet::new()
                     .label(Stage::Update)
                     .after(Stage::Input)
                     .with_system(
                         add_setup
+                        .system()
+                        .with_run_criteria(State::on_enter(ToolState::Add))
+                        .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        add_update
                             .system()
-                            .with_run_criteria(State::on_enter(ToolState::Add))
+                            .with_run_criteria(State::on_update(ToolState::Add))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
@@ -174,7 +175,8 @@ impl Plugin for KanterPlugin {
                     .with_system(
                         hoverable
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::None)),
+                            .with_run_criteria(State::on_update(ToolState::None))
+                            .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         none_cleanup
@@ -212,16 +214,9 @@ impl Plugin for KanterPlugin {
                     .label(Stage::Apply)
                     .after(Stage::Update)
                     .with_system(deselect.system())
-                    .with_system(drag.system())
                     .with_system(drop.system())
-                    .with_system(update_edges.system())
-                    .with_system(material.system())
-                    .with_system(sync_graph.system())
-                    .with_system(
-                        process
-                            .system()
-                            .with_run_criteria(State::on_enter(ToolState::Process)),
-                    ),
+                    .with_system(sync_graph.system().chain(drag.system()).chain(update_edges.system()).chain(material.system()).label("material"))
+                    .with_system(process.system().with_run_criteria(State::on_enter(ToolState::Process)).after("material"))
             )
             .add_system_set_to_stage(
                 CoreStage::PostUpdate,
@@ -1074,14 +1069,12 @@ fn drag(
             for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
                 commands.entity(entity).insert(Parent(cursor_e));
 
-                if new_node_e.contains(&entity) {
-
-                } else {
+                if !new_node_e.contains(&entity) {
                     let global_pos = global_transform.translation - cursor_transform.translation;
                     transform.translation.x = global_pos.x;
                     transform.translation.y = global_pos.y;
+
                 }
-                
             }
         }
     }
