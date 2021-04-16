@@ -1008,16 +1008,18 @@ fn drag(
         Query<(&GlobalTransform, &Slot), Added<Dragged>>,
         Query<(&GlobalTransform, &Slot)>,
     )>,
-    mut q_dragged_node: Query<
+    mut qs_node: QuerySet<(Query<
         (Entity, &mut Transform, &GlobalTransform),
-        (Added<Dragged>, With<NodeId>, Without<Slot>),
-    >,
+        (Added<Dragged>, With<NodeId>, Without<Slot>)>,
+        Query<Entity, (Added<NodeId>, Without<Slot>)>)>,
     mut q_edge: Query<(&mut Visible, &Edge)>,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
     input: Res<Input<KeyCode>>,
 ) {
     let q_dragged_slot = qs_slot.q0();
     let q_slot = qs_slot.q1();
+    let new_node_e: Vec<Entity> = qs_node.q1().iter().collect();
+    let mut q_dragged_node = qs_node.q0_mut();
 
     if let Some((dragged_slot_gtransform, dragged_slot)) = q_dragged_slot.iter().next() {
         if control_pressed(&input) {
@@ -1095,12 +1097,16 @@ fn drag(
     } else {
         if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
             for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
-                let global_pos = global_transform.translation - cursor_transform.translation;
-
                 commands.entity(entity).insert(Parent(cursor_e));
 
-                transform.translation.x = global_pos.x;
-                transform.translation.y = global_pos.y;
+                if new_node_e.contains(&entity) {
+
+                } else {
+                    let global_pos = global_transform.translation - cursor_transform.translation;
+                    transform.translation.x = global_pos.x;
+                    transform.translation.y = global_pos.y;
+                }
+                
             }
         }
     }
