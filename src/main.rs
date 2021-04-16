@@ -1204,11 +1204,13 @@ fn drop_edge(
                     }
                 }
             }
-            tex_pro.node_graph.disconnect_slot(
-                grabbed_edge.slot.node_id,
-                grabbed_edge.slot.side,
-                grabbed_edge.slot.slot_id,
-            )
+            if let Some(source_slot) = source_slot {
+                tex_pro.node_graph.disconnect_slot(
+                    source_slot.0.node_id,
+                    source_slot.0.side,
+                    source_slot.0.slot_id,
+                )
+            }
         }
 
         for (edge_e, _, _) in q_grabbed_edge.iter() {
