@@ -295,6 +295,7 @@ struct GrabbedEdge {
     start: Vec2,
     slot: Slot,
 }
+// I'm saving the start and end variables for when I want to select the edges themselves.
 struct Edge {
     start: Vec2,
     end: Vec2,
@@ -726,7 +727,7 @@ fn generate_thumbnail(
 ) -> Option<Texture> {
     let mut tex_pro_thumb = TextureProcessor::new();
 
-    let mut node_datas = tex_pro.get_node_data(node_id);
+    let node_datas = tex_pro.get_node_data(node_id);
 
     let n_out = tex_pro_thumb
         .node_graph
@@ -993,7 +994,7 @@ fn drag(
     input: Res<Input<KeyCode>>,
 ) {
     let new_node_e: Vec<Entity> = qs_node.q1().iter().collect();
-    let mut q_dragged_node = qs_node.q0_mut();
+    let q_dragged_node = qs_node.q0_mut();
 
     if let Some((dragged_slot_gtransform, dragged_slot)) = q_dragged_slot.iter().next() {
         if control_pressed(&input) {
