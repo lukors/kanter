@@ -982,10 +982,8 @@ fn drag(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut tool_state: ResMut<State<ToolState>>,
     mut commands: Commands,
-    qs_slot: QuerySet<(
-        Query<(&GlobalTransform, &Slot), Added<Dragged>>,
-        Query<(&GlobalTransform, &Slot)>,
-    )>,
+    q_dragged_slot: Query<(&GlobalTransform, &Slot), Added<Dragged>>,
+    q_slot: Query<(&GlobalTransform, &Slot)>,
     mut qs_node: QuerySet<(Query<
         (Entity, &mut Transform, &GlobalTransform),
         (Added<Dragged>, With<NodeId>, Without<Slot>)>,
@@ -994,8 +992,6 @@ fn drag(
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
     input: Res<Input<KeyCode>>,
 ) {
-    let q_dragged_slot = qs_slot.q0();
-    let q_slot = qs_slot.q1();
     let new_node_e: Vec<Entity> = qs_node.q1().iter().collect();
     let mut q_dragged_node = qs_node.q0_mut();
 
