@@ -1,16 +1,9 @@
 #![allow(clippy::type_complexity)]
 
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
-use bevy::{
-    app::AppExit, input::mouse::MouseMotion, prelude::*, render::camera::Camera,
-    window::WindowFocused,
-};
-use kanter_core::{
-    dag::TextureProcessor,
-    node::{Node, NodeType, Side},
-    node_graph::{NodeId, SlotId},
-};
+use bevy::{app::AppExit, input::mouse::MouseMotion, prelude::*, render::{camera::Camera, texture::{Extent3d, TextureDimension, TextureFormat}}, window::WindowFocused};
+use kanter_core::{dag::TextureProcessor, node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side}, node_data::Size as TPSize, node_graph::{NodeId, SlotId}};
 use native_dialog::FileDialog;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -369,8 +362,25 @@ fn export(
     tool_state.replace(ToolState::None).unwrap();
 }
 
-fn process(mut tex_pro: ResMut<TextureProcessor>, mut tool_state: ResMut<State<ToolState>>) {
+fn process(
+    mut tex_pro: ResMut<TextureProcessor>,
+    mut tool_state: ResMut<State<ToolState>>,
+    mut textures: ResMut<Assets<Texture>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut commands: Commands,
+    mut q_node: Query<(Entity, &NodeId)>,
+) {
     tex_pro.process();
+
+    for (node_e, node_id) in q_node.iter_mut() {
+        if let Some(texture) = generate_thumbnail(&tex_pro, *node_id, Size::new(NODE_SIZE as f32, NODE_SIZE as f32)) {
+            let texture_handle = textures.add(texture);
+            commands.entity(node_e).remove::<ColorMaterial>();
+            commands.entity(node_e).insert(materials.add(texture_handle.into()));
+        }
+    }
+
+    
     tool_state.replace(ToolState::None).unwrap();
 }
 
@@ -690,116 +700,75 @@ fn sync_graph(
     }
 }
 
-// fn add_image_thunb(
-//     mut commands: Commands,
-//     mut textures: ResMut<Assets<Texture>>,
-//     mut materials: ResMut<Assets<ColorMaterial>>,
-// ) {
-//     let mut tex_pro_thumb = TextureProcessor::new();
+fn generate_thumbnail(
+    tex_pro: &ResMut<TextureProcessor>,
+    node_id: NodeId,
+    size: Size,
+) -> Option<Texture> {
+    
+    let mut tex_pro_thumb = TextureProcessor::new();
+    
+    let mut node_datas = tex_pro.get_node_data(node_id);
 
-//     let n_in = tex_pro_thumb
-//         .node_graph
-//         .add_node(Node::new(NodeType::Image(
-//             path.into_os_string().into_string().unwrap(),
-//         )))
-//         .unwrap();
-//     let n_resize_1 = tex_pro_thumb
-//         .node_graph
-//         .add_node(Node::new(NodeType::Resize(
-//             Some(ResizePolicy::SpecificSize(Size::new(
-//                 NODE_SIZE as u32,
-//                 NODE_SIZE as u32,
-//             ))),
-//             Some(ResizeFilter::Nearest),
-//         )))
-//         .unwrap();
-//     let n_resize_2 = tex_pro_thumb
-//         .node_graph
-//         .add_node(Node::new(NodeType::Resize(
-//             Some(ResizePolicy::SpecificSize(Size::new(
-//                 NODE_SIZE as u32,
-//                 NODE_SIZE as u32,
-//             ))),
-//             Some(ResizeFilter::Nearest),
-//         )))
-//         .unwrap();
-//     let n_resize_3 = tex_pro_thumb
-//         .node_graph
-//         .add_node(Node::new(NodeType::Resize(
-//             Some(ResizePolicy::SpecificSize(Size::new(
-//                 NODE_SIZE as u32,
-//                 NODE_SIZE as u32,
-//             ))),
-//             Some(ResizeFilter::Nearest),
-//         )))
-//         .unwrap();
-//     let n_resize_4 = tex_pro_thumb
-//         .node_graph
-//         .add_node(Node::new(NodeType::Resize(
-//             Some(ResizePolicy::SpecificSize(Size::new(
-//                 NODE_SIZE as u32,
-//                 NODE_SIZE as u32,
-//             ))),
-//             Some(ResizeFilter::Nearest),
-//         )))
-//         .unwrap();
-//     let n_out = tex_pro_thumb
-//         .node_graph
-//         .add_node(Node::new(NodeType::OutputRgba))
-//         .unwrap();
+    let n_out = tex_pro_thumb
+        .node_graph
+        .add_node(Node::new(NodeType::OutputRgba))
+        .unwrap();
 
-//     tex_pro_thumb
-//         .node_graph
-//         .connect(n_in, n_resize_1, SlotId(0), SlotId(0))
-//         .unwrap();
-//     tex_pro_thumb
-//         .node_graph
-//         .connect(n_in, n_resize_2, SlotId(1), SlotId(0))
-//         .unwrap();
-//     tex_pro_thumb
-//         .node_graph
-//         .connect(n_in, n_resize_3, SlotId(2), SlotId(0))
-//         .unwrap();
-//     tex_pro_thumb
-//         .node_graph
-//         .connect(n_in, n_resize_4, SlotId(3), SlotId(0))
-//         .unwrap();
+    for (i, node_data) in node_datas.iter().take(4).enumerate() {
+        if let Ok(end_id) = tex_pro_thumb.embed_node_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32)) {
+            let n_node_data = tex_pro_thumb
+                .node_graph
+                .add_node(Node::new(NodeType::NodeData(end_id)))
+                .unwrap();
+            
+            let n_resize = tex_pro_thumb
+                .node_graph
+                .add_node(Node::new(NodeType::Resize(
+                Some(ResizePolicy::SpecificSize(TPSize::new(
+                    size.width as u32,
+                    size.height as u32,
+                ))),
+                Some(ResizeFilter::Nearest),
+            )))
+            .unwrap();
 
-//     tex_pro_thumb
-//         .node_graph
-//         .connect(n_resize_1, n_out, SlotId(0), SlotId(0))
-//         .unwrap();
-//     tex_pro_thumb
-//         .node_graph
-//         .connect(n_resize_2, n_out, SlotId(0), SlotId(1))
-//         .unwrap();
-//     tex_pro_thumb
-//         .node_graph
-//         .connect(n_resize_3, n_out, SlotId(0), SlotId(2))
-//         .unwrap();
-//     tex_pro_thumb
-//         .node_graph
-//         .connect(n_resize_4, n_out, SlotId(0), SlotId(3))
-//         .unwrap();
+            tex_pro_thumb
+                .node_graph
+                .connect(n_node_data, n_resize, SlotId(0), SlotId(0))
+                .unwrap();
+            
+            tex_pro_thumb
+                .node_graph
+                .connect(n_resize, n_out, SlotId(0), node_data.slot_id)
+                .unwrap()
+        }
+    }
 
-//     tex_pro_thumb.process();
+    tex_pro_thumb.process();
 
-//     let texture = Texture::new(
-//         Extent3d::new(NODE_SIZE as u32, NODE_SIZE as u32, 1),
-//         TextureDimension::D2,
-//         tex_pro_thumb.get_output(n_out).unwrap(),
-//         TextureFormat::Rgba8Unorm,
-//     );
-//     let image = textures.add(texture);
-//     commands
-//         .spawn_bundle(SpriteBundle {
-//             material: materials.add(image.into()),
-//             sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
-//             ..Default::default()
-//         })
-//         .insert(Hoverable)
-//         .insert(Draggable);
-// }
+    if let Ok(output) = tex_pro_thumb.get_output(n_out) {
+        Some(
+            Texture::new(
+            Extent3d::new(size.width as u32, size.height as u32, 1),
+            TextureDimension::D2,
+            output,
+            TextureFormat::Rgba8Unorm,
+        ))
+    } else {
+        None
+    }
+    
+    // let image = textures.add(texture);
+    // commands
+    //     .spawn_bundle(SpriteBundle {
+    //         material: materials.add(image.into()),
+    //         sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
+    //         ..Default::default()
+    //     })
+    //     .insert(Hoverable)
+    //     .insert(Draggable);
+}
 
 fn box_select(
     i_mouse_button: Res<Input<MouseButton>>,
