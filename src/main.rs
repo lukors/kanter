@@ -777,16 +777,6 @@ fn generate_thumbnail(
     } else {
         None
     }
-
-    // let image = textures.add(texture);
-    // commands
-    //     .spawn_bundle(SpriteBundle {
-    //         material: materials.add(image.into()),
-    //         sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
-    //         ..Default::default()
-    //     })
-    //     .insert(Hoverable)
-    //     .insert(Draggable);
 }
 
 fn box_select(
@@ -987,18 +977,6 @@ fn draggable(
         }
     }
 }
-
-// fn grab_edges_from_slot(mut tex_pro: ResMut<TextureProcessor>, slot: Slot) {
-//     let graph = &mut tex_pro.node_graph;
-
-//     if slot.side == Side::Output {
-//         graph.disconnect_slot(slot.node_id, slot.side, slot.slot_id);
-
-//     } else {
-
-//         // graph.edges_in_slot(node_id, side, slot_id);
-//     }
-// }
 
 fn drag(
     mut materials: ResMut<Assets<ColorMaterial>>,
