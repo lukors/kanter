@@ -90,7 +90,8 @@ impl Plugin for KanterPlugin {
                 CoreStage::Update,
                 SystemSet::new()
                     .label(Stage::Input)
-                    .with_system(hotkeys.system()),
+                    .with_system(hotkeys.system())
+                    .with_system(focus_change.system()),
             )
             .add_system_set_to_stage(
                 CoreStage::Update,
@@ -345,6 +346,23 @@ fn workspace(
         }
 
         workspace.cursor_delta = event_cursor_delta;
+    }
+}
+
+fn focus_change(
+    mut er_window_focused: EventReader<WindowFocused>,
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+) {
+    for event in er_window_focused.iter() {
+        if !event.focused {
+            let pressed_keys: Vec<KeyCode> =
+                keyboard_input.get_pressed().map(|kc| kc.clone()).collect();
+
+            for pressed_key in pressed_keys {
+                keyboard_input.release(pressed_key);
+            }
+            break;
+        }
     }
 }
 
