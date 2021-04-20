@@ -4,7 +4,7 @@ use std::{path::Path, sync::Arc};
 
 use bevy::{
     app::AppExit,
-    input::mouse::MouseMotion,
+    input::{keyboard::KeyboardInput, mouse::MouseMotion, ElementState},
     prelude::*,
     render::{
         camera::Camera,
@@ -91,6 +91,7 @@ impl Plugin for KanterPlugin {
                 SystemSet::new()
                     .label(Stage::Input)
                     .with_system(hotkeys.system())
+                    // .with_system(print_pressed_keys.system())
                     .with_system(focus_change.system()),
             )
             .add_system_set_to_stage(
@@ -387,8 +388,7 @@ fn workspace(
     }
 }
 
-const START_INSTRUCT: &str = &"Shift + A: Add node";
-const ADD_INSTRUCT: &str = &"I: Input\nO: Output";
+const START_INSTRUCT: &str = &"Shift A: Add node";
 
 fn update_instructions(
     tool_state: Res<State<ToolState>>,
@@ -402,6 +402,7 @@ fn update_instructions(
     let tool_changed = *tool_state.current() != *previous_tool_state;
 
     if fp_changed || tool_changed {
+        const ADD_INSTRUCT: &str = &"I: Input\nO: Output";
         let node_count = q_node.iter().len();
 
         let instruct_text = if *tool_state.current() == ToolState::Add {
@@ -410,7 +411,7 @@ fn update_instructions(
             START_INSTRUCT.to_string()
         } else {
             let none_instruct =
-                "B: Box select\nCtrl + E: Export selected\nG: Grab selected\nF12: Process graph";
+                "B: Box select\nCtrl E: Export selected\nG: Grab selected\nF12: Process graph";
 
             let tool = match tool_state.current() {
                 ToolState::None => format!("{}\n{}", START_INSTRUCT, none_instruct),
@@ -429,7 +430,7 @@ fn update_instructions(
                         FirstPersonState::Off => "Off",
                     };
 
-                    format!("Tab: First person ({})\n", state)
+                    format!("Shift `: First person ({})\n", state)
                 } else {
                     String::new()
                 }
@@ -564,12 +565,23 @@ fn shift_pressed(input: &Res<Input<KeyCode>>) -> bool {
     input.pressed(KeyCode::LShift) || input.pressed(KeyCode::RShift)
 }
 
+#[allow(dead_code)]
+fn print_pressed_keys(mut keyboard_input_events: EventReader<KeyboardInput>) {
+    for code in keyboard_input_events.iter() {
+        info!("key: {:?}", code);
+    }
+}
+
 fn hotkeys(
     mut first_person_state: ResMut<State<FirstPersonState>>,
     mut tool_state: ResMut<State<ToolState>>,
     input: Res<Input<KeyCode>>,
+    mut keyboard_input: EventReader<KeyboardInput>,
 ) {
-    if input.just_pressed(KeyCode::Tab) {
+    let tilde_key_pressed = keyboard_input
+        .iter()
+        .any(|ki| ki.scan_code == 41 && ki.state == ElementState::Pressed);
+    if tilde_key_pressed && shift_pressed(&input) {
         if *first_person_state.current() == FirstPersonState::Off {
             first_person_state.set(FirstPersonState::On).unwrap();
         } else {
