@@ -216,6 +216,7 @@ impl Plugin for KanterPlugin {
                     .after(Stage::Update)
                     .with_system(deselect.system())
                     .with_system(drop.system())
+                    .with_system(update_instructions.system())
                     .with_system(
                         sync_graph
                             .system()
@@ -263,12 +264,46 @@ fn setup(
                     ..Default::default()
                 })
                 .insert(Crosshair);
-        });
+        })
+        .insert(WorkspaceCamera);
+
     commands
         .spawn()
         .insert(Transform::default())
         .insert(GlobalTransform::default())
         .insert(Cursor);
+
+    commands.spawn_bundle(UiCameraBundle::default());
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                justify_content: JustifyContent::SpaceBetween,
+                ..Default::default()
+            },
+            material: materials.add(Color::NONE.into()),
+            ..Default::default()
+        })
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(TextBundle {
+                    style: Style {
+                        align_self: AlignSelf::FlexEnd,
+                        ..Default::default()
+                    },
+                    text: Text::with_section(
+                        START_INSTRUCT,
+                        TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Regular.ttf"),
+                            font_size: 20.0,
+                            color: Color::WHITE,
+                        },
+                        Default::default(),
+                    ),
+                    ..Default::default()
+                })
+                .insert(Instructions);
+        });
 }
 
 #[derive(Default)]
@@ -278,6 +313,9 @@ struct Workspace {
     cursor_delta: Vec2,
     cursor_moved: bool,
 }
+
+struct Instructions;
+struct WorkspaceCamera;
 
 struct Cursor;
 
@@ -323,7 +361,7 @@ fn workspace(
     mut er_cursor_moved: EventReader<CursorMoved>,
     windows: Res<Windows>,
     mut q_workspace: Query<&mut Workspace>,
-    q_camera: Query<&Transform, With<Camera>>,
+    q_camera: Query<&Transform, With<WorkspaceCamera>>,
 ) {
     let mut event_cursor_delta: Vec2 = Vec2::ZERO;
     for event_motion in er_mouse_motion.iter() {
@@ -349,19 +387,75 @@ fn workspace(
     }
 }
 
+const START_INSTRUCT: &str = &"Shift + A: Add node";
+const ADD_INSTRUCT: &str = &"I: Input\nO: Output";
+
+fn update_instructions(
+    tool_state: Res<State<ToolState>>,
+    first_person_state: Res<State<FirstPersonState>>,
+    q_node: Query<&NodeId>,
+    mut previous_tool_state: Local<ToolState>,
+    mut previous_first_person_state: Local<FirstPersonState>,
+    mut q_instructions: Query<&mut Text, With<Instructions>>,
+) {
+    let fp_changed = *first_person_state.current() != *previous_first_person_state;
+    let tool_changed = *tool_state.current() != *previous_tool_state;
+
+    if fp_changed || tool_changed {
+        let node_count = q_node.iter().len();
+
+        let instruct_text = if *tool_state.current() == ToolState::Add {
+            ADD_INSTRUCT.to_string()
+        } else if node_count == 0 {
+            START_INSTRUCT.to_string()
+        } else {
+            let none_instruct =
+                "B: Box select\nCtrl + E: Export selected\nG: Grab selected\nF12: Process graph";
+
+            let tool = match tool_state.current() {
+                ToolState::None => format!("{}\n{}", START_INSTRUCT, none_instruct),
+                ToolState::Add => ADD_INSTRUCT.to_string(),
+                ToolState::BoxSelect => "LMB: Drag box".to_string(),
+                ToolState::Export => return,
+                ToolState::Grab => "LMB: Confirm".to_string(),
+                ToolState::GrabEdge => return,
+                ToolState::Process => return,
+            };
+
+            let fp = {
+                if *tool_state.current() == ToolState::None {
+                    let state = match first_person_state.current() {
+                        FirstPersonState::On => "On",
+                        FirstPersonState::Off => "Off",
+                    };
+
+                    format!("Tab: First person ({})\n", state)
+                } else {
+                    String::new()
+                }
+            };
+
+            format!("{}{}", fp, tool)
+        };
+
+        if let Ok(mut text) = q_instructions.single_mut() {
+            text.sections[0].value = instruct_text;
+        }
+    }
+
+    *previous_tool_state = tool_state.current().clone();
+    *previous_first_person_state = first_person_state.current().clone();
+}
+
 fn focus_change(
     mut er_window_focused: EventReader<WindowFocused>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
 ) {
-    for event in er_window_focused.iter() {
-        if !event.focused {
-            let pressed_keys: Vec<KeyCode> =
-                keyboard_input.get_pressed().map(|kc| kc.clone()).collect();
+    if er_window_focused.iter().any(|event| !event.focused) {
+        let pressed_keys: Vec<KeyCode> = keyboard_input.get_pressed().copied().collect();
 
-            for pressed_key in pressed_keys {
-                keyboard_input.release(pressed_key);
-            }
-            break;
+        for pressed_key in pressed_keys {
+            keyboard_input.release(pressed_key);
         }
     }
 }
@@ -650,7 +744,7 @@ fn sync_graph(
 ) {
     if tex_pro.is_changed() {
         let node_ids = tex_pro.node_graph.node_ids();
-        let existing_ids: Vec<NodeId> = q_node_id.iter().map(|id| *id).collect();
+        let existing_ids: Vec<NodeId> = q_node_id.iter().copied().collect();
         let new_ids: Vec<NodeId> = node_ids
             .into_iter()
             .filter(|node_id| !existing_ids.contains(node_id))
@@ -1030,6 +1124,7 @@ fn draggable(
     }
 }
 
+#[allow(clippy::clippy::too_many_arguments)]
 fn drag(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut tool_state: ResMut<State<ToolState>>,
@@ -1140,8 +1235,7 @@ fn drag(
 
 fn drop(mut commands: Commands, mut q_dropped: Query<(Entity, Option<&Slot>), Added<Dropped>>) {
     for (entity, slot_id) in q_dropped.iter_mut() {
-        if let Some(_) = slot_id {
-        } else {
+        if !slot_id.is_some() {
             commands.entity(entity).remove::<Parent>();
         }
         commands.entity(entity).remove::<Dropped>();
@@ -1174,6 +1268,7 @@ fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, 
     sprite.size = Vec2::new(distance, 5.);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn drop_edge(
     mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
@@ -1249,7 +1344,7 @@ fn first_person_on_update(
     mut first_person_state: ResMut<State<FirstPersonState>>,
     mut er_window_focused: EventReader<WindowFocused>,
     mut windows: ResMut<Windows>,
-    mut q_camera: Query<(Entity, &mut Transform), With<Camera>>,
+    mut q_camera: Query<(Entity, &mut Transform), With<WorkspaceCamera>>,
     q_workspace: Query<&Workspace>,
 ) {
     for workspace in q_workspace.iter() {
