@@ -2,7 +2,13 @@
 
 use std::{path::Path, sync::Arc};
 
-use bevy::{app::AppExit, input::{keyboard::KeyboardInput, mouse::MouseMotion, ElementState}, prelude::*, render::{camera::{Camera, OrthographicProjection}, texture::{Extent3d, TextureDimension, TextureFormat}}, window::WindowFocused};
+use bevy::{
+    app::AppExit,
+    input::{keyboard::KeyboardInput, mouse::MouseMotion, ElementState},
+    prelude::*,
+    render::texture::{Extent3d, TextureDimension, TextureFormat},
+    window::WindowFocused,
+};
 use kanter_core::{
     dag::TextureProcessor,
     node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side},
@@ -745,10 +751,7 @@ fn sync_graph(
         for node_id in new_ids {
             let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
 
-            // let mut slots = Vec::new();
-            
-            
-            let node_e = commands
+            commands
                 .spawn_bundle(SpriteBundle {
                     material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
                     sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
@@ -781,7 +784,7 @@ fn sync_graph(
                             })
                             .id();
                     }
-        
+
                     for i in 0..node.capacity(Side::Output) {
                         parent
                             .spawn_bundle(SpriteBundle {
@@ -1218,7 +1221,6 @@ fn drag(
     } else {
         if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
             for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
-                
                 if !new_node_e.contains(&entity) {
                     let global_pos = global_transform.translation - cursor_transform.translation;
                     transform.translation.x = global_pos.x;
@@ -1435,11 +1437,10 @@ fn select_single(
     q_dropped: Query<&Dropped>,
 ) {
     if i_mouse_button.just_pressed(MouseButton::Left) && q_dropped.iter().count() == 0 {
-        
         for entity in q_selected.iter() {
             commands.entity(entity).remove::<Selected>();
         }
-        
+
         if let Some(entity) = q_hovered.iter().next() {
             commands.entity(entity).insert(Selected);
         }
