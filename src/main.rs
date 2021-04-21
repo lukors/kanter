@@ -1143,7 +1143,6 @@ fn drag(
     let q_dragged_node = qs_node.q0_mut();
 
     if let Some((dragged_slot_gtransform, dragged_slot)) = q_dragged_slot.iter().next() {
-        info!("Dragging slot");
         if control_pressed(&input) {
             match dragged_slot.side {
                 Side::Output => {
@@ -1225,7 +1224,6 @@ fn drag(
                     transform.translation.x = global_pos.x;
                     transform.translation.y = global_pos.y;
                 }
-                info!("dragging");
                 commands.entity(cursor_e).push_children(&[entity]);
             }
         }
