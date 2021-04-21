@@ -471,7 +471,7 @@ fn clear_input(
 
 fn focus_change(
     mut er_window_focused: EventReader<WindowFocused>,
-    mut keyboard_input: ResMut<Input<KeyCode>>,
+    keyboard_input: ResMut<Input<KeyCode>>,
 ) {
     if er_window_focused.iter().any(|event| !event.focused) {
         clear_input(keyboard_input);
@@ -482,30 +482,15 @@ fn export(
     tex_pro: Res<TextureProcessor>,
     q_selected: Query<&NodeId, With<Selected>>,
     mut tool_state: ResMut<State<ToolState>>,
+    keyboard_input: ResMut<Input<KeyCode>>,
 ) {
     for node_id in q_selected.iter() {
         let size: TPSize = match tex_pro.get_node_size(*node_id) {
             Some(s) => s,
             None => {
-                println!("Unable to get the size of the node");
+                info!("Unable to get the size of the node");
                 continue;
             }
-        };
-
-        let texels = match tex_pro.get_output(*node_id) {
-            Ok(buf) => buf,
-            Err(e) => {
-                println!("Error when trying to get pixels from image: {:?}", e);
-                continue;
-            }
-        };
-
-        let buffer = match image::RgbaImage::from_vec(size.width, size.height, texels) {
-            None => {
-                println!("Output image buffer not big enough to contain texels.");
-                continue;
-            }
-            Some(buf) => buf,
         };
 
         let path = match FileDialog::new()
@@ -515,28 +500,51 @@ fn export(
         {
             Ok(path) => path,
             Err(e) => {
-                println!("Unable to get export path: {:?}", e);
+                warn!("Unable to get export path: {:?}\nThis is a known bug on Windows, please report the bug if you are using another operating system.\nTry again a few times and it usually works.", e);
                 continue;
             }
         };
-
+        
         let path = match path {
             Some(path) => path,
             None => {
-                println!("Unable to get export path");
+                warn!("Invalid export path");
+                continue;
+            }
+        };
+        
+        let texels = match tex_pro.get_output(*node_id) {
+            Ok(buf) => buf,
+            Err(e) => {
+                error!("Error when trying to get pixels from image: {:?}", e);
                 continue;
             }
         };
 
-        image::save_buffer(
+        let buffer = match image::RgbaImage::from_vec(size.width, size.height, texels) {
+            None => {
+                error!("Output image buffer not big enough to contain texels.");
+                continue;
+            }
+            Some(buf) => buf,
+        };
+
+        match image::save_buffer(
             &Path::new(&path),
             &buffer,
             size.width,
             size.height,
             image::ColorType::RGBA(8),
-        )
-        .unwrap();
+        ) {
+            Ok(_) => info!("Image exported to {:?}", path),
+            Err(e) => {
+                error!("{}", e);
+                continue;
+            }
+        }
     }
+
+    clear_input(keyboard_input);
     tool_state.overwrite_replace(ToolState::None).unwrap();
 }
 
@@ -549,8 +557,10 @@ fn process(
     q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
     q_node: Query<(Entity, &NodeId)>,
 ) {
+    info!("Processing graph...");
     tex_pro.process();
-
+    
+    info!("Generating thumbnails...");
     for (node_e, node_id) in q_node.iter() {
         if let Some(texture) = generate_thumbnail(
             &tex_pro,
@@ -571,6 +581,7 @@ fn process(
     }
 
     tool_state.overwrite_replace(ToolState::None).unwrap();
+    info!("Done");
 }
 
 fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: EventWriter<AppExit>) {
@@ -699,29 +710,32 @@ fn add_update(
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
     let mut events_maybe_missed = false;
+    let mut done = false;
 
     for input in keyboard_input.get_just_pressed() {
         let node_type: Option<NodeType> = match input {
             KeyCode::I => {
                 events_maybe_missed = true;
+                done = true;
 
-                if let Ok(path) = FileDialog::new()
-                    // .set_location("~/Desktop")
-                    .add_filter("PNG Image", &["png"])
-                    .add_filter("JPEG Image", &["jpg", "jpeg"])
-                    .show_open_single_file() {
-                        if let Some(path) = path {
-                            Some(NodeType::Image(path.to_string_lossy().to_string()))
-                        } else {
-                            println!("Error: Invalid file path");
-                            None
-                        }
-                } else {
-                    println!("Error: File dialog error");
-                    None
+                match FileDialog::new()
+                // .set_location("~/Desktop")
+                .add_filter("PNG Image", &["png"])
+                .add_filter("JPEG Image", &["jpg", "jpeg"])
+                .show_open_single_file() {
+                    Ok(Some(path)) => Some(NodeType::Image(path.to_string_lossy().to_string())),
+                    Ok(None) => {
+                        warn!("Invalid path");
+                        None
+                    }
+                    Err(e) => {
+                        warn!("Error bringing up file dialog: {}\nThis is a known bug on Windows, please report the bug if you are not using Windows.\nIf you try again a few times it usually works.", e);
+                        None
+                    }
                 }
             }
             KeyCode::O => {
+                done = true;
                 // let path = FileDialog::new()
                 //     // .set_location("~/Desktop")
                 //     .add_filter("PNG Image", &["png"])
@@ -742,8 +756,13 @@ fn add_update(
         };
 
         if let Some(node_type) = node_type {
+            info!("Added node: {:?}", node_type);
             tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
+        }
+        
+        if done {
             tool_state.overwrite_replace(ToolState::Grab).unwrap();
+            break;
         }
     }
     
@@ -1421,7 +1440,7 @@ fn drop_edge(
                         }
                         continue 'outer;
                     } else {
-                        println!("Failed to connect nodes");
+                        trace!("Failed to connect nodes");
                         continue 'outer;
                     }
                 }
