@@ -38,7 +38,7 @@ impl Default for ToolState {
 fn main() {
     App::build()
         .insert_resource(WindowDescriptor {
-            title: "Bevy".to_string(),
+            title: "Kanter".to_string(),
             width: 1024.0,
             height: 768.0,
             vsync: false,
@@ -422,7 +422,7 @@ fn update_instructions(
             START_INSTRUCT.to_string()
         } else {
             let none_instruct =
-                "B: Box select\nCtrl E: Export selected\nG: Grab selected\nF12: Process graph";
+                "B: Box select\nShift Alt S: Save selected node as\nG: Grab selected\nF12: Process graph";
 
             let tool = match tool_state.current() {
                 ToolState::None => format!("{}\n{}", START_INSTRUCT, none_instruct),
@@ -531,7 +531,7 @@ fn export(
         )
         .unwrap();
     }
-    tool_state.replace(ToolState::None).unwrap();
+    tool_state.overwrite_replace(ToolState::None).unwrap();
 }
 
 fn process(
@@ -564,7 +564,7 @@ fn process(
         }
     }
 
-    tool_state.replace(ToolState::None).unwrap();
+    tool_state.overwrite_replace(ToolState::None).unwrap();
 }
 
 fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: EventWriter<AppExit>) {
@@ -581,6 +581,9 @@ fn control_pressed(input: &Res<Input<KeyCode>>) -> bool {
 fn shift_pressed(input: &Res<Input<KeyCode>>) -> bool {
     input.pressed(KeyCode::LShift) || input.pressed(KeyCode::RShift)
 }
+fn alt_pressed(input: &Res<Input<KeyCode>>) -> bool {
+    input.pressed(KeyCode::LAlt) || input.pressed(KeyCode::RAlt)
+}
 
 #[allow(dead_code)]
 fn print_pressed_keys(mut keyboard_input_events: EventReader<KeyboardInput>) {
@@ -594,6 +597,7 @@ fn hotkeys(
     mut tool_state: ResMut<State<ToolState>>,
     input: Res<Input<KeyCode>>,
     mut keyboard_input: EventReader<KeyboardInput>,
+    i_mouse_button: Res<Input<MouseButton>>,
 ) {
     let tilde_key_pressed = keyboard_input
         .iter()
@@ -619,15 +623,15 @@ fn hotkeys(
                     }
                 }
                 KeyCode::B => Some(tool_state.set(ToolState::BoxSelect)),
-                KeyCode::E => {
-                    if control_pressed(&input) {
+                KeyCode::F12 => Some(tool_state.set(ToolState::Process)),
+                KeyCode::G => Some(tool_state.set(ToolState::Grab)),
+                KeyCode::S => {
+                    if alt_pressed(&input) {
                         Some(tool_state.set(ToolState::Export))
                     } else {
                         None
                     }
                 }
-                KeyCode::F12 => Some(tool_state.set(ToolState::Process)),
-                KeyCode::G => Some(tool_state.set(ToolState::Grab)),
                 _ => None,
             };
 
@@ -637,10 +641,17 @@ fn hotkeys(
             }
         }
     } else {
-        if input.just_pressed(KeyCode::Escape) && tool_current != ToolState::None {
-            tool_state.replace(ToolState::None).unwrap();
+        if cancel_pressed(&input, &i_mouse_button) && tool_current != ToolState::None {
+            tool_state.overwrite_replace(ToolState::None).unwrap();
         }
     }
+}
+
+fn cancel_pressed(
+    i_key_code: &Res<Input<KeyCode>>,
+    i_mouse_button: &Res<Input<MouseButton>>,
+) -> bool {
+    i_key_code.just_pressed(KeyCode::Escape) || i_mouse_button.just_pressed(MouseButton::Right)
 }
 
 fn box_select_setup(
@@ -723,7 +734,7 @@ fn add_update(
 
         if let Some(node_type) = node_type {
             tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
-            tool_state.replace(ToolState::Grab).unwrap();
+            tool_state.overwrite_replace(ToolState::Grab).unwrap();
         }
     }
 }
@@ -811,6 +822,9 @@ fn spawn_gui_node(
             }
 
             for i in 0..node.capacity(Side::Output) {
+                if node.node_type == NodeType::OutputRgba || node.node_type == NodeType::OutputGray {
+                    break;
+                }
                 parent
                     .spawn_bundle(SpriteBundle {
                         material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
@@ -1005,7 +1019,7 @@ fn box_select(
             && visible.is_visible
             && *tool_state.current() != ToolState::None
         {
-            tool_state.replace(ToolState::None).unwrap();
+            tool_state.overwrite_replace(ToolState::None).unwrap();
             return;
         }
 
@@ -1300,7 +1314,7 @@ fn drag(
                     slot: dragged_slot.clone(),
                 });
         }
-        tool_state.replace(ToolState::GrabEdge).unwrap();
+        tool_state.overwrite_replace(ToolState::GrabEdge).unwrap();
     } else {
         if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
             for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
@@ -1416,7 +1430,7 @@ fn drop_edge(
             visible.is_visible = true;
         }
 
-        tool_state.replace(ToolState::None).unwrap();
+        tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 }
 
@@ -1542,7 +1556,7 @@ fn grab_setup(
     q_selected: Query<Entity, With<Selected>>,
 ) {
     if q_selected.iter().count() == 0 {
-        tool_state.replace(ToolState::None).unwrap();
+        tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 
     for entity in q_selected.iter() {
@@ -1552,7 +1566,7 @@ fn grab_setup(
 
 fn grab(mut tool_state: ResMut<State<ToolState>>, i_mouse_button: Res<Input<MouseButton>>) {
     if i_mouse_button.just_pressed(MouseButton::Left) {
-        tool_state.replace(ToolState::None).unwrap();
+        tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 }
 

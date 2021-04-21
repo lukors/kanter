@@ -1,5 +1,5 @@
 [package]
-name = "kanter_bevy"
+name = "kanter"
 version = "0.1.0"
 authors = ["Lukas Orsvärn <lukas@orsvarn.com>"]
 edition = "2018"
