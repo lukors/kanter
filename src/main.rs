@@ -459,16 +459,22 @@ fn update_instructions(
     *previous_first_person_state = first_person_state.current().clone();
 }
 
+fn clear_input(
+    mut keyboard_input: ResMut<Input<KeyCode>>,
+) {
+    let pressed_keys: Vec<KeyCode> = keyboard_input.get_pressed().copied().collect();
+
+    for pressed_key in pressed_keys {
+        keyboard_input.release(pressed_key);
+    }
+}
+
 fn focus_change(
     mut er_window_focused: EventReader<WindowFocused>,
     mut keyboard_input: ResMut<Input<KeyCode>>,
 ) {
     if er_window_focused.iter().any(|event| !event.focused) {
-        let pressed_keys: Vec<KeyCode> = keyboard_input.get_pressed().copied().collect();
-
-        for pressed_key in pressed_keys {
-            keyboard_input.release(pressed_key);
-        }
+        clear_input(keyboard_input);
     }
 }
 
@@ -688,29 +694,32 @@ fn box_select_setup(
 }
 
 fn add_update(
-    input: Res<Input<KeyCode>>,
+    keyboard_input: ResMut<Input<KeyCode>>,
     mut tool_state: ResMut<State<ToolState>>,
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
-    for input in input.get_pressed() {
-        let node_type = match input {
+    let mut events_maybe_missed = false;
+
+    for input in keyboard_input.get_just_pressed() {
+        let node_type: Option<NodeType> = match input {
             KeyCode::I => {
-                let path = FileDialog::new()
+                events_maybe_missed = true;
+
+                if let Ok(path) = FileDialog::new()
                     // .set_location("~/Desktop")
                     .add_filter("PNG Image", &["png"])
                     .add_filter("JPEG Image", &["jpg", "jpeg"])
-                    .show_open_single_file()
-                    .unwrap();
-
-                let path = match path {
-                    Some(path) => path,
-                    None => {
-                        println!("Error: Invalid save file path");
-                        return;
-                    }
-                };
-
-                Some(NodeType::Image(path.to_string_lossy().to_string()))
+                    .show_open_single_file() {
+                        if let Some(path) = path {
+                            Some(NodeType::Image(path.to_string_lossy().to_string()))
+                        } else {
+                            println!("Error: Invalid file path");
+                            None
+                        }
+                } else {
+                    println!("Error: File dialog error");
+                    None
+                }
             }
             KeyCode::O => {
                 // let path = FileDialog::new()
@@ -736,6 +745,10 @@ fn add_update(
             tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
             tool_state.overwrite_replace(ToolState::Grab).unwrap();
         }
+    }
+    
+    if events_maybe_missed {
+        clear_input(keyboard_input);
     }
 }
 
