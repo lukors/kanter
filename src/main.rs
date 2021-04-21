@@ -16,6 +16,7 @@ use kanter_core::{
     node_graph::{NodeId, SlotId},
 };
 use native_dialog::FileDialog;
+use rand::Rng;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ToolState {
@@ -43,12 +44,73 @@ fn main() {
             vsync: false,
             ..Default::default()
         })
+        .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.5)))
         // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();
 }
 
+#[derive(Default)]
+struct Workspace {
+    cursor_screen: Vec2,
+    cursor_world: Vec2,
+    cursor_delta: Vec2,
+    cursor_moved: bool,
+}
+
+struct Instructions;
+struct WorkspaceCameraAnchor;
+struct WorkspaceCamera;
+struct Thumbnail;
+struct Cursor;
+
+struct Hoverable;
+struct Hovered;
+
+struct Selected;
+
+struct Draggable;
+struct Dragged;
+struct Dropped;
+
+#[derive(Clone, Debug, PartialEq)]
+struct Slot {
+    node_id: NodeId,
+    side: Side,
+    slot_id: SlotId,
+}
+
+struct SourceSlot(Slot);
+
+struct GrabbedEdge {
+    start: Vec2,
+    slot: Slot,
+}
+// I'm saving the start and end variables for when I want to select the edges themselves.
+struct Edge {
+    start: Vec2,
+    end: Vec2,
+    output_slot: Slot,
+    input_slot: Slot,
+}
+struct BoxSelectCursor;
+
+#[derive(Default)]
+struct BoxSelect {
+    start: Vec2,
+    end: Vec2,
+}
+
+const CAMERA_DISTANCE: f32 = 10.;
+const SMALLEST_DEPTH_UNIT: f32 = f32::EPSILON * 500.;
+
+const THUMBNAIL_SIZE: f32 = 128.;
+const SLOT_SIZE: f32 = 30.;
+const SLOT_MARGIN: f32 = 2.;
+const SLOT_DISTANCE_X: f32 = THUMBNAIL_SIZE / 2. + SLOT_SIZE / 2. + SLOT_MARGIN;
+const NODE_SIZE: f32 = THUMBNAIL_SIZE + SLOT_SIZE * 2. + SLOT_MARGIN * 2.;
+const SLOT_DISTANCE_Y: f32 = 32. + SLOT_MARGIN;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum FirstPersonState {
     Off,
@@ -231,10 +293,6 @@ impl Plugin for KanterPlugin {
     }
 }
 
-const NODE_SIZE: f32 = 128.;
-const SLOT_SIZE: f32 = 16.;
-const SLOT_DISTANCE: f32 = 32.;
-
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -245,19 +303,31 @@ fn setup(
     commands.spawn().insert(Workspace::default());
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .insert(WorkspaceCamera)
         .with_children(|parent| {
             parent
-                .spawn_bundle(SpriteBundle {
-                    material: materials.add(crosshair_image.into()),
-                    visible: Visible {
-                        is_visible: false,
-                        is_transparent: true,
-                    },
-                    ..Default::default()
-                })
-                .insert(Crosshair);
-        })
-        .insert(WorkspaceCamera);
+                .spawn()
+                .insert(Transform::from_translation(Vec3::new(
+                    0.,
+                    0.,
+                    -CAMERA_DISTANCE,
+                )))
+                .insert(GlobalTransform::default())
+                .insert(WorkspaceCameraAnchor)
+                .with_children(|parent| {
+                    parent
+                        .spawn_bundle(SpriteBundle {
+                            material: materials.add(crosshair_image.into()),
+                            visible: Visible {
+                                is_visible: false,
+                                is_transparent: true,
+                            },
+                            ..Default::default()
+                        })
+                        .insert(Transform::from_translation(Vec3::new(0., 0., 9.0)))
+                        .insert(Crosshair);
+                });
+        });
 
     commands
         .spawn()
@@ -296,56 +366,6 @@ fn setup(
                 })
                 .insert(Instructions);
         });
-}
-
-#[derive(Default)]
-struct Workspace {
-    cursor_screen: Vec2,
-    cursor_world: Vec2,
-    cursor_delta: Vec2,
-    cursor_moved: bool,
-}
-
-struct Instructions;
-struct WorkspaceCamera;
-
-struct Cursor;
-
-struct Hoverable;
-struct Hovered;
-
-struct Selected;
-
-struct Draggable;
-struct Dragged;
-struct Dropped;
-
-#[derive(Clone, Debug, PartialEq)]
-struct Slot {
-    node_id: NodeId,
-    side: Side,
-    slot_id: SlotId,
-}
-
-struct SourceSlot(Slot);
-
-struct GrabbedEdge {
-    start: Vec2,
-    slot: Slot,
-}
-// I'm saving the start and end variables for when I want to select the edges themselves.
-struct Edge {
-    start: Vec2,
-    end: Vec2,
-    output_slot: Slot,
-    input_slot: Slot,
-}
-struct BoxSelectCursor;
-
-#[derive(Default)]
-struct BoxSelect {
-    start: Vec2,
-    end: Vec2,
 }
 
 fn workspace(
@@ -520,21 +540,27 @@ fn process(
     mut textures: ResMut<Assets<Texture>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
-    mut q_node: Query<(Entity, &NodeId)>,
+    q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
+    q_node: Query<(Entity, &NodeId)>,
 ) {
     tex_pro.process();
 
-    for (node_e, node_id) in q_node.iter_mut() {
+    for (node_e, node_id) in q_node.iter() {
         if let Some(texture) = generate_thumbnail(
             &tex_pro,
             *node_id,
-            Size::new(NODE_SIZE as f32, NODE_SIZE as f32),
+            Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
         ) {
             let texture_handle = textures.add(texture);
-            commands.entity(node_e).remove::<ColorMaterial>();
-            commands
-                .entity(node_e)
-                .insert(materials.add(texture_handle.into()));
+
+            if let Some((thumbnail_e, _)) = q_thumbnail
+                .iter()
+                .find(|(_, parent_e)| parent_e.0 == node_e)
+            {
+                commands
+                    .entity(thumbnail_e)
+                    .insert(materials.add(texture_handle.into()));
+            }
         }
     }
 
@@ -732,6 +758,82 @@ fn update_edges(
     }
 }
 
+fn spawn_gui_node(
+    commands: &mut Commands,
+    materials: &mut ResMut<Assets<ColorMaterial>>,
+    node: &Arc<Node>,
+) {
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
+            sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
+            transform: Transform::from_translation(Vec3::new(
+                0.,
+                0.,
+                rand::thread_rng().gen_range(0.0..9.0),
+            )),
+            ..Default::default()
+        })
+        .insert(Hoverable)
+        .insert(Selected)
+        .insert(Draggable)
+        .insert(Dragged)
+        .insert(node.node_id)
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(SpriteBundle {
+                    material: materials.add(Color::rgb(0.0, 0.0, 0.0).into()),
+                    sprite: Sprite::new(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
+                    transform: Transform::from_translation(Vec3::new(0., 0., SMALLEST_DEPTH_UNIT)),
+                    ..Default::default()
+                })
+                .insert(Thumbnail);
+            for i in 0..node.capacity(Side::Input) {
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        transform: Transform::from_translation(Vec3::new(
+                            -SLOT_DISTANCE_X,
+                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
+                            SMALLEST_DEPTH_UNIT,
+                        )),
+                        ..Default::default()
+                    })
+                    .insert(Hoverable)
+                    .insert(Draggable)
+                    .insert(Slot {
+                        node_id: node.node_id,
+                        side: Side::Input,
+                        slot_id: SlotId(i as u32),
+                    })
+                    .id();
+            }
+
+            for i in 0..node.capacity(Side::Output) {
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        transform: Transform::from_translation(Vec3::new(
+                            SLOT_DISTANCE_X,
+                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
+                            SMALLEST_DEPTH_UNIT,
+                        )),
+                        ..Default::default()
+                    })
+                    .insert(Hoverable)
+                    .insert(Draggable)
+                    .insert(Slot {
+                        node_id: node.node_id,
+                        side: Side::Output,
+                        slot_id: SlotId(i as u32),
+                    })
+                    .id();
+            }
+        });
+}
+
 fn sync_graph(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -750,64 +852,7 @@ fn sync_graph(
 
         for node_id in new_ids {
             let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
-
-            commands
-                .spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
-                    sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
-                    ..Default::default()
-                })
-                .insert(Hoverable)
-                .insert(Selected)
-                .insert(Draggable)
-                .insert(Dragged)
-                .insert(node_id)
-                .with_children(|parent| {
-                    for i in 0..node.capacity(Side::Input) {
-                        parent
-                            .spawn_bundle(SpriteBundle {
-                                material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                                sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                                transform: Transform::from_translation(Vec3::new(
-                                    -NODE_SIZE / 2.,
-                                    NODE_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE * i as f32,
-                                    0.,
-                                )),
-                                ..Default::default()
-                            })
-                            .insert(Hoverable)
-                            .insert(Draggable)
-                            .insert(Slot {
-                                node_id,
-                                side: Side::Input,
-                                slot_id: SlotId(i as u32),
-                            })
-                            .id();
-                    }
-
-                    for i in 0..node.capacity(Side::Output) {
-                        parent
-                            .spawn_bundle(SpriteBundle {
-                                material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                                sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                                transform: Transform::from_translation(Vec3::new(
-                                    NODE_SIZE / 2.,
-                                    NODE_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE * i as f32,
-                                    0.,
-                                )),
-                                ..Default::default()
-                            })
-                            .insert(Hoverable)
-                            .insert(Draggable)
-                            .insert(Slot {
-                                node_id,
-                                side: Side::Output,
-                                slot_id: SlotId(i as u32),
-                            })
-                            .id();
-                    }
-                })
-                .id();
+            spawn_gui_node(&mut commands, &mut materials, &node);
         }
 
         for edge_e in q_edge.iter() {
@@ -1059,36 +1104,65 @@ fn box_contains_point(box_pos: Vec2, box_size: Vec2, point: Vec2) -> bool {
 
 fn material(
     mut materials: ResMut<Assets<ColorMaterial>>,
-    q_hoverable: Query<
+    q_node: Query<
         (
             &Handle<ColorMaterial>,
             Option<&Hovered>,
             Option<&Selected>,
             Option<&Dragged>,
         ),
-        With<Hoverable>,
+        With<NodeId>,
+    >,
+    q_slot: Query<
+        (
+            &Handle<ColorMaterial>,
+            Option<&Hovered>,
+            Option<&Selected>,
+            Option<&Dragged>,
+        ),
+        With<Slot>,
     >,
 ) {
-    let mut first = true;
+    for (material, hovered, selected, dragged) in q_node.iter() {
+        if let Some(material) = materials.get_mut(material) {
+            let value = if dragged.is_some() {
+                0.9
+            } else if selected.is_some() {
+                0.75
+            } else if hovered.is_some() {
+                0.6
+            } else {
+                0.4
+            };
 
-    for (material, hovered, selected, dragged) in q_hoverable.iter() {
-        let (red, green, blue, alpha) = if dragged.is_some() {
-            (1.0, 0.0, 0.0, 0.3)
-        } else if first && hovered.is_some() {
-            first = false;
-            (0.0, 1.0, 0.0, 1.0)
-        } else if selected.is_some() {
-            (0.0, 0.0, 1.0, 0.3)
-        } else if hovered.is_some() {
-            (1.0, 1.0, 1.0, 0.5)
-        } else {
-            (1.0, 1.0, 1.0, 1.0)
-        };
+            material.color = Color::Rgba {
+                red: value,
+                green: value,
+                blue: value,
+                alpha: 1.0,
+            };
+        }
+    }
 
-        materials.get_mut(material).unwrap().color.set_r(red);
-        materials.get_mut(material).unwrap().color.set_g(green);
-        materials.get_mut(material).unwrap().color.set_b(blue);
-        materials.get_mut(material).unwrap().color.set_a(alpha);
+    for (material, hovered, selected, dragged) in q_slot.iter() {
+        if let Some(material) = materials.get_mut(material) {
+            let value = if dragged.is_some() {
+                0.0
+            } else if selected.is_some() {
+                0.2
+            } else if hovered.is_some() {
+                0.5
+            } else {
+                0.3
+            };
+
+            material.color = Color::Rgba {
+                red: value,
+                green: value,
+                blue: value,
+                alpha: 1.0,
+            };
+        }
     }
 }
 
@@ -1108,17 +1182,26 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
 fn draggable(
     mut commands: Commands,
     i_mouse_button: Res<Input<MouseButton>>,
-    q_pressed: Query<Entity, (With<Hovered>, With<Draggable>)>,
+    q_pressed: Query<(Entity, Option<&Slot>), (With<Hovered>, With<Draggable>)>,
     q_released: Query<Entity, With<Dragged>>,
 ) {
     if i_mouse_button.just_pressed(MouseButton::Left) {
-        if let Some(entity) = q_pressed.iter().next() {
-            commands.entity(entity).insert(Dragged);
+        let mut dragged_e = None;
+
+        for (entity, slot) in q_pressed.iter() {
+            dragged_e = Some(entity);
+
+            if slot.is_some() {
+                break;
+            }
+        }
+
+        if let Some(dragged_e) = dragged_e {
+            commands.entity(dragged_e).insert(Dragged);
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
         for entity in q_released.iter() {
             commands.entity(entity).remove::<Dragged>();
-
             commands.entity(entity).insert(Dropped);
         }
     }
@@ -1378,7 +1461,7 @@ fn first_person_off_update(
 
 fn first_person_on_setup(
     mut windows: ResMut<Windows>,
-    mut q_camera: Query<Entity, With<WorkspaceCamera>>,
+    mut q_camera: Query<Entity, With<WorkspaceCameraAnchor>>,
     mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
     mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
     mut commands: Commands,
