@@ -936,6 +936,7 @@ fn box_select(
             With<Draggable>,
             Without<BoxSelectCursor>,
             Without<BoxSelect>,
+            Without<Slot>,
         ),
     >,
     mut commands: Commands,
