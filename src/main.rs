@@ -1431,20 +1431,19 @@ fn deselect(
 fn select_single(
     i_mouse_button: Res<Input<MouseButton>>,
     mut commands: Commands,
-    q_hovered: Query<Entity, (With<Hovered>, Without<Selected>)>,
+    q_hovered: Query<Entity, With<Hovered>>,
     q_selected: Query<Entity, With<Selected>>,
     q_dropped: Query<&Dropped>,
 ) {
-    if !i_mouse_button.just_pressed(MouseButton::Left) || q_dropped.iter().count() > 0 {
-        return;
-    }
-
-    for entity in q_selected.iter() {
-        commands.entity(entity).remove::<Selected>();
-    }
-
-    if let Some(entity) = q_hovered.iter().next() {
-        commands.entity(entity).insert(Selected);
+    if i_mouse_button.just_pressed(MouseButton::Left) && q_dropped.iter().count() == 0 {
+        
+        for entity in q_selected.iter() {
+            commands.entity(entity).remove::<Selected>();
+        }
+        
+        if let Some(entity) = q_hovered.iter().next() {
+            commands.entity(entity).insert(Selected);
+        }
     }
 }
 
