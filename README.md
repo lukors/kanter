@@ -1,6 +1,8 @@
 # Kanter
 A node based image editor for texture creation. It uses [Kanter Core](https://github.com/lukors/kanter_core) for the computation and [Bevy](https://github.com/bevyengine/bevy) for the graphical user interface.
 
+![kanter_0-1-0](https://user-images.githubusercontent.com/1719884/115570710-a32c2f80-a2be-11eb-947d-c66a1d3550c7.png)
+
 ## Goals
 - Responsiveness - It should be fast to start, and snappy to use
 - Simplicity - It should be easy to understand and not be bloated with unnecessary nodes or cluttered UI
