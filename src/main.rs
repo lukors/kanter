@@ -643,7 +643,7 @@ fn hotkeys(
                 KeyCode::F12 => Some(tool_state.set(ToolState::Process)),
                 KeyCode::G => Some(tool_state.set(ToolState::Grab)),
                 KeyCode::S => {
-                    if alt_pressed(&input) {
+                    if alt_pressed(&input) && shift_pressed(&input) {
                         Some(tool_state.set(ToolState::Export))
                     } else {
                         None
