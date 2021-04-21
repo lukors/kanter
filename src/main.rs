@@ -2,16 +2,7 @@
 
 use std::{path::Path, sync::Arc};
 
-use bevy::{
-    app::AppExit,
-    input::{keyboard::KeyboardInput, mouse::MouseMotion, ElementState},
-    prelude::*,
-    render::{
-        camera::Camera,
-        texture::{Extent3d, TextureDimension, TextureFormat},
-    },
-    window::WindowFocused,
-};
+use bevy::{app::AppExit, input::{keyboard::KeyboardInput, mouse::MouseMotion, ElementState}, prelude::*, render::{camera::{Camera, OrthographicProjection}, texture::{Extent3d, TextureDimension, TextureFormat}}, window::WindowFocused};
 use kanter_core::{
     dag::TextureProcessor,
     node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side},
@@ -43,7 +34,7 @@ fn main() {
             title: "Bevy".to_string(),
             width: 1024.0,
             height: 768.0,
-            vsync: true,
+            vsync: false,
             ..Default::default()
         })
         // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
@@ -99,12 +90,6 @@ impl Plugin for KanterPlugin {
                 SystemSet::new()
                     .label(Stage::Update)
                     .after(Stage::Input)
-                    .with_system(
-                        add_setup
-                            .system()
-                            .with_run_criteria(State::on_enter(ToolState::Add))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
                     .with_system(
                         add_update
                             .system()
@@ -659,11 +644,6 @@ fn box_select_setup(
         .insert(BoxSelect::default());
 }
 
-fn add_setup() {
-    // Not yet implemented
-    // Should show instructions for what buttons to press, 'I' for input, 'O' for output.
-}
-
 fn add_update(
     input: Res<Input<KeyCode>>,
     mut tool_state: ResMut<State<ToolState>>,
@@ -763,6 +743,11 @@ fn sync_graph(
             .collect();
 
         for node_id in new_ids {
+            let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
+
+            // let mut slots = Vec::new();
+            
+            
             let node_e = commands
                 .spawn_bundle(SpriteBundle {
                     material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
@@ -774,53 +759,52 @@ fn sync_graph(
                 .insert(Draggable)
                 .insert(Dragged)
                 .insert(node_id)
+                .with_children(|parent| {
+                    for i in 0..node.capacity(Side::Input) {
+                        parent
+                            .spawn_bundle(SpriteBundle {
+                                material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                                sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                                transform: Transform::from_translation(Vec3::new(
+                                    -NODE_SIZE / 2.,
+                                    NODE_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE * i as f32,
+                                    0.,
+                                )),
+                                ..Default::default()
+                            })
+                            .insert(Hoverable)
+                            .insert(Draggable)
+                            .insert(Slot {
+                                node_id,
+                                side: Side::Input,
+                                slot_id: SlotId(i as u32),
+                            })
+                            .id();
+                    }
+        
+                    for i in 0..node.capacity(Side::Output) {
+                        parent
+                            .spawn_bundle(SpriteBundle {
+                                material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                                sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                                transform: Transform::from_translation(Vec3::new(
+                                    NODE_SIZE / 2.,
+                                    NODE_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE * i as f32,
+                                    0.,
+                                )),
+                                ..Default::default()
+                            })
+                            .insert(Hoverable)
+                            .insert(Draggable)
+                            .insert(Slot {
+                                node_id,
+                                side: Side::Output,
+                                slot_id: SlotId(i as u32),
+                            })
+                            .id();
+                    }
+                })
                 .id();
-
-            let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
-
-            for i in 0..node.capacity(Side::Input) {
-                commands
-                    .spawn_bundle(SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                        transform: Transform::from_translation(Vec3::new(
-                            -NODE_SIZE / 2.,
-                            NODE_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE * i as f32,
-                            1.,
-                        )),
-                        ..Default::default()
-                    })
-                    .insert(Hoverable)
-                    .insert(Draggable)
-                    .insert(Slot {
-                        node_id,
-                        side: Side::Input,
-                        slot_id: SlotId(i as u32),
-                    })
-                    .insert(Parent(node_e));
-            }
-
-            for i in 0..node.capacity(Side::Output) {
-                commands
-                    .spawn_bundle(SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                        transform: Transform::from_translation(Vec3::new(
-                            NODE_SIZE / 2.,
-                            NODE_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE * i as f32,
-                            1.,
-                        )),
-                        ..Default::default()
-                    })
-                    .insert(Hoverable)
-                    .insert(Draggable)
-                    .insert(Slot {
-                        node_id,
-                        side: Side::Output,
-                        slot_id: SlotId(i as u32),
-                    })
-                    .insert(Parent(node_e));
-            }
         }
 
         for edge_e in q_edge.iter() {
@@ -1085,12 +1069,12 @@ fn material(
 
     for (material, hovered, selected, dragged) in q_hoverable.iter() {
         let (red, green, blue, alpha) = if dragged.is_some() {
-            (1.0, 0.0, 0.0, 1.0)
+            (1.0, 0.0, 0.0, 0.3)
         } else if first && hovered.is_some() {
             first = false;
             (0.0, 1.0, 0.0, 1.0)
         } else if selected.is_some() {
-            (0.0, 0.0, 1.0, 1.0)
+            (0.0, 0.0, 1.0, 0.3)
         } else if hovered.is_some() {
             (1.0, 1.0, 1.0, 0.5)
         } else {
@@ -1158,6 +1142,7 @@ fn drag(
     let q_dragged_node = qs_node.q0_mut();
 
     if let Some((dragged_slot_gtransform, dragged_slot)) = q_dragged_slot.iter().next() {
+        info!("Dragging slot");
         if control_pressed(&input) {
             match dragged_slot.side {
                 Side::Output => {
@@ -1233,13 +1218,14 @@ fn drag(
     } else {
         if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
             for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
-                commands.entity(entity).insert(Parent(cursor_e));
-
+                
                 if !new_node_e.contains(&entity) {
                     let global_pos = global_transform.translation - cursor_transform.translation;
                     transform.translation.x = global_pos.x;
                     transform.translation.y = global_pos.y;
                 }
+                info!("dragging");
+                commands.entity(cursor_e).push_children(&[entity]);
             }
         }
     }
@@ -1391,7 +1377,7 @@ fn first_person_off_update(
 
 fn first_person_on_setup(
     mut windows: ResMut<Windows>,
-    mut q_camera: Query<Entity, With<Camera>>,
+    mut q_camera: Query<Entity, With<WorkspaceCamera>>,
     mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
     mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
     mut commands: Commands,
@@ -1399,19 +1385,15 @@ fn first_person_on_setup(
     let window = windows.get_primary_mut().unwrap();
     window.set_cursor_visibility(false);
 
-    for mut crosshair in q_crosshair.iter_mut() {
+    if let Ok(mut crosshair) = q_crosshair.single_mut() {
         crosshair.is_visible = true;
     }
 
-    for (cursor_e, _transform) in q_cursor.iter_mut() {
-        commands.entity(cursor_e).remove::<Parent>();
-    }
-
-    for camera_e in q_camera.iter_mut() {
-        for (cursor_e, mut transform) in q_cursor.iter_mut() {
+    if let Ok(camera_e) = q_camera.single_mut() {
+        if let Ok((cursor_e, mut transform)) = q_cursor.single_mut() {
             transform.translation.x = 0.;
             transform.translation.y = 0.;
-            commands.entity(cursor_e).insert(Parent(camera_e));
+            commands.entity(camera_e).push_children(&[cursor_e]);
         }
     }
 }
