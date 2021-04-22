@@ -1,10 +1,12 @@
-#![allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity)] // Avoids many warnings about very complex types.
+
+pub mod scan_code_input;
 
 use std::{path::Path, sync::Arc};
 
 use bevy::{
     app::AppExit,
-    input::{keyboard::KeyboardInput, mouse::MouseMotion, ElementState},
+    input::mouse::MouseMotion,
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
     window::WindowFocused,
@@ -17,6 +19,7 @@ use kanter_core::{
 };
 use native_dialog::FileDialog;
 use rand::Rng;
+use scan_code_input::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ToolState {
@@ -48,6 +51,7 @@ fn main() {
         // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
+        .add_plugin(ScanCodeInputPlugin)
         .run();
 }
 
@@ -459,22 +463,12 @@ fn update_instructions(
     *previous_first_person_state = first_person_state.current().clone();
 }
 
-fn clear_input(
-    mut keyboard_input: ResMut<Input<KeyCode>>,
-) {
-    let pressed_keys: Vec<KeyCode> = keyboard_input.get_pressed().copied().collect();
-
-    for pressed_key in pressed_keys {
-        keyboard_input.release(pressed_key);
-    }
-}
-
 fn focus_change(
     mut er_window_focused: EventReader<WindowFocused>,
-    keyboard_input: ResMut<Input<KeyCode>>,
+    mut keyboard_input: ResMut<ScanCodeInput>,
 ) {
     if er_window_focused.iter().any(|event| !event.focused) {
-        clear_input(keyboard_input);
+        keyboard_input.clear();
     }
 }
 
@@ -482,7 +476,7 @@ fn export(
     tex_pro: Res<TextureProcessor>,
     q_selected: Query<&NodeId, With<Selected>>,
     mut tool_state: ResMut<State<ToolState>>,
-    keyboard_input: ResMut<Input<KeyCode>>,
+    mut keyboard_input: ResMut<ScanCodeInput>,
 ) {
     for node_id in q_selected.iter() {
         let size: TPSize = match tex_pro.get_node_size(*node_id) {
@@ -504,7 +498,7 @@ fn export(
                 continue;
             }
         };
-        
+
         let path = match path {
             Some(path) => path,
             None => {
@@ -512,7 +506,7 @@ fn export(
                 continue;
             }
         };
-        
+
         let texels = match tex_pro.get_output(*node_id) {
             Ok(buf) => buf,
             Err(e) => {
@@ -544,7 +538,7 @@ fn export(
         }
     }
 
-    clear_input(keyboard_input);
+    keyboard_input.clear();
     tool_state.overwrite_replace(ToolState::None).unwrap();
 }
 
@@ -559,7 +553,7 @@ fn process(
 ) {
     info!("Processing graph...");
     tex_pro.process();
-    
+
     info!("Generating thumbnails...");
     for (node_e, node_id) in q_node.iter() {
         if let Some(texture) = generate_thumbnail(
@@ -584,42 +578,37 @@ fn process(
     info!("Done");
 }
 
-fn quit_hotkey(input: Res<Input<KeyCode>>, mut app_exit_events: EventWriter<AppExit>) {
-    if (input.pressed(KeyCode::RControl) || input.pressed(KeyCode::LControl))
-        && input.just_pressed(KeyCode::Q)
-    {
+fn quit_hotkey(input: Res<ScanCodeInput>, mut app_exit_events: EventWriter<AppExit>) {
+    if control_pressed(&input) && input.just_pressed(ScanCode::KeyQ) {
         app_exit_events.send(AppExit);
     }
 }
 
-fn control_pressed(input: &Res<Input<KeyCode>>) -> bool {
-    input.pressed(KeyCode::LControl) || input.pressed(KeyCode::RControl)
+fn control_pressed(scan_code_input: &Res<ScanCodeInput>) -> bool {
+    scan_code_input.pressed(ScanCode::ControlLeft)
+        || scan_code_input.pressed(ScanCode::ControlRight)
 }
-fn shift_pressed(input: &Res<Input<KeyCode>>) -> bool {
-    input.pressed(KeyCode::LShift) || input.pressed(KeyCode::RShift)
+fn shift_pressed(scan_code_input: &Res<ScanCodeInput>) -> bool {
+    scan_code_input.pressed(ScanCode::ShiftLeft) || scan_code_input.pressed(ScanCode::ShiftRight)
 }
-fn alt_pressed(input: &Res<Input<KeyCode>>) -> bool {
-    input.pressed(KeyCode::LAlt) || input.pressed(KeyCode::RAlt)
+fn alt_pressed(scan_code_input: &Res<ScanCodeInput>) -> bool {
+    scan_code_input.pressed(ScanCode::AltLeft) || scan_code_input.pressed(ScanCode::AltRight)
 }
 
 #[allow(dead_code)]
-fn print_pressed_keys(mut keyboard_input_events: EventReader<KeyboardInput>) {
-    for code in keyboard_input_events.iter() {
-        info!("key: {:?}", code);
+fn print_pressed_keys(scan_code_input: Res<ScanCodeInput>) {
+    for code in scan_code_input.get_just_pressed() {
+        info!("ScanCode: {:?}", code);
     }
 }
 
 fn hotkeys(
     mut first_person_state: ResMut<State<FirstPersonState>>,
     mut tool_state: ResMut<State<ToolState>>,
-    input: Res<Input<KeyCode>>,
-    mut keyboard_input: EventReader<KeyboardInput>,
     i_mouse_button: Res<Input<MouseButton>>,
+    sc_input: Res<ScanCodeInput>,
 ) {
-    let tilde_key_pressed = keyboard_input
-        .iter()
-        .any(|ki| ki.scan_code == 41 && ki.state == ElementState::Pressed);
-    if tilde_key_pressed && shift_pressed(&input) {
+    if sc_input.just_pressed(ScanCode::Backquote) && shift_pressed(&sc_input) {
         if *first_person_state.current() == FirstPersonState::Off {
             first_person_state.set(FirstPersonState::On).unwrap();
         } else {
@@ -630,20 +619,20 @@ fn hotkeys(
     let tool_current = tool_state.current().clone();
 
     if tool_current == ToolState::None {
-        for key_code in input.get_just_pressed() {
+        for key_code in sc_input.get_just_pressed() {
             let new_tool = match key_code {
-                KeyCode::A => {
-                    if shift_pressed(&input) {
+                ScanCode::KeyA => {
+                    if shift_pressed(&sc_input) {
                         Some(tool_state.set(ToolState::Add))
                     } else {
                         None
                     }
                 }
-                KeyCode::B => Some(tool_state.set(ToolState::BoxSelect)),
-                KeyCode::F12 => Some(tool_state.set(ToolState::Process)),
-                KeyCode::G => Some(tool_state.set(ToolState::Grab)),
-                KeyCode::S => {
-                    if alt_pressed(&input) && shift_pressed(&input) {
+                ScanCode::KeyB => Some(tool_state.set(ToolState::BoxSelect)),
+                ScanCode::F12 => Some(tool_state.set(ToolState::Process)),
+                ScanCode::KeyG => Some(tool_state.set(ToolState::Grab)),
+                ScanCode::KeyS => {
+                    if alt_pressed(&sc_input) && shift_pressed(&sc_input) {
                         Some(tool_state.set(ToolState::Export))
                     } else {
                         None
@@ -658,17 +647,18 @@ fn hotkeys(
             }
         }
     } else {
-        if cancel_pressed(&input, &i_mouse_button) && tool_current != ToolState::None {
+        if cancel_just_pressed(&sc_input, &i_mouse_button) && tool_current != ToolState::None {
             tool_state.overwrite_replace(ToolState::None).unwrap();
         }
     }
 }
 
-fn cancel_pressed(
-    i_key_code: &Res<Input<KeyCode>>,
+fn cancel_just_pressed(
+    scan_code_input: &Res<ScanCodeInput>,
     i_mouse_button: &Res<Input<MouseButton>>,
 ) -> bool {
-    i_key_code.just_pressed(KeyCode::Escape) || i_mouse_button.just_pressed(MouseButton::Right)
+    scan_code_input.just_pressed(ScanCode::Escape)
+        || i_mouse_button.just_pressed(MouseButton::Right)
 }
 
 fn box_select_setup(
@@ -705,7 +695,7 @@ fn box_select_setup(
 }
 
 fn add_update(
-    keyboard_input: ResMut<Input<KeyCode>>,
+    mut keyboard_input: ResMut<ScanCodeInput>,
     mut tool_state: ResMut<State<ToolState>>,
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
@@ -714,15 +704,16 @@ fn add_update(
 
     for input in keyboard_input.get_just_pressed() {
         let node_type: Option<NodeType> = match input {
-            KeyCode::I => {
+            ScanCode::KeyI => {
                 events_maybe_missed = true;
                 done = true;
 
                 match FileDialog::new()
-                // .set_location("~/Desktop")
-                .add_filter("PNG Image", &["png"])
-                .add_filter("JPEG Image", &["jpg", "jpeg"])
-                .show_open_single_file() {
+                    // .set_location("~/Desktop")
+                    .add_filter("PNG Image", &["png"])
+                    .add_filter("JPEG Image", &["jpg", "jpeg"])
+                    .show_open_single_file()
+                {
                     Ok(Some(path)) => Some(NodeType::Image(path.to_string_lossy().to_string())),
                     Ok(None) => {
                         warn!("Invalid path");
@@ -734,7 +725,7 @@ fn add_update(
                     }
                 }
             }
-            KeyCode::O => {
+            ScanCode::KeyO => {
                 done = true;
                 // let path = FileDialog::new()
                 //     // .set_location("~/Desktop")
@@ -759,15 +750,15 @@ fn add_update(
             info!("Added node: {:?}", node_type);
             tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
         }
-        
+
         if done {
             tool_state.overwrite_replace(ToolState::Grab).unwrap();
             break;
         }
     }
-    
+
     if events_maybe_missed {
-        clear_input(keyboard_input);
+        keyboard_input.clear();
     }
 }
 
@@ -854,7 +845,8 @@ fn spawn_gui_node(
             }
 
             for i in 0..node.capacity(Side::Output) {
-                if node.node_type == NodeType::OutputRgba || node.node_type == NodeType::OutputGray {
+                if node.node_type == NodeType::OutputRgba || node.node_type == NodeType::OutputGray
+                {
                     break;
                 }
                 parent
@@ -1269,13 +1261,13 @@ fn drag(
     )>,
     mut q_edge: Query<(&mut Visible, &Edge)>,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
-    input: Res<Input<KeyCode>>,
+    scan_code_input: Res<ScanCodeInput>,
 ) {
     let new_node_e: Vec<Entity> = qs_node.q1().iter().collect();
     let q_dragged_node = qs_node.q0_mut();
 
     if let Some((dragged_slot_gtransform, dragged_slot)) = q_dragged_slot.iter().next() {
-        if control_pressed(&input) {
+        if control_pressed(&scan_code_input) {
             match dragged_slot.side {
                 Side::Output => {
                     for (mut edge_visible, edge) in q_edge
@@ -1363,7 +1355,7 @@ fn drag(
 
 fn drop(mut commands: Commands, mut q_dropped: Query<(Entity, Option<&Slot>), Added<Dropped>>) {
     for (entity, slot_id) in q_dropped.iter_mut() {
-        if !slot_id.is_some() {
+        if slot_id.is_none() {
             commands.entity(entity).remove::<Parent>();
         }
         commands.entity(entity).remove::<Dropped>();
@@ -1546,12 +1538,13 @@ fn first_person_on_cleanup(
     }
 }
 
+/// This function should be turned into a tool and the hotkey should live in the hotkey system.
 fn deselect(
-    input: Res<Input<KeyCode>>,
+    input: Res<ScanCodeInput>,
     mut commands: Commands,
     q_selected: Query<Entity, With<Selected>>,
 ) {
-    if input.just_pressed(KeyCode::A) {
+    if input.just_pressed(ScanCode::KeyA) {
         for entity in q_selected.iter() {
             commands.entity(entity).remove::<Selected>();
         }

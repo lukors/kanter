@@ -1995,6 +1995,7 @@ dependencies = [
  "image 0.20.1",
  "kanter_core",
  "native-dialog",
+ "num_enum 0.5.1",
  "rand 0.8.3",
 ]
 
