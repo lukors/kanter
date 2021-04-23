@@ -56,12 +56,27 @@ fn main() {
         .run();
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Drag {
+    False,
+    Starting,
+    True,
+    Dropping,
+}
+
+impl Default for Drag {
+    fn default() -> Self {
+        Drag::False
+    }
+}
+
 #[derive(Default)]
 struct Workspace {
     cursor_screen: Vec2,
     cursor_world: Vec2,
     cursor_delta: Vec2,
     cursor_moved: bool,
+    drag: Drag,
 }
 
 struct Instructions;
@@ -105,6 +120,7 @@ struct BoxSelect {
     end: Vec2,
 }
 
+const DRAG_THRESHOLD: f32 = 5.;
 const CAMERA_DISTANCE: f32 = 10.;
 const SMALLEST_DEPTH_UNIT: f32 = f32::EPSILON * 500.;
 
@@ -228,12 +244,7 @@ impl Plugin for KanterPlugin {
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
-                        select_single
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::None)),
-                    )
-                    .with_system(
-                        draggable
+                        mouse_interaction
                             .system()
                             .with_run_criteria(State::on_update(ToolState::None)),
                     )
@@ -242,11 +253,6 @@ impl Plugin for KanterPlugin {
                             .system()
                             .with_run_criteria(State::on_update(ToolState::None))
                             .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        none_cleanup
-                            .system()
-                            .with_run_criteria(State::on_exit(ToolState::None)),
                     )
                     .with_system(
                         first_person_on_setup
@@ -388,28 +394,48 @@ fn workspace(
     mut er_cursor_moved: EventReader<CursorMoved>,
     windows: Res<Windows>,
     mut workspace: ResMut<Workspace>,
+    i_mouse_button: Res<Input<MouseButton>>,
     q_camera: Query<&Transform, With<WorkspaceCamera>>,
+    mut true_cursor_world: Local<Vec2>,
 ) {
     let mut event_cursor_delta: Vec2 = Vec2::ZERO;
     for event_motion in er_mouse_motion.iter() {
         event_cursor_delta += event_motion.delta;
     }
     let event_cursor_screen = er_cursor_moved.iter().last();
-
+    
     if let Some(event_cursor_screen) = event_cursor_screen {
         workspace.cursor_screen = event_cursor_screen.position;
-
+        
         let window = windows.get_primary().unwrap();
         let cam_transform = q_camera.iter().last().unwrap();
-        workspace.cursor_world =
-            cursor_to_world(window, cam_transform, event_cursor_screen.position);
 
+        *true_cursor_world = cursor_to_world(window, cam_transform, event_cursor_screen.position);
+        
         workspace.cursor_moved = true;
     } else {
         workspace.cursor_moved = false;
     }
-
+    
     workspace.cursor_delta = event_cursor_delta;
+
+    if !i_mouse_button.pressed(MouseButton::Left) || workspace.drag == Drag::True {
+        workspace.cursor_world = *true_cursor_world;
+    }
+
+    if workspace.drag == Drag::Dropping {
+        workspace.drag = Drag::False;
+    } else if workspace.drag == Drag::Starting {
+        workspace.drag = Drag::True;
+    }
+    
+    if i_mouse_button.just_released(MouseButton::Left) && workspace.drag == Drag::True {
+        workspace.drag = Drag::Dropping;
+    }
+
+    if i_mouse_button.pressed(MouseButton::Left) && true_cursor_world.distance(workspace.cursor_world) > DRAG_THRESHOLD && workspace.drag == Drag::False {
+        workspace.drag = Drag::Starting;
+    }
 }
 
 const START_INSTRUCT: &str = &"Shift A: Add node";
@@ -1053,12 +1079,12 @@ fn box_select(
     >,
     mut commands: Commands,
 ) {
-    for (mut transform, mut sprite, mut box_select) in q_box_select.iter_mut() {
-        if i_mouse_button.just_pressed(MouseButton::Left) {
+    if let Ok((mut transform, mut sprite, mut box_select)) = q_box_select.single_mut() {
+        if workspace.drag == Drag::Starting {
             box_select.start = workspace.cursor_world;
         }
 
-        if i_mouse_button.just_released(MouseButton::Left)
+        if workspace.drag == Drag::Dropping
             && *tool_state.current() != ToolState::None
         {
             tool_state.overwrite_replace(ToolState::None).unwrap();
@@ -1225,35 +1251,67 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
     Vec2::new(out.x, out.y)
 }
 
-fn draggable(
+fn mouse_interaction(
     mut commands: Commands,
     i_mouse_button: Res<Input<MouseButton>>,
     q_pressed: Query<(Entity, Option<&Slot>), (With<Hovered>, With<Draggable>)>,
     q_released: Query<Entity, With<Dragged>>,
+    q_hovered: Query<Entity, (With<NodeId>, With<Hovered>)>,
+    q_selected: Query<Entity, (With<NodeId>, With<Selected>)>,
+    q_hovered_selected: Query<Entity, (With<NodeId>, With<Selected>, With<Hovered>)>,
+    q_dropped: Query<&Dropped>,
     mut tool_state: ResMut<State<ToolState>>,
+    workspace: Res<Workspace>,
 ) {
-    if i_mouse_button.just_pressed(MouseButton::Left) {
-        let mut dragged_e = None;
-
-        for (entity, slot) in q_pressed.iter() {
-            dragged_e = Some(entity);
-
-            if slot.is_some() {
-                break;
-            }
+    let some_dropped = q_dropped.iter().count() > 0;
+    let some_hovered = q_hovered.iter().count() > 0;
+    let some_hovered_selected = q_hovered_selected.iter().count() > 0;
+    
+    if i_mouse_button.just_released(MouseButton::Left) && workspace.drag != Drag::Dropping && !some_dropped {
+        for entity in q_selected.iter() {
+            commands.entity(entity).remove::<Selected>();
         }
+        if let Some(entity) = q_hovered.iter().next() {
+            commands.entity(entity).insert(Selected);
+        }
+    }
 
-        if let Some(dragged_e) = dragged_e {
-            commands.entity(dragged_e).insert(Dragged);
+    if workspace.drag == Drag::Starting {
+        if some_hovered_selected {
+            tool_state.overwrite_replace(ToolState::Grab).unwrap();
+        } else if let Some(entity) = q_hovered.iter().next() {
+            commands.entity(entity).insert(Selected);
+            tool_state.overwrite_replace(ToolState::Grab).unwrap();
         } else {
             tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
         }
-    } else if i_mouse_button.just_released(MouseButton::Left) {
-        for entity in q_released.iter() {
-            commands.entity(entity).remove::<Dragged>();
-            commands.entity(entity).insert(Dropped);
-        }
     }
+
+    // if workspace.dragging {
+    //     let mut dragged_e = None;
+
+    //     for (entity, slot) in q_pressed.iter() {
+    //         dragged_e = Some(entity);
+
+    //         if slot.is_some() {
+    //             break;
+    //         }
+    //     }
+        
+    //     if let Some(dragged_e) = dragged_e {
+    //         commands.entity(dragged_e).insert(Selected);
+    //         tool_state.overwrite_replace(ToolState::Grab).unwrap();
+    //     } else {
+    //         // tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
+    //     }
+    // }
+    
+    // if workspace.drag_dropped {
+    //     for entity in q_released.iter() {
+    //         commands.entity(entity).remove::<Dragged>();
+    //         commands.entity(entity).insert(Dropped);
+    //     }
+    // }
 }
 
 #[allow(clippy::clippy::too_many_arguments)]
@@ -1556,30 +1614,6 @@ fn deselect(
     }
 }
 
-fn select_single(
-    i_mouse_button: Res<Input<MouseButton>>,
-    mut commands: Commands,
-    q_hovered: Query<Entity, With<Hovered>>,
-    q_selected: Query<Entity, With<Selected>>,
-    q_dropped: Query<&Dropped>,
-) {
-    if i_mouse_button.just_pressed(MouseButton::Left) && q_dropped.iter().count() == 0 {
-        for entity in q_selected.iter() {
-            commands.entity(entity).remove::<Selected>();
-        }
-
-        if let Some(entity) = q_hovered.iter().next() {
-            commands.entity(entity).insert(Selected);
-        }
-    }
-}
-
-fn none_cleanup(mut commands: Commands, q_hovered: Query<Entity, With<Hovered>>) {
-    for entity in q_hovered.iter() {
-        commands.entity(entity).remove::<Hovered>();
-    }
-}
-
 fn grab_setup(
     mut tool_state: ResMut<State<ToolState>>,
     mut commands: Commands,
@@ -1595,7 +1629,7 @@ fn grab_setup(
 }
 
 fn grab(mut tool_state: ResMut<State<ToolState>>, i_mouse_button: Res<Input<MouseButton>>) {
-    if i_mouse_button.just_pressed(MouseButton::Left) {
+    if i_mouse_button.just_released(MouseButton::Left) {
         tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 }
