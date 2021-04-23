@@ -266,6 +266,12 @@ impl Plugin for KanterPlugin {
                             .system()
                             .with_run_criteria(State::on_update(FirstPersonState::Off))
                             .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        mouse_pan
+                            .system()
+                            .with_run_criteria(State::on_update(FirstPersonState::Off))
+                            .in_ambiguity_set(AmbiguitySet),
                     ),
             )
             .add_system_set_to_stage(
@@ -385,21 +391,21 @@ fn workspace(
     }
     let event_cursor_screen = er_cursor_moved.iter().last();
 
-        if let Some(event_cursor_screen) = event_cursor_screen {
-            workspace.cursor_screen = event_cursor_screen.position;
+    if let Some(event_cursor_screen) = event_cursor_screen {
+        workspace.cursor_screen = event_cursor_screen.position;
 
-            let window = windows.get_primary().unwrap();
-            let cam_transform = q_camera.iter().last().unwrap();
-            workspace.cursor_world =
-                cursor_to_world(window, cam_transform, event_cursor_screen.position);
+        let window = windows.get_primary().unwrap();
+        let cam_transform = q_camera.iter().last().unwrap();
+        workspace.cursor_world =
+            cursor_to_world(window, cam_transform, event_cursor_screen.position);
 
-            workspace.cursor_moved = true;
-        } else {
-            workspace.cursor_moved = false;
-        }
-
-        workspace.cursor_delta = event_cursor_delta;
+        workspace.cursor_moved = true;
+    } else {
+        workspace.cursor_moved = false;
     }
+
+    workspace.cursor_delta = event_cursor_delta;
+}
 
 const START_INSTRUCT: &str = &"Shift A: Add node";
 
@@ -459,6 +465,19 @@ fn update_instructions(
 
     *previous_tool_state = tool_state.current().clone();
     *previous_first_person_state = first_person_state.current().clone();
+}
+
+fn mouse_pan(
+    workspace: Res<Workspace>,
+    mut camera: Query<&mut Transform, With<WorkspaceCamera>>,
+    i_mouse_button: Res<Input<MouseButton>>,
+) {
+    if i_mouse_button.pressed(MouseButton::Middle) && workspace.cursor_moved {
+        if let Ok(mut camera_t) = camera.single_mut() {
+            camera_t.translation.x -= workspace.cursor_delta.x;
+            camera_t.translation.y += workspace.cursor_delta.y;
+        }
+    }
 }
 
 fn focus_change(
@@ -1459,10 +1478,10 @@ fn first_person_on_update(
     mut q_camera: Query<(Entity, &mut Transform), With<WorkspaceCamera>>,
     workspace: Res<Workspace>,
 ) {
-        for (_camera_e, mut transform) in q_camera.iter_mut() {
-            transform.translation.x += workspace.cursor_delta.x;
-            transform.translation.y -= workspace.cursor_delta.y;
-        }
+    for (_camera_e, mut transform) in q_camera.iter_mut() {
+        transform.translation.x += workspace.cursor_delta.x;
+        transform.translation.y -= workspace.cursor_delta.y;
+    }
 
     let window = windows.get_primary_mut().unwrap();
     let window_size = Vec2::new(window.width(), window.height());
@@ -1479,11 +1498,11 @@ fn first_person_off_update(
     mut q_cursor: Query<&mut Transform, With<Cursor>>,
     workspace: Res<Workspace>,
 ) {
-        for mut transform in q_cursor.iter_mut() {
-            transform.translation.x = workspace.cursor_world.x;
-            transform.translation.y = workspace.cursor_world.y;
-        }
+    for mut transform in q_cursor.iter_mut() {
+        transform.translation.x = workspace.cursor_world.x;
+        transform.translation.y = workspace.cursor_world.y;
     }
+}
 
 fn first_person_on_setup(
     mut windows: ResMut<Windows>,
