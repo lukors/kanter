@@ -1,4 +1,4 @@
-#[allow(clippy::type_complexity)] // Avoids many warnings about very complex types.
+#![allow(clippy::type_complexity)] // Avoids many warnings about very complex types.
 pub mod scan_code_input;
 
 use std::{path::Path, sync::Arc};
