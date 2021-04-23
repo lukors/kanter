@@ -437,12 +437,12 @@ fn update_instructions(
             START_INSTRUCT.to_string()
         } else {
             let none_instruct =
-                "B: Box select\nShift Alt S: Save selected node as\nG: Grab selected\nF12: Process graph";
+                "F12: Process graph\nShift Alt S: Save selected as\n\nG: Grab\nX: Delete\nB: Box select\n";
 
             let tool = match tool_state.current() {
                 ToolState::None => format!("{}\n{}", START_INSTRUCT, none_instruct),
                 ToolState::Add => ADD_INSTRUCT.to_string(),
-                ToolState::BoxSelect => "LMB: Drag box".to_string(),
+                ToolState::BoxSelect => "LMB Drag: Drag box".to_string(),
                 ToolState::Delete => return,
                 ToolState::Export => return,
                 ToolState::Grab => "LMB: Confirm".to_string(),
@@ -1273,6 +1273,7 @@ fn draggable(
     i_mouse_button: Res<Input<MouseButton>>,
     q_pressed: Query<(Entity, Option<&Slot>), (With<Hovered>, With<Draggable>)>,
     q_released: Query<Entity, With<Dragged>>,
+    mut tool_state: ResMut<State<ToolState>>,
 ) {
     if i_mouse_button.just_pressed(MouseButton::Left) {
         let mut dragged_e = None;
@@ -1287,6 +1288,8 @@ fn draggable(
 
         if let Some(dragged_e) = dragged_e {
             commands.entity(dragged_e).insert(Dragged);
+        } else {
+            tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
         }
     } else if i_mouse_button.just_released(MouseButton::Left) {
         for entity in q_released.iter() {
