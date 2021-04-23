@@ -2001,8 +2001,8 @@ dependencies = [
 
 [[package]]
 name = "kanter_core"
-version = "0.1.0"
-source = "git+https://github.com/lukors/kanter_core.git?branch=main#411c1c3c676a0675b30ffe10762680a74a698ac5"
+version = "0.2.0"
+source = "git+https://github.com/lukors/kanter_core.git?branch=main#66614e9063ac099cfcdd6c40be17e7fc995dba1c"
 dependencies = [
  "image 0.20.1",
  "nalgebra",

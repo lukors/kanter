@@ -26,6 +26,7 @@ pub enum ToolState {
     None,
     Add,
     BoxSelect,
+    Delete,
     Export,
     Grab,
     GrabEdge,
@@ -167,6 +168,12 @@ impl Plugin for KanterPlugin {
                         add_update
                             .system()
                             .with_run_criteria(State::on_update(ToolState::Add))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        delete
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::Delete))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
@@ -436,6 +443,7 @@ fn update_instructions(
                 ToolState::None => format!("{}\n{}", START_INSTRUCT, none_instruct),
                 ToolState::Add => ADD_INSTRUCT.to_string(),
                 ToolState::BoxSelect => "LMB: Drag box".to_string(),
+                ToolState::Delete => return,
                 ToolState::Export => return,
                 ToolState::Grab => "LMB: Confirm".to_string(),
                 ToolState::GrabEdge => return,
@@ -646,6 +654,7 @@ fn hotkeys(
                     }
                 }
                 ScanCode::KeyB => Some(tool_state.set(ToolState::BoxSelect)),
+                ScanCode::Delete | ScanCode::KeyX => Some(tool_state.set(ToolState::Delete)),
                 ScanCode::F12 => Some(tool_state.set(ToolState::Process)),
                 ScanCode::KeyG => Some(tool_state.set(ToolState::Grab)),
                 ScanCode::KeyS => {
@@ -777,6 +786,21 @@ fn add_update(
     }
 }
 
+fn delete(
+    mut tool_state: ResMut<State<ToolState>>,
+    mut tex_pro: ResMut<TextureProcessor>,
+    q_selected_nodes: Query<&NodeId, With<Selected>>,
+) {
+    for node_id in q_selected_nodes.iter() {
+        match tex_pro.node_graph.remove_node(*node_id) {
+            Ok(_) => (),
+            Err(e) => warn!("Unable to remove node with id {}: {}", node_id, e),
+        }
+    }
+
+    tool_state.overwrite_replace(ToolState::None).unwrap();
+}
+
 fn update_edges(
     q_node: Query<&NodeId, With<Dragged>>,
     q_slot: Query<(&Slot, &GlobalTransform)>,
@@ -890,24 +914,41 @@ fn spawn_gui_node(
 fn sync_graph(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    q_node_id: Query<&NodeId>,
+    q_node_id: Query<(Entity, &NodeId)>,
     q_edge: Query<Entity, With<Edge>>,
     q_slot: Query<(&Slot, &GlobalTransform)>,
     tex_pro: Res<TextureProcessor>,
 ) {
     if tex_pro.is_changed() {
-        let node_ids = tex_pro.node_graph.node_ids();
-        let existing_ids: Vec<NodeId> = q_node_id.iter().copied().collect();
-        let new_ids: Vec<NodeId> = node_ids
-            .into_iter()
-            .filter(|node_id| !existing_ids.contains(node_id))
+        let tp_node_ids = tex_pro.node_graph.node_ids();
+        let existing_gui_node_ids: Vec<NodeId> = q_node_id.iter().map(|(_, node_id)| *node_id).collect();
+        let new_ids: Vec<NodeId> = tp_node_ids
+            .iter()
+            .filter(|tp_node_id| !existing_gui_node_ids.contains(tp_node_id))
+            .copied()
+            .collect();
+        let removed_ids: Vec<NodeId> = existing_gui_node_ids
+            .iter()
+            .filter(|gui_node_id| !tp_node_ids.contains(gui_node_id))
+            .copied()
             .collect();
 
+        // Create gui nodes for any new nodes in the graph.
         for node_id in new_ids {
             let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
             spawn_gui_node(&mut commands, &mut materials, &node);
         }
 
+        // Remove the gui nodes for any nodes that don't exist in the graph.
+        for (node_e, _) in q_node_id
+            .iter()
+            .filter(|(_, node_id)| removed_ids.contains(node_id))
+        {
+            commands.entity(node_e).despawn_recursive();
+        }
+
+        // Remove all edges so we can create new ones. This should be optimized to move
+        // existing edges.
         for edge_e in q_edge.iter() {
             commands.entity(edge_e).despawn_recursive();
         }
