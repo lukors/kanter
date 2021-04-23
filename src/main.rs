@@ -99,8 +99,6 @@ struct Edge {
     output_slot: Slot,
     input_slot: Slot,
 }
-struct BoxSelectCursor;
-
 #[derive(Default)]
 struct BoxSelect {
     start: Vec2,
@@ -685,37 +683,6 @@ fn cancel_just_pressed(
         || i_mouse_button.just_pressed(MouseButton::Right)
 }
 
-fn box_select_setup(
-    asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut commands: Commands,
-    workspace: Res<Workspace>,
-) {
-    let box_image = asset_server.load("box_select.png");
-    let crosshair_image = asset_server.load("crosshair.png");
-
-    let box_material = materials.add(box_image.into());
-    materials.get_mut(&box_material).unwrap().color.set_a(0.25);
-
-    commands
-        .spawn_bundle(SpriteBundle {
-            transform: Transform::from_translation(workspace.cursor_world.extend(0.)),
-            material: materials.add(crosshair_image.into()),
-            ..Default::default()
-        })
-        .insert(BoxSelectCursor);
-    commands
-        .spawn_bundle(SpriteBundle {
-            material: box_material,
-            visible: Visible {
-                is_visible: false,
-                is_transparent: true,
-            },
-            ..Default::default()
-        })
-        .insert(BoxSelect::default());
-}
-
 fn add_update(
     mut keyboard_input: ResMut<ScanCodeInput>,
     mut tool_state: ResMut<State<ToolState>>,
@@ -1062,71 +1029,69 @@ fn generate_thumbnail(
     }
 }
 
+fn box_select_setup(mut materials: ResMut<Assets<ColorMaterial>>, mut commands: Commands) {
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: materials.add(Color::rgba(0.0, 1.0, 0.0, 0.3).into()),
+            visible: Visible {
+                is_visible: true,
+                is_transparent: true,
+            },
+            ..Default::default()
+        })
+        .insert(BoxSelect::default());
+}
+
 fn box_select(
     i_mouse_button: Res<Input<MouseButton>>,
     mut tool_state: ResMut<State<ToolState>>,
     workspace: Res<Workspace>,
-    mut q_box_select_cursor: Query<&mut Transform, With<BoxSelectCursor>>,
-    mut q_box_select: Query<
-        (&mut Transform, &mut Visible, &Sprite, &mut BoxSelect),
-        Without<BoxSelectCursor>,
-    >,
+    mut q_box_select: Query<(&mut Transform, &mut Sprite, &mut BoxSelect)>,
     q_draggable: Query<
         (Entity, &GlobalTransform, &Sprite),
-        (
-            With<Draggable>,
-            Without<BoxSelectCursor>,
-            Without<BoxSelect>,
-            Without<Slot>,
-        ),
+        (With<Draggable>, Without<BoxSelect>, Without<Slot>),
     >,
     mut commands: Commands,
 ) {
-    for mut transform in q_box_select_cursor.iter_mut() {
-        transform.translation = workspace.cursor_world.extend(0.);
-    }
-
-    for (mut transform, mut visible, sprite, mut box_select) in q_box_select.iter_mut() {
+    for (mut transform, mut sprite, mut box_select) in q_box_select.iter_mut() {
         if i_mouse_button.just_pressed(MouseButton::Left) {
-            visible.is_visible = true;
             box_select.start = workspace.cursor_world;
         }
 
         if i_mouse_button.just_released(MouseButton::Left)
-            && visible.is_visible
             && *tool_state.current() != ToolState::None
         {
             tool_state.overwrite_replace(ToolState::None).unwrap();
             return;
         }
 
-        if visible.is_visible {
-            box_select.end = workspace.cursor_world;
+        box_select.end = workspace.cursor_world;
 
-            let new_transform = Transform {
-                translation: ((box_select.start + box_select.end) / 2.0).extend(0.),
-                rotation: Quat::IDENTITY,
-                scale: ((box_select.start - box_select.end) / sprite.size).extend(1.0),
-            };
+        let new_transform = Transform {
+            translation: ((box_select.start + box_select.end) / 2.0).extend(CAMERA_DISTANCE),
+            rotation: Quat::IDENTITY,
+            scale: Vec3::ONE,
+        };
 
-            *transform = new_transform;
+        sprite.size = box_select.start - box_select.end;
 
-            // Node intersection
-            let box_box = (box_select.start, box_select.end);
+        *transform = new_transform;
 
-            for (entity, transform, sprite) in q_draggable.iter() {
-                let size_half = sprite.size / 2.0;
+        // Node intersection
+        let box_box = (box_select.start, box_select.end);
 
-                let drag_box = (
-                    transform.translation.truncate() - size_half,
-                    transform.translation.truncate() + size_half,
-                );
+        for (entity, transform, sprite) in q_draggable.iter() {
+            let size_half = sprite.size / 2.0;
 
-                if box_intersect(box_box, drag_box) {
-                    commands.entity(entity).insert(Selected);
-                } else {
-                    commands.entity(entity).remove::<Selected>();
-                }
+            let drag_box = (
+                transform.translation.truncate() - size_half,
+                transform.translation.truncate() + size_half,
+            );
+
+            if box_intersect(box_box, drag_box) {
+                commands.entity(entity).insert(Selected);
+            } else {
+                commands.entity(entity).remove::<Selected>();
             }
         }
     }
@@ -1148,15 +1113,7 @@ fn box_intersect(box_1: (Vec2, Vec2), box_2: (Vec2, Vec2)) -> bool {
     interval_intersect(x_1, x_2) && interval_intersect(y_1, y_2)
 }
 
-fn box_select_cleanup(
-    mut commands: Commands,
-    q_box_select_cursor: Query<Entity, With<BoxSelectCursor>>,
-    q_box_select: Query<Entity, With<BoxSelect>>,
-) {
-    for box_select_cursor_e in q_box_select_cursor.iter() {
-        commands.entity(box_select_cursor_e).despawn();
-    }
-
+fn box_select_cleanup(mut commands: Commands, q_box_select: Query<Entity, With<BoxSelect>>) {
     for q_box_select_e in q_box_select.iter() {
         commands.entity(q_box_select_e).despawn();
     }
