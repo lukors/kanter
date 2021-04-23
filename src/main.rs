@@ -461,12 +461,12 @@ fn update_instructions(
             START_INSTRUCT.to_string()
         } else {
             let none_instruct =
-                "F12: Process graph\nShift Alt S: Save selected as\n\nG: Grab\nX: Delete\nB: Box select\n";
+                "F12: Process graph\nShift Alt S: Save selected as\n\nG: Grab\nX: Delete\n";
 
             let tool = match tool_state.current() {
                 ToolState::None => format!("{}\n{}", START_INSTRUCT, none_instruct),
                 ToolState::Add => ADD_INSTRUCT.to_string(),
-                ToolState::BoxSelect => "LMB Drag: Drag box".to_string(),
+                ToolState::BoxSelect => return,
                 ToolState::Delete => return,
                 ToolState::Export => return,
                 ToolState::Grab => "LMB: Confirm".to_string(),
@@ -677,7 +677,6 @@ fn hotkeys(
                         None
                     }
                 }
-                ScanCode::KeyB => Some(tool_state.set(ToolState::BoxSelect)),
                 ScanCode::Delete | ScanCode::KeyX => Some(tool_state.set(ToolState::Delete)),
                 ScanCode::F12 => Some(tool_state.set(ToolState::Process)),
                 ScanCode::KeyG => Some(tool_state.set(ToolState::Grab)),
@@ -1254,8 +1253,6 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
 fn mouse_interaction(
     mut commands: Commands,
     i_mouse_button: Res<Input<MouseButton>>,
-    q_pressed: Query<(Entity, Option<&Slot>), (With<Hovered>, With<Draggable>)>,
-    q_released: Query<Entity, With<Dragged>>,
     q_hovered: Query<Entity, (With<NodeId>, With<Hovered>)>,
     q_selected: Query<Entity, (With<NodeId>, With<Selected>)>,
     q_hovered_selected: Query<Entity, (With<NodeId>, With<Selected>, With<Hovered>)>,
@@ -1280,38 +1277,16 @@ fn mouse_interaction(
         if some_hovered_selected {
             tool_state.overwrite_replace(ToolState::Grab).unwrap();
         } else if let Some(entity) = q_hovered.iter().next() {
+            for entity in q_selected.iter() {
+                commands.entity(entity).remove::<Selected>();
+            }
+            
             commands.entity(entity).insert(Selected);
             tool_state.overwrite_replace(ToolState::Grab).unwrap();
         } else {
             tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
         }
     }
-
-    // if workspace.dragging {
-    //     let mut dragged_e = None;
-
-    //     for (entity, slot) in q_pressed.iter() {
-    //         dragged_e = Some(entity);
-
-    //         if slot.is_some() {
-    //             break;
-    //         }
-    //     }
-        
-    //     if let Some(dragged_e) = dragged_e {
-    //         commands.entity(dragged_e).insert(Selected);
-    //         tool_state.overwrite_replace(ToolState::Grab).unwrap();
-    //     } else {
-    //         // tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
-    //     }
-    // }
-    
-    // if workspace.drag_dropped {
-    //     for entity in q_released.iter() {
-    //         commands.entity(entity).remove::<Dragged>();
-    //         commands.entity(entity).insert(Dropped);
-    //     }
-    // }
 }
 
 #[allow(clippy::clippy::too_many_arguments)]
