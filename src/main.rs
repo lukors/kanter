@@ -142,9 +142,10 @@ pub struct KanterPlugin;
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_non_send_resource(TextureProcessor::new())
-            .add_startup_system(setup.system())
+            .insert_resource(Workspace::default())
             .add_state(ToolState::None)
             .add_state(FirstPersonState::Off)
+            .add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::PreUpdate,
                 SystemSet::new().with_system(workspace.system()),
@@ -304,7 +305,6 @@ fn setup(
 ) {
     let crosshair_image = asset_server.load("crosshair.png");
 
-    commands.spawn().insert(Workspace::default());
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(WorkspaceCamera)
@@ -376,7 +376,7 @@ fn workspace(
     mut er_mouse_motion: EventReader<MouseMotion>,
     mut er_cursor_moved: EventReader<CursorMoved>,
     windows: Res<Windows>,
-    mut q_workspace: Query<&mut Workspace>,
+    mut workspace: ResMut<Workspace>,
     q_camera: Query<&Transform, With<WorkspaceCamera>>,
 ) {
     let mut event_cursor_delta: Vec2 = Vec2::ZERO;
@@ -385,7 +385,6 @@ fn workspace(
     }
     let event_cursor_screen = er_cursor_moved.iter().last();
 
-    for mut workspace in q_workspace.iter_mut() {
         if let Some(event_cursor_screen) = event_cursor_screen {
             workspace.cursor_screen = event_cursor_screen.position;
 
@@ -401,7 +400,6 @@ fn workspace(
 
         workspace.cursor_delta = event_cursor_delta;
     }
-}
 
 const START_INSTRUCT: &str = &"Shift A: Add node";
 
@@ -665,10 +663,8 @@ fn box_select_setup(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
-    q_workspace: Query<&Workspace>,
+    workspace: Res<Workspace>,
 ) {
-    let workspace = q_workspace.iter().next().unwrap();
-
     let box_image = asset_server.load("box_select.png");
     let crosshair_image = asset_server.load("crosshair.png");
 
@@ -1010,7 +1006,7 @@ fn generate_thumbnail(
 fn box_select(
     i_mouse_button: Res<Input<MouseButton>>,
     mut tool_state: ResMut<State<ToolState>>,
-    q_workspace: Query<&Workspace>,
+    workspace: Res<Workspace>,
     mut q_box_select_cursor: Query<&mut Transform, With<BoxSelectCursor>>,
     mut q_box_select: Query<
         (&mut Transform, &mut Visible, &Sprite, &mut BoxSelect),
@@ -1027,8 +1023,6 @@ fn box_select(
     >,
     mut commands: Commands,
 ) {
-    let workspace = q_workspace.iter().next().unwrap();
-
     for mut transform in q_box_select_cursor.iter_mut() {
         transform.translation = workspace.cursor_world.extend(0.);
     }
@@ -1111,11 +1105,9 @@ fn box_select_cleanup(
 
 fn hoverable(
     mut commands: Commands,
-    q_workspace: Query<&Workspace>,
+    workspace: Res<Workspace>,
     q_hoverable: Query<(Entity, &GlobalTransform, &Sprite), (With<Hoverable>, Without<Dragged>)>,
 ) {
-    let workspace = q_workspace.iter().next().unwrap();
-
     if workspace.cursor_moved {
         for (entity, global_transform, sprite) in q_hoverable.iter() {
             if box_contains_point(
@@ -1465,14 +1457,12 @@ fn first_person_on_update(
     mut er_window_focused: EventReader<WindowFocused>,
     mut windows: ResMut<Windows>,
     mut q_camera: Query<(Entity, &mut Transform), With<WorkspaceCamera>>,
-    q_workspace: Query<&Workspace>,
+    workspace: Res<Workspace>,
 ) {
-    for workspace in q_workspace.iter() {
         for (_camera_e, mut transform) in q_camera.iter_mut() {
             transform.translation.x += workspace.cursor_delta.x;
             transform.translation.y -= workspace.cursor_delta.y;
         }
-    }
 
     let window = windows.get_primary_mut().unwrap();
     let window_size = Vec2::new(window.width(), window.height());
@@ -1487,15 +1477,13 @@ fn first_person_on_update(
 
 fn first_person_off_update(
     mut q_cursor: Query<&mut Transform, With<Cursor>>,
-    q_workspace: Query<&Workspace>,
+    workspace: Res<Workspace>,
 ) {
-    for workspace in q_workspace.iter() {
         for mut transform in q_cursor.iter_mut() {
             transform.translation.x = workspace.cursor_world.x;
             transform.translation.y = workspace.cursor_world.y;
         }
     }
-}
 
 fn first_person_on_setup(
     mut windows: ResMut<Windows>,
