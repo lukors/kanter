@@ -672,10 +672,8 @@ fn hotkeys(
                 break;
             }
         }
-    } else {
-        if cancel_just_pressed(&sc_input, &i_mouse_button) && tool_current != ToolState::None {
-            tool_state.overwrite_replace(ToolState::None).unwrap();
-        }
+    } else if cancel_just_pressed(&sc_input, &i_mouse_button) && tool_current != ToolState::None {
+        tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 }
 
@@ -921,7 +919,8 @@ fn sync_graph(
 ) {
     if tex_pro.is_changed() {
         let tp_node_ids = tex_pro.node_graph.node_ids();
-        let existing_gui_node_ids: Vec<NodeId> = q_node_id.iter().map(|(_, node_id)| *node_id).collect();
+        let existing_gui_node_ids: Vec<NodeId> =
+            q_node_id.iter().map(|(_, node_id)| *node_id).collect();
         let new_ids: Vec<NodeId> = tp_node_ids
             .iter()
             .filter(|tp_node_id| !existing_gui_node_ids.contains(tp_node_id))
@@ -1391,16 +1390,14 @@ fn drag(
                 });
         }
         tool_state.overwrite_replace(ToolState::GrabEdge).unwrap();
-    } else {
-        if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
-            for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
-                if !new_node_e.contains(&entity) {
-                    let global_pos = global_transform.translation - cursor_transform.translation;
-                    transform.translation.x = global_pos.x;
-                    transform.translation.y = global_pos.y;
-                }
-                commands.entity(cursor_e).push_children(&[entity]);
+    } else if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
+        for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
+            if !new_node_e.contains(&entity) {
+                let global_pos = global_transform.translation - cursor_transform.translation;
+                transform.translation.x = global_pos.x;
+                transform.translation.y = global_pos.y;
             }
+            commands.entity(cursor_e).push_children(&[entity]);
         }
     }
 }
