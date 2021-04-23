@@ -1,6 +1,5 @@
 /// This Bevy plugin enables the use of ScanCodes as easily as KeyCodes can be used.
 /// ScanCode names are based on https://w3c.github.io/uievents-code/
-
 use bevy::{
     input::{keyboard::KeyboardInput, ElementState},
     prelude::*,

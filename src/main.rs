@@ -1,11 +1,11 @@
 #[allow(clippy::type_complexity)] // Avoids many warnings about very complex types.
-
 pub mod scan_code_input;
 
 use std::{path::Path, sync::Arc};
 
 use bevy::{
     app::AppExit,
+    audio::AudioPlugin,
     input::mouse::MouseMotion,
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
@@ -49,7 +49,7 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.5)))
         // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
-        .add_plugins(DefaultPlugins)
+        .add_plugins_with(DefaultPlugins, |group| group.disable::<AudioPlugin>())
         .add_plugin(KanterPlugin)
         .add_plugin(ScanCodeInputPlugin)
         .run();
