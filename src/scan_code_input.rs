@@ -101,6 +101,7 @@ impl ScanCode {
     /// delete button is 57427.
     fn from_u32(code: u32) -> Option<Self> {
         match code {
+            57373 => Some(ScanCode::ControlRight),
             57427 => Some(ScanCode::Delete),
             _ => ScanCode::try_from(code).ok(),
         }
