@@ -95,6 +95,18 @@ pub enum ScanCode {
     MetaLeft = 125,
 }
 
+impl ScanCode {
+    /// This function is used to convert any scan codes that map to the same button into the
+    /// same scan code enum. My laptop's delete button is for instance 111, but my desktop's
+    /// delete button is 57427.
+    fn from_u32(code: u32) -> Option<Self> {
+        match code {
+            57427 => Some(ScanCode::Delete),
+            _ => ScanCode::try_from(code).ok(),
+        }
+    }
+}
+
 pub struct ScanCodeInputPlugin;
 
 impl Plugin for ScanCodeInputPlugin {
@@ -193,7 +205,7 @@ fn scan_code_grab_input(
     scan_code_input.clear();
 
     for keyboard_input in keyboard_input.iter() {
-        if let Ok(scan_code) = ScanCode::try_from(keyboard_input.scan_code) {
+        if let Some(scan_code) = ScanCode::from_u32(keyboard_input.scan_code) {
             match keyboard_input.state {
                 ElementState::Pressed => scan_code_input.press(scan_code),
                 ElementState::Released => scan_code_input.release(scan_code),
