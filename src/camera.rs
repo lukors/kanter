@@ -21,7 +21,8 @@ pub(crate) struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system_set_to_stage(
+        app.add_startup_system(setup.system())
+        .add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
                 .label(Stage::Update)
@@ -58,6 +59,47 @@ impl Plugin for CameraPlugin {
                 ),
         );
     }
+}
+
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let crosshair_image = asset_server.load("crosshair.png");
+
+    commands
+        .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .insert(WorkspaceCamera)
+        .with_children(|parent| {
+            parent
+                .spawn()
+                .insert(Transform::from_translation(Vec3::new(
+                    0.,
+                    0.,
+                    -CAMERA_DISTANCE,
+                )))
+                .insert(GlobalTransform::default())
+                .insert(WorkspaceCameraAnchor)
+                .with_children(|parent| {
+                    parent
+                        .spawn_bundle(SpriteBundle {
+                            material: materials.add(crosshair_image.into()),
+                            visible: Visible {
+                                is_visible: false,
+                                is_transparent: true,
+                            },
+                            ..Default::default()
+                        })
+                        .insert(Transform::from_translation(Vec3::new(0., 0., 9.0)))
+                        .insert(Crosshair);
+                });
+        });
+    commands
+        .spawn()
+        .insert(Transform::default())
+        .insert(GlobalTransform::default())
+        .insert(Cursor);
 }
 
 fn first_person_on_update(

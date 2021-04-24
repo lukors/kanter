@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage, THUMBNAIL_SIZE, Thumbnail, stretch_between, workspace::Workspace};
+use crate::{AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage, THUMBNAIL_SIZE, Thumbnail, workspace::Workspace};
 use bevy::prelude::*;
 use kanter_core::{dag::TextureProcessor, node::{Node, NodeType, Side}, node_graph::{NodeId, SlotId}};
 use rand::Rng;
@@ -216,4 +216,14 @@ fn spawn_gui_node(
                     .id();
             }
         });
+}
+
+pub(crate) fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, end: Vec2) {
+    let midpoint = start - (start - end) / 2.;
+    let distance = start.distance(end);
+    let rotation = Vec2::X.angle_between(start - end);
+
+    transform.translation = midpoint.extend(0.0);
+    transform.rotation = Quat::from_rotation_z(rotation);
+    sprite.size = Vec2::new(distance, 5.);
 }

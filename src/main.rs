@@ -13,6 +13,7 @@ pub mod instructions;
 pub mod deselect_tool;
 pub mod delete_tool;
 pub mod hotkeys;
+pub mod hoverable;
 
 use bevy::{audio::AudioPlugin, prelude::*};
 use add_tool::*;
@@ -29,6 +30,7 @@ use instructions::*;
 use deselect_tool::*;
 use delete_tool::*;
 use hotkeys::*;
+use hoverable::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum GrabToolType {
@@ -72,12 +74,7 @@ fn main() {
 
 struct Crosshair;
 struct Cursor;
-
-struct Hoverable;
-struct Hovered;
-
 struct Selected;
-
 struct Draggable;
 struct Dragged;
 struct Dropped;
@@ -112,98 +109,6 @@ impl Plugin for KanterPlugin {
             .add_plugin(DeselectToolPlugin)
             .add_plugin(DeleteToolPlugin)
             .add_plugin(HotkeysPlugin)
-            .add_startup_system(setup.system())
-            .add_system_set_to_stage(
-                CoreStage::Update,
-                SystemSet::new()
-                    .label(Stage::Update)
-                    .after(Stage::Input)
-                    .with_system(
-                        hoverable
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::None))
-                            .in_ambiguity_set(AmbiguitySet),
-                    ),
-            );
+            .add_plugin(HoverablePlugin);
     }
-}
-
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
-    let crosshair_image = asset_server.load("crosshair.png");
-
-    commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(WorkspaceCamera)
-        .with_children(|parent| {
-            parent
-                .spawn()
-                .insert(Transform::from_translation(Vec3::new(
-                    0.,
-                    0.,
-                    -CAMERA_DISTANCE,
-                )))
-                .insert(GlobalTransform::default())
-                .insert(WorkspaceCameraAnchor)
-                .with_children(|parent| {
-                    parent
-                        .spawn_bundle(SpriteBundle {
-                            material: materials.add(crosshair_image.into()),
-                            visible: Visible {
-                                is_visible: false,
-                                is_transparent: true,
-                            },
-                            ..Default::default()
-                        })
-                        .insert(Transform::from_translation(Vec3::new(0., 0., 9.0)))
-                        .insert(Crosshair);
-                });
-        });
-    commands
-        .spawn()
-        .insert(Transform::default())
-        .insert(GlobalTransform::default())
-        .insert(Cursor);
-}
-
-fn hoverable(
-    mut commands: Commands,
-    workspace: Res<Workspace>,
-    q_hoverable: Query<(Entity, &GlobalTransform, &Sprite), (With<Hoverable>, Without<Dragged>)>,
-) {
-    if workspace.cursor_moved {
-        for (entity, global_transform, sprite) in q_hoverable.iter() {
-            if box_contains_point(
-                global_transform.translation.truncate(),
-                sprite.size,
-                workspace.cursor_world,
-            ) {
-                commands.entity(entity).insert(Hovered);
-            } else {
-                commands.entity(entity).remove::<Hovered>();
-            }
-        }
-    }
-}
-
-fn box_contains_point(box_pos: Vec2, box_size: Vec2, point: Vec2) -> bool {
-    let half_size = box_size / 2.;
-
-    box_pos.x - half_size.x < point.x
-        && box_pos.x + half_size.x > point.x
-        && box_pos.y - half_size.y < point.y
-        && box_pos.y + half_size.y > point.y
-}
-
-fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, end: Vec2) {
-    let midpoint = start - (start - end) / 2.;
-    let distance = start.distance(end);
-    let rotation = Vec2::X.angle_between(start - end);
-
-    transform.translation = midpoint.extend(0.0);
-    transform.rotation = Quat::from_rotation_z(rotation);
-    sprite.size = Vec2::new(distance, 5.);
 }
