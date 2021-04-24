@@ -48,6 +48,7 @@ impl Plugin for AddToolPlugin {
     }
 }
 
+/// When you press the button for a node it creates that node for you.
 pub(crate) fn add_update(
     mut scan_code_input: ResMut<ScanCodeInput>,
     mut tool_state: ResMut<State<ToolState>>,

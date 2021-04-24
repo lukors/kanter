@@ -175,6 +175,7 @@ impl Plugin for KanterPlugin {
             .add_state(FirstPersonState::Off)
             .add_plugin(ScanCodeInputPlugin)
             .add_plugin(AddToolPlugin)
+            .add_plugin(WorkspaceDragDropPlugin)
             .add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::PreUpdate,
@@ -221,79 +222,6 @@ impl Plugin for KanterPlugin {
                         export
                             .system()
                             .with_run_criteria(State::on_enter(ToolState::Export))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        // # Mouse interaction
-                        grab_tool_node_setup
-                            .system()
-                            .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Node)))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_slot_setup
-                            .system()
-                            .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Slot)))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_update
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(
-                                GrabToolType::Node,
-                            )))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_update
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(
-                                GrabToolType::Slot,
-                            )))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_cleanup
-                            .system()
-                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Node)))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        drag_node_update
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(
-                                GrabToolType::Node,
-                            )))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_cleanup
-                            .system()
-                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Slot)))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grabbed_edge_update
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(
-                                GrabToolType::Slot,
-                            )))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        dropped_edge_update
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(
-                                GrabToolType::Slot,
-                            )))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        spawn_grabbed_edges
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(
-                                GrabToolType::Slot,
-                            )))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(

@@ -1,10 +1,84 @@
 /// Dragging and dropping nodes and edges.
 use crate::{
-    box_contains_point, control_pressed, scan_code_input::ScanCodeInput, stretch_between, Cursor,
-    Dragged, Dropped, Edge, GrabbedEdge, Selected, Slot, SourceSlot, ToolState,
+    box_contains_point, control_pressed, scan_code_input::ScanCodeInput, stretch_between,
+    AmbiguitySet, Cursor, Dragged, Dropped, Edge, GrabToolType, GrabbedEdge, Selected, Slot,
+    SourceSlot, Stage, ToolState,
 };
 use bevy::prelude::*;
 use kanter_core::{dag::TextureProcessor, node::Side, node_graph::NodeId};
+
+pub struct WorkspaceDragDropPlugin;
+
+impl Plugin for WorkspaceDragDropPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_system_set_to_stage(
+            CoreStage::Update,
+            SystemSet::new()
+                .label(Stage::Update)
+                .after(Stage::Input)
+                .with_system(
+                    grab_tool_node_setup
+                        .system()
+                        .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Node)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grab_tool_slot_setup
+                        .system()
+                        .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Slot)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grab_tool_update
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grab_tool_update
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grab_tool_cleanup
+                        .system()
+                        .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Node)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    drag_node_update
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grab_tool_cleanup
+                        .system()
+                        .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Slot)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grabbed_edge_update
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    dropped_edge_update
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    spawn_grabbed_edges
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                        .in_ambiguity_set(AmbiguitySet),
+                ),
+        );
+    }
+}
 
 /// When an edge is dropped, this system updates the node graph based on where its dropped, and
 /// removes the edges.
@@ -161,6 +235,7 @@ pub(crate) fn drag_node_update(
     if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
         for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
             if !new_node_e.contains(&entity) {
+                dbg!(!new_node_e.contains(&entity));
                 let global_pos = global_transform.translation - cursor_transform.translation;
                 transform.translation.x = global_pos.x;
                 transform.translation.y = global_pos.y;
