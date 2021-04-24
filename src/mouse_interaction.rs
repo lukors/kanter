@@ -31,7 +31,7 @@ impl Plugin for MouseInteractionPlugin {
 
 /// Handles all mouse clicks and drags in the workspace. Like dragging nodes and box select.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn mouse_interaction(
+fn mouse_interaction(
     mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
     i_mouse_button: Res<Input<MouseButton>>,
@@ -101,7 +101,7 @@ pub(crate) fn mouse_interaction(
 }
 
 /// Pan using the mouse.
-pub(crate) fn mouse_pan(
+fn mouse_pan(
     workspace: Res<Workspace>,
     mut camera: Query<&mut Transform, With<WorkspaceCamera>>,
     i_mouse_button: Res<Input<MouseButton>>,
