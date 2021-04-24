@@ -1,9 +1,8 @@
 /// All workspace mouse interaction.
-use crate::{
-    AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Selected, Slot, Stage, ToolState, Workspace,
-};
+use crate::{AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Selected, Slot, Stage, ToolState, Workspace};
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
+
 
 pub(crate) struct MouseInteractionPlugin;
 

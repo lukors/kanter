@@ -1,8 +1,11 @@
 /// Dragging and dropping nodes and edges.
-use crate::{AmbiguitySet, Cursor, Dragged, Dropped, Edge, GrabToolType, Selected, Slot, Stage, ToolState, control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput, stretch_between};
+use crate::{AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState, control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput, stretch_between};
 use bevy::prelude::*;
 use kanter_core::{dag::TextureProcessor, node::Side, node_graph::NodeId};
 
+pub(crate) struct Draggable;
+pub(crate) struct Dragged;
+pub(crate) struct Dropped;
 struct SourceSlot(Slot);
 
 struct GrabbedEdge {

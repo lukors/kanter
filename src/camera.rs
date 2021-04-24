@@ -1,5 +1,5 @@
 /// Box select tool
-use crate::{AmbiguitySet, Crosshair, Cursor, Stage, Workspace};
+use crate::{AmbiguitySet, Stage, Workspace};
 use bevy::{prelude::*, window::WindowFocused};
 
 pub(crate) const CAMERA_DISTANCE: f32 = 10.;
@@ -17,6 +17,10 @@ impl Default for FirstPersonState {
         Self::Off
     }
 }
+
+pub(crate) struct Cursor;
+pub(crate) struct Crosshair;
+
 pub(crate) struct CameraPlugin;
 
 impl Plugin for CameraPlugin {

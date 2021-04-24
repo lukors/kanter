@@ -1,4 +1,5 @@
 #![allow(clippy::type_complexity)] // Avoids many warnings about very complex types.
+pub mod kanter;
 pub mod add_tool;
 pub mod box_select;
 pub mod camera;
@@ -16,31 +17,34 @@ pub mod hotkeys;
 pub mod hoverable;
 
 use bevy::{audio::AudioPlugin, prelude::*};
-use add_tool::*;
-use box_select::*;
+use kanter::*;
 use camera::*;
-use mouse_interaction::*;
 use processing::*;
-use scan_code_input::*;
 use drag_drop_entity::*;
 use workspace::*;
-use material::*;
 use sync_graph::*;
-use instructions::*;
-use deselect_tool::*;
-use delete_tool::*;
 use hotkeys::*;
 use hoverable::*;
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, AmbiguitySetLabel)]
+pub(crate) struct AmbiguitySet;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
+pub(crate) enum Stage {
+    Input,
+    Update,
+    Apply,
+}
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum GrabToolType {
+pub(crate) enum GrabToolType {
     Add,
     Node,
     Slot,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum ToolState {
+pub(crate) enum ToolState {
     None,
     Add,
     BoxSelect,
@@ -55,6 +59,7 @@ impl Default for ToolState {
         Self::None
     }
 }
+pub(crate) struct Selected;
 
 fn main() {
     App::build()
@@ -72,43 +77,4 @@ fn main() {
         .run();
 }
 
-struct Crosshair;
-struct Cursor;
-struct Selected;
-struct Draggable;
-struct Dragged;
-struct Dropped;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
-enum Stage {
-    Input,
-    Update,
-    Apply,
-}
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, AmbiguitySetLabel)]
-struct AmbiguitySet;
-
-pub struct KanterPlugin;
-
-impl Plugin for KanterPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.add_state(ToolState::None)
-            .add_state(FirstPersonState::Off)
-            .add_plugin(ScanCodeInputPlugin)
-            .add_plugin(AddToolPlugin)
-            .add_plugin(WorkspaceDragDropPlugin)
-            .add_plugin(ProcessingPlugin)
-            .add_plugin(MouseInteractionPlugin)
-            .add_plugin(BoxSelectPlugin)
-            .add_plugin(CameraPlugin)
-            .add_plugin(WorkspacePlugin)
-            .add_plugin(MaterialPlugin)
-            .add_plugin(SyncGraphPlugin)
-            .add_plugin(InstructionPlugin)
-            .add_plugin(DeselectToolPlugin)
-            .add_plugin(DeleteToolPlugin)
-            .add_plugin(HotkeysPlugin)
-            .add_plugin(HoverablePlugin);
-    }
-}
