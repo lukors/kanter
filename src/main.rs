@@ -1,5 +1,7 @@
 #![allow(clippy::type_complexity)] // Avoids many warnings about very complex types.
+pub mod mouse_interaction;
 pub mod scan_code_input;
+pub mod workspace_drag_drop;
 
 use std::{path::Path, sync::Arc};
 
@@ -17,9 +19,11 @@ use kanter_core::{
     node_data::Size as TPSize,
     node_graph::{NodeId, SlotId},
 };
+use mouse_interaction::*;
 use native_dialog::FileDialog;
 use rand::Rng;
 use scan_code_input::*;
+use workspace_drag_drop::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ToolState {
@@ -28,8 +32,8 @@ pub enum ToolState {
     BoxSelect,
     Delete,
     Export,
-    Grab,
-    GrabEdge,
+    GrabNode,
+    GrabSlot,
     Process,
 }
 
@@ -79,6 +83,7 @@ struct Workspace {
     drag: Drag,
 }
 
+struct Crosshair;
 struct Instructions;
 struct WorkspaceCameraAnchor;
 struct WorkspaceCamera;
@@ -215,32 +220,64 @@ impl Plugin for KanterPlugin {
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
-                        grab_setup
+                        // # Mouse interaction
+                        grab_tool_node_setup
                             .system()
-                            .with_run_criteria(State::on_enter(ToolState::Grab))
+                            .with_run_criteria(State::on_enter(ToolState::GrabNode))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
-                        grab.system()
-                            .with_run_criteria(State::on_update(ToolState::Grab))
+                        grab_tool_slot_setup
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::GrabSlot))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
-                        grab_cleanup
+                        grab_tool_update
                             .system()
-                            .with_run_criteria(State::on_exit(ToolState::Grab))
+                            .with_run_criteria(State::on_update(ToolState::GrabNode))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
-                        grab_edge
+                        grab_tool_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::GrabEdge))
+                            .with_run_criteria(State::on_update(ToolState::GrabSlot))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
-                        drop_edge
+                        grab_tool_cleanup
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::GrabEdge))
+                            .with_run_criteria(State::on_exit(ToolState::GrabNode))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        drag_node_update
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::GrabNode))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        grab_tool_cleanup
+                            .system()
+                            .with_run_criteria(State::on_exit(ToolState::GrabSlot))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        grabbed_edge_update
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::GrabSlot))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        dropped_edge_update
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::GrabSlot))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        spawn_grabbed_edges
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::GrabSlot))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
@@ -291,12 +328,12 @@ impl Plugin for KanterPlugin {
                     .label(Stage::Apply)
                     .after(Stage::Update)
                     .with_system(deselect.system())
-                    .with_system(drop.system())
+                    .with_system(dropped_update.system())
                     .with_system(update_instructions.system())
                     .with_system(
                         sync_graph
                             .system()
-                            .chain(drag.system())
+                            .chain(drag_node_update.system())
                             .chain(update_edges.system())
                             .chain(material.system())
                             .label("material"),
@@ -403,20 +440,20 @@ fn workspace(
         event_cursor_delta += event_motion.delta;
     }
     let event_cursor_screen = er_cursor_moved.iter().last();
-    
+
     if let Some(event_cursor_screen) = event_cursor_screen {
         workspace.cursor_screen = event_cursor_screen.position;
-        
+
         let window = windows.get_primary().unwrap();
         let cam_transform = q_camera.iter().last().unwrap();
 
         *true_cursor_world = cursor_to_world(window, cam_transform, event_cursor_screen.position);
-        
+
         workspace.cursor_moved = true;
     } else {
         workspace.cursor_moved = false;
     }
-    
+
     workspace.cursor_delta = event_cursor_delta;
 
     if !i_mouse_button.pressed(MouseButton::Left) || workspace.drag == Drag::True {
@@ -428,12 +465,15 @@ fn workspace(
     } else if workspace.drag == Drag::Starting {
         workspace.drag = Drag::True;
     }
-    
+
     if i_mouse_button.just_released(MouseButton::Left) && workspace.drag == Drag::True {
         workspace.drag = Drag::Dropping;
     }
 
-    if i_mouse_button.pressed(MouseButton::Left) && true_cursor_world.distance(workspace.cursor_world) > DRAG_THRESHOLD && workspace.drag == Drag::False {
+    if i_mouse_button.pressed(MouseButton::Left)
+        && true_cursor_world.distance(workspace.cursor_world) > DRAG_THRESHOLD
+        && workspace.drag == Drag::False
+    {
         workspace.drag = Drag::Starting;
     }
 }
@@ -466,12 +506,8 @@ fn update_instructions(
             let tool = match tool_state.current() {
                 ToolState::None => format!("{}\n{}", START_INSTRUCT, none_instruct),
                 ToolState::Add => ADD_INSTRUCT.to_string(),
-                ToolState::BoxSelect => return,
-                ToolState::Delete => return,
-                ToolState::Export => return,
-                ToolState::Grab => "LMB: Confirm".to_string(),
-                ToolState::GrabEdge => return,
-                ToolState::Process => return,
+                ToolState::GrabNode => "LMB: Confirm".to_string(),
+                _ => return,
             };
 
             let fp = {
@@ -481,7 +517,7 @@ fn update_instructions(
                         FirstPersonState::Off => "Off",
                     };
 
-                    format!("Shift `: First person ({})\n", state)
+                    format!("`: First person ({})\n", state)
                 } else {
                     String::new()
                 }
@@ -497,19 +533,6 @@ fn update_instructions(
 
     *previous_tool_state = tool_state.current().clone();
     *previous_first_person_state = first_person_state.current().clone();
-}
-
-fn mouse_pan(
-    workspace: Res<Workspace>,
-    mut camera: Query<&mut Transform, With<WorkspaceCamera>>,
-    i_mouse_button: Res<Input<MouseButton>>,
-) {
-    if i_mouse_button.pressed(MouseButton::Middle) && workspace.cursor_moved {
-        if let Ok(mut camera_t) = camera.single_mut() {
-            camera_t.translation.x -= workspace.cursor_delta.x;
-            camera_t.translation.y += workspace.cursor_delta.y;
-        }
-    }
 }
 
 fn focus_change(
@@ -657,7 +680,7 @@ fn hotkeys(
     i_mouse_button: Res<Input<MouseButton>>,
     sc_input: Res<ScanCodeInput>,
 ) {
-    if sc_input.just_pressed(ScanCode::Backquote) && shift_pressed(&sc_input) {
+    if sc_input.just_pressed(ScanCode::Backquote) {
         if *first_person_state.current() == FirstPersonState::Off {
             first_person_state.set(FirstPersonState::On).unwrap();
         } else {
@@ -670,6 +693,8 @@ fn hotkeys(
     if tool_current == ToolState::None {
         for key_code in sc_input.get_just_pressed() {
             let new_tool = match key_code {
+                ScanCode::Delete | ScanCode::KeyX => Some(tool_state.set(ToolState::Delete)),
+                ScanCode::F12 => Some(tool_state.set(ToolState::Process)),
                 ScanCode::KeyA => {
                     if shift_pressed(&sc_input) {
                         Some(tool_state.set(ToolState::Add))
@@ -677,9 +702,7 @@ fn hotkeys(
                         None
                     }
                 }
-                ScanCode::Delete | ScanCode::KeyX => Some(tool_state.set(ToolState::Delete)),
-                ScanCode::F12 => Some(tool_state.set(ToolState::Process)),
-                ScanCode::KeyG => Some(tool_state.set(ToolState::Grab)),
+                ScanCode::KeyG => Some(tool_state.set(ToolState::GrabNode)),
                 ScanCode::KeyS => {
                     if alt_pressed(&sc_input) && shift_pressed(&sc_input) {
                         Some(tool_state.set(ToolState::Export))
@@ -709,14 +732,14 @@ fn cancel_just_pressed(
 }
 
 fn add_update(
-    mut keyboard_input: ResMut<ScanCodeInput>,
+    mut scan_code_input: ResMut<ScanCodeInput>,
     mut tool_state: ResMut<State<ToolState>>,
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
     let mut events_maybe_missed = false;
     let mut done = false;
 
-    for input in keyboard_input.get_just_pressed() {
+    for input in scan_code_input.get_just_pressed() {
         let node_type: Option<NodeType> = match input {
             ScanCode::KeyI => {
                 events_maybe_missed = true;
@@ -766,13 +789,13 @@ fn add_update(
         }
 
         if done {
-            tool_state.overwrite_replace(ToolState::Grab).unwrap();
+            tool_state.overwrite_replace(ToolState::GrabNode).unwrap();
             break;
         }
     }
 
     if events_maybe_missed {
-        keyboard_input.clear();
+        scan_code_input.clear();
     }
 }
 
@@ -1068,7 +1091,6 @@ fn box_select_setup(mut materials: ResMut<Assets<ColorMaterial>>, mut commands: 
 }
 
 fn box_select(
-    i_mouse_button: Res<Input<MouseButton>>,
     mut tool_state: ResMut<State<ToolState>>,
     workspace: Res<Workspace>,
     mut q_box_select: Query<(&mut Transform, &mut Sprite, &mut BoxSelect)>,
@@ -1083,9 +1105,7 @@ fn box_select(
             box_select.start = workspace.cursor_world;
         }
 
-        if workspace.drag == Drag::Dropping
-            && *tool_state.current() != ToolState::None
-        {
+        if workspace.drag == Drag::Dropping && *tool_state.current() != ToolState::None {
             tool_state.overwrite_replace(ToolState::None).unwrap();
             return;
         }
@@ -1250,176 +1270,6 @@ fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2)
     Vec2::new(out.x, out.y)
 }
 
-fn mouse_interaction(
-    mut commands: Commands,
-    i_mouse_button: Res<Input<MouseButton>>,
-    q_hovered: Query<Entity, (With<NodeId>, With<Hovered>)>,
-    q_selected: Query<Entity, (With<NodeId>, With<Selected>)>,
-    q_hovered_selected: Query<Entity, (With<NodeId>, With<Selected>, With<Hovered>)>,
-    q_dropped: Query<&Dropped>,
-    mut tool_state: ResMut<State<ToolState>>,
-    workspace: Res<Workspace>,
-) {
-    let some_dropped = q_dropped.iter().count() > 0;
-    let some_hovered = q_hovered.iter().count() > 0;
-    let some_hovered_selected = q_hovered_selected.iter().count() > 0;
-    
-    if i_mouse_button.just_released(MouseButton::Left) && workspace.drag != Drag::Dropping && !some_dropped {
-        for entity in q_selected.iter() {
-            commands.entity(entity).remove::<Selected>();
-        }
-        if let Some(entity) = q_hovered.iter().next() {
-            commands.entity(entity).insert(Selected);
-        }
-    }
-
-    if workspace.drag == Drag::Starting {
-        if some_hovered_selected {
-            tool_state.overwrite_replace(ToolState::Grab).unwrap();
-        } else if let Some(entity) = q_hovered.iter().next() {
-            for entity in q_selected.iter() {
-                commands.entity(entity).remove::<Selected>();
-            }
-            
-            commands.entity(entity).insert(Selected);
-            tool_state.overwrite_replace(ToolState::Grab).unwrap();
-        } else {
-            tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
-        }
-    }
-}
-
-#[allow(clippy::clippy::too_many_arguments)]
-fn drag(
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut tool_state: ResMut<State<ToolState>>,
-    mut commands: Commands,
-    q_dragged_slot: Query<(&GlobalTransform, &Slot), Added<Dragged>>,
-    q_slot: Query<(&GlobalTransform, &Slot)>,
-    mut qs_node: QuerySet<(
-        Query<
-            (Entity, &mut Transform, &GlobalTransform),
-            (Added<Dragged>, With<NodeId>, Without<Slot>),
-        >,
-        Query<Entity, (Added<NodeId>, Without<Slot>)>,
-    )>,
-    mut q_edge: Query<(&mut Visible, &Edge)>,
-    q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
-    scan_code_input: Res<ScanCodeInput>,
-) {
-    let new_node_e: Vec<Entity> = qs_node.q1().iter().collect();
-    let q_dragged_node = qs_node.q0_mut();
-
-    if let Some((dragged_slot_gtransform, dragged_slot)) = q_dragged_slot.iter().next() {
-        if control_pressed(&scan_code_input) {
-            match dragged_slot.side {
-                Side::Output => {
-                    for (mut edge_visible, edge) in q_edge
-                        .iter_mut()
-                        .filter(|(_, edge)| edge.output_slot == *dragged_slot)
-                    {
-                        edge_visible.is_visible = false;
-
-                        if let Some((input_slot_gtransform, input_slot)) =
-                            q_slot.iter().find(|(_, slot)| {
-                                slot.node_id == edge.input_slot.node_id
-                                    && slot.slot_id == edge.input_slot.slot_id
-                                    && slot.side == Side::Input
-                            })
-                        {
-                            commands
-                                .spawn_bundle(SpriteBundle {
-                                    material: materials.add(Color::rgb(0., 0., 0.).into()),
-                                    sprite: Sprite::new(Vec2::new(5., 5.)),
-                                    ..Default::default()
-                                })
-                                .insert(GrabbedEdge {
-                                    start: input_slot_gtransform.translation.truncate(),
-                                    slot: input_slot.clone(),
-                                })
-                                .insert(SourceSlot(dragged_slot.clone()));
-                        }
-                    }
-                }
-                Side::Input => {
-                    if let Some((mut edge_visible, edge)) = q_edge
-                        .iter_mut()
-                        .find(|(_, edge)| edge.input_slot == *dragged_slot)
-                    {
-                        edge_visible.is_visible = false;
-
-                        if let Some((output_slot_gtransform, output_slot)) =
-                            q_slot.iter().find(|(_, slot)| {
-                                slot.node_id == edge.output_slot.node_id
-                                    && slot.slot_id == edge.output_slot.slot_id
-                                    && slot.side == Side::Output
-                            })
-                        {
-                            commands
-                                .spawn_bundle(SpriteBundle {
-                                    material: materials.add(Color::rgb(0., 0., 0.).into()),
-                                    sprite: Sprite::new(Vec2::new(5., 5.)),
-                                    ..Default::default()
-                                })
-                                .insert(GrabbedEdge {
-                                    start: output_slot_gtransform.translation.truncate(),
-                                    slot: output_slot.clone(),
-                                })
-                                .insert(SourceSlot(dragged_slot.clone()));
-                        }
-                    }
-                }
-            }
-        } else {
-            commands
-                .spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(0., 0., 0.).into()),
-                    sprite: Sprite::new(Vec2::new(5., 5.)),
-                    ..Default::default()
-                })
-                .insert(GrabbedEdge {
-                    start: dragged_slot_gtransform.translation.truncate(),
-                    slot: dragged_slot.clone(),
-                });
-        }
-        tool_state.overwrite_replace(ToolState::GrabEdge).unwrap();
-    } else if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
-        for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
-            if !new_node_e.contains(&entity) {
-                let global_pos = global_transform.translation - cursor_transform.translation;
-                transform.translation.x = global_pos.x;
-                transform.translation.y = global_pos.y;
-            }
-            commands.entity(cursor_e).push_children(&[entity]);
-        }
-    }
-}
-
-fn drop(mut commands: Commands, mut q_dropped: Query<(Entity, Option<&Slot>), Added<Dropped>>) {
-    for (entity, slot_id) in q_dropped.iter_mut() {
-        if slot_id.is_none() {
-            commands.entity(entity).remove::<Parent>();
-        }
-        commands.entity(entity).remove::<Dropped>();
-    }
-}
-
-fn grab_edge(
-    mut q_edge: Query<(&mut Transform, &GrabbedEdge, &mut Sprite)>,
-    q_cursor: Query<&GlobalTransform, With<Cursor>>,
-) {
-    if let Ok(cursor_t) = q_cursor.single() {
-        for (mut edge_t, edge, mut sprite) in q_edge.iter_mut() {
-            stretch_between(
-                &mut sprite,
-                &mut edge_t,
-                edge.start,
-                cursor_t.translation.truncate(),
-            );
-        }
-    }
-}
-
 fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, end: Vec2) {
     let midpoint = start - (start - end) / 2.;
     let distance = start.distance(end);
@@ -1429,78 +1279,6 @@ fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, 
     transform.rotation = Quat::from_rotation_z(rotation);
     sprite.size = Vec2::new(distance, 5.);
 }
-
-#[allow(clippy::too_many_arguments)]
-fn drop_edge(
-    mut commands: Commands,
-    mut tool_state: ResMut<State<ToolState>>,
-    mut tex_pro: ResMut<TextureProcessor>,
-    i_mouse_button: Res<Input<MouseButton>>,
-    q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
-    q_cursor: Query<&GlobalTransform, With<Cursor>>,
-    q_grabbed_edge: Query<(Entity, &GrabbedEdge, Option<&SourceSlot>)>,
-    mut q_edge: Query<&mut Visible, With<Edge>>,
-) {
-    if i_mouse_button.just_released(MouseButton::Left) {
-        let cursor_t = q_cursor.iter().next().unwrap();
-
-        'outer: for (_, grabbed_edge, source_slot) in q_grabbed_edge.iter() {
-            for (slot_t, slot_sprite, slot) in q_slot.iter() {
-                if box_contains_point(
-                    slot_t.translation.truncate(),
-                    slot_sprite.size,
-                    cursor_t.translation.truncate(),
-                ) {
-                    if tex_pro
-                        .node_graph
-                        .connect_arbitrary(
-                            slot.node_id,
-                            slot.side,
-                            slot.slot_id,
-                            grabbed_edge.slot.node_id,
-                            grabbed_edge.slot.side,
-                            grabbed_edge.slot.slot_id,
-                        )
-                        .is_ok()
-                    {
-                        if let Some(source_slot) = source_slot {
-                            if source_slot.0 != *slot {
-                                tex_pro.node_graph.disconnect_slot(
-                                    source_slot.0.node_id,
-                                    source_slot.0.side,
-                                    source_slot.0.slot_id,
-                                );
-                            }
-                        }
-                        continue 'outer;
-                    } else {
-                        trace!("Failed to connect nodes");
-                        continue 'outer;
-                    }
-                }
-            }
-            if let Some(source_slot) = source_slot {
-                tex_pro.node_graph.disconnect_slot(
-                    source_slot.0.node_id,
-                    source_slot.0.side,
-                    source_slot.0.slot_id,
-                )
-            }
-        }
-
-        for (edge_e, _, _) in q_grabbed_edge.iter() {
-            commands.entity(edge_e).despawn_recursive();
-        }
-
-        for mut visible in q_edge.iter_mut() {
-            visible.is_visible = true;
-        }
-
-        tool_state.overwrite_replace(ToolState::None).unwrap();
-    }
-}
-
-struct Crosshair;
 
 fn first_person_on_update(
     mut first_person_state: ResMut<State<FirstPersonState>>,
@@ -1586,32 +1364,5 @@ fn deselect(
         for entity in q_selected.iter() {
             commands.entity(entity).remove::<Selected>();
         }
-    }
-}
-
-fn grab_setup(
-    mut tool_state: ResMut<State<ToolState>>,
-    mut commands: Commands,
-    q_selected: Query<Entity, With<Selected>>,
-) {
-    if q_selected.iter().count() == 0 {
-        tool_state.overwrite_replace(ToolState::None).unwrap();
-    }
-
-    for entity in q_selected.iter() {
-        commands.entity(entity).insert(Dragged);
-    }
-}
-
-fn grab(mut tool_state: ResMut<State<ToolState>>, i_mouse_button: Res<Input<MouseButton>>) {
-    if i_mouse_button.just_released(MouseButton::Left) {
-        tool_state.overwrite_replace(ToolState::None).unwrap();
-    }
-}
-
-fn grab_cleanup(mut commands: Commands, q_dragged: Query<Entity, With<Dragged>>) {
-    for entity in q_dragged.iter() {
-        commands.entity(entity).remove::<Dragged>();
-        commands.entity(entity).insert(Dropped);
     }
 }

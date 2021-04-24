@@ -11,6 +11,7 @@ use std::convert::TryFrom;
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, TryFromPrimitive)]
 #[repr(u32)]
 pub enum ScanCode {
+    Error = 0,
     Escape = 1,
     Digit1 = 2,
     Digit2 = 3,
