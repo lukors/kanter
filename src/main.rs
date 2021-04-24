@@ -5,6 +5,7 @@ pub mod scan_code_input;
 pub mod workspace_drag_drop;
 pub mod processing;
 pub mod box_select;
+pub mod camera;
 
 use std::{path::Path, sync::Arc};
 
@@ -30,6 +31,7 @@ use scan_code_input::*;
 use workspace_drag_drop::*;
 use processing::*;
 use box_select::*;
+use camera::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum GrabToolType {
@@ -96,8 +98,6 @@ struct Workspace {
 
 struct Crosshair;
 struct Instructions;
-struct WorkspaceCameraAnchor;
-struct WorkspaceCamera;
 struct Thumbnail;
 struct Cursor;
 
@@ -141,17 +141,6 @@ const SLOT_MARGIN: f32 = 2.;
 const SLOT_DISTANCE_X: f32 = THUMBNAIL_SIZE / 2. + SLOT_SIZE / 2. + SLOT_MARGIN;
 const NODE_SIZE: f32 = THUMBNAIL_SIZE + SLOT_SIZE * 2. + SLOT_MARGIN * 2.;
 const SLOT_DISTANCE_Y: f32 = 32. + SLOT_MARGIN;
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
-enum FirstPersonState {
-    Off,
-    On,
-}
-
-impl Default for FirstPersonState {
-    fn default() -> Self {
-        Self::Off
-    }
-}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum Stage {
@@ -177,6 +166,7 @@ impl Plugin for KanterPlugin {
             .add_plugin(ProcessingPlugin)
             .add_plugin(MouseInteractionPlugin)
             .add_plugin(BoxSelectPlugin)
+            .add_plugin(CameraPlugin)
             .add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::PreUpdate,
@@ -211,30 +201,6 @@ impl Plugin for KanterPlugin {
                         hoverable
                             .system()
                             .with_run_criteria(State::on_update(ToolState::None))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        first_person_on_setup
-                            .system()
-                            .with_run_criteria(State::on_enter(FirstPersonState::On))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        first_person_on_update
-                            .system()
-                            .with_run_criteria(State::on_update(FirstPersonState::On))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        first_person_on_cleanup
-                            .system()
-                            .with_run_criteria(State::on_exit(FirstPersonState::On))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        first_person_off_update
-                            .system()
-                            .with_run_criteria(State::on_update(FirstPersonState::Off))
                             .in_ambiguity_set(AmbiguitySet),
                     )
             )
@@ -942,80 +908,6 @@ fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, 
     transform.translation = midpoint.extend(0.0);
     transform.rotation = Quat::from_rotation_z(rotation);
     sprite.size = Vec2::new(distance, 5.);
-}
-
-fn first_person_on_update(
-    mut first_person_state: ResMut<State<FirstPersonState>>,
-    mut er_window_focused: EventReader<WindowFocused>,
-    mut windows: ResMut<Windows>,
-    mut q_camera: Query<(Entity, &mut Transform), With<WorkspaceCamera>>,
-    workspace: Res<Workspace>,
-) {
-    for (_camera_e, mut transform) in q_camera.iter_mut() {
-        transform.translation.x += workspace.cursor_delta.x;
-        transform.translation.y -= workspace.cursor_delta.y;
-    }
-
-    let window = windows.get_primary_mut().unwrap();
-    let window_size = Vec2::new(window.width(), window.height());
-    window.set_cursor_position(window_size / 2.0);
-
-    if let Some(event_window_focused) = er_window_focused.iter().last() {
-        if !event_window_focused.focused && *first_person_state.current() != FirstPersonState::Off {
-            first_person_state.set(FirstPersonState::Off).unwrap();
-        }
-    }
-}
-
-fn first_person_off_update(
-    mut q_cursor: Query<&mut Transform, With<Cursor>>,
-    workspace: Res<Workspace>,
-) {
-    for mut transform in q_cursor.iter_mut() {
-        transform.translation.x = workspace.cursor_world.x;
-        transform.translation.y = workspace.cursor_world.y;
-    }
-}
-
-fn first_person_on_setup(
-    mut windows: ResMut<Windows>,
-    mut q_camera: Query<Entity, With<WorkspaceCameraAnchor>>,
-    mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
-    mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
-    mut commands: Commands,
-) {
-    let window = windows.get_primary_mut().unwrap();
-    window.set_cursor_visibility(false);
-
-    if let Ok(mut crosshair) = q_crosshair.single_mut() {
-        crosshair.is_visible = true;
-    }
-
-    if let Ok(camera_e) = q_camera.single_mut() {
-        if let Ok((cursor_e, mut transform)) = q_cursor.single_mut() {
-            transform.translation.x = 0.;
-            transform.translation.y = 0.;
-            commands.entity(camera_e).push_children(&[cursor_e]);
-        }
-    }
-}
-
-fn first_person_on_cleanup(
-    mut windows: ResMut<Windows>,
-    mut q_cursor: Query<Entity, With<Cursor>>,
-    mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
-    mut commands: Commands,
-) {
-    let window = windows.get_primary_mut().unwrap();
-    window.set_cursor_visibility(true);
-
-    for mut crosshair in q_crosshair.iter_mut() {
-        crosshair.is_visible = false;
-    }
-
-    for cursor_e in q_cursor.iter_mut() {
-        commands.entity(cursor_e).remove::<Parent>();
-    }
 }
 
 /// This function should be turned into a tool and the hotkey should live in the hotkey system.

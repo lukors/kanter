@@ -1,5 +1,5 @@
 /// All workspace mouse interaction.
-use crate::{Drag, Dropped, AmbiguitySet, FirstPersonState, GrabToolType, Hovered, Selected, Slot, Stage, ToolState, Workspace, WorkspaceCamera};
+use crate::{Drag, Dropped, AmbiguitySet, GrabToolType, Hovered, Selected, Slot, Stage, ToolState, Workspace};
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
 
@@ -18,12 +18,6 @@ impl Plugin for MouseInteractionPlugin {
                         .with_run_criteria(State::on_update(ToolState::None))
                         .in_ambiguity_set(AmbiguitySet),
                 )
-                .with_system(
-                    mouse_pan
-                        .system()
-                        .with_run_criteria(State::on_update(FirstPersonState::Off))
-                        .in_ambiguity_set(AmbiguitySet),
-                ),
                 
         );
     }
@@ -98,18 +92,4 @@ fn mouse_interaction(
         // Drag on empty space
         tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
     }
-}
-
-/// Pan using the mouse.
-fn mouse_pan(
-    workspace: Res<Workspace>,
-    mut camera: Query<&mut Transform, With<WorkspaceCamera>>,
-    i_mouse_button: Res<Input<MouseButton>>,
-) {
-    if i_mouse_button.pressed(MouseButton::Middle) && workspace.cursor_moved {
-        if let Ok(mut camera_t) = camera.single_mut() {
-            camera_t.translation.x -= workspace.cursor_delta.x;
-            camera_t.translation.y += workspace.cursor_delta.y;
-        }
-    }
-}
+}   
