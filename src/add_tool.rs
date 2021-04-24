@@ -1,5 +1,9 @@
 /// Adding new nodes
-use crate::{AmbiguitySet, GrabToolType, Stage, ToolState, scan_code_input::{ScanCode, ScanCodeInput}, workspace_drag_drop::{grab_tool_cleanup, grab_tool_node_setup}};
+use crate::{
+    scan_code_input::{ScanCode, ScanCodeInput},
+    workspace_drag_drop::{grab_tool_cleanup, grab_tool_node_setup},
+    AmbiguitySet, GrabToolType, Stage, ToolState,
+};
 use bevy::prelude::*;
 use kanter_core::{
     dag::TextureProcessor,
@@ -12,35 +16,35 @@ pub(crate) struct AddToolPlugin;
 impl Plugin for AddToolPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_system_set_to_stage(
-                CoreStage::Update,
-                SystemSet::new()
-                    .label(Stage::Update)
-                    .after(Stage::Input)
-                    .with_system(
-                        add_update
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Add))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_node_setup
-                            .system()
-                            .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Add)))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_add_update
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Add)))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_cleanup
-                            .system()
-                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Add)))
-                            .in_ambiguity_set(AmbiguitySet),
-                    ),
-            );
+            CoreStage::Update,
+            SystemSet::new()
+                .label(Stage::Update)
+                .after(Stage::Input)
+                .with_system(
+                    add_update
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Add))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grab_tool_node_setup
+                        .system()
+                        .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Add)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grab_tool_add_update
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Add)))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grab_tool_cleanup
+                        .system()
+                        .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Add)))
+                        .in_ambiguity_set(AmbiguitySet),
+                ),
+        );
     }
 }
 
@@ -102,7 +106,9 @@ pub(crate) fn add_update(
         }
 
         if done {
-            tool_state.overwrite_replace(ToolState::Grab(GrabToolType::Add)).unwrap();
+            tool_state
+                .overwrite_replace(ToolState::Grab(GrabToolType::Add))
+                .unwrap();
             break;
         }
     }

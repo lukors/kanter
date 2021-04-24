@@ -239,13 +239,17 @@ impl Plugin for KanterPlugin {
                     .with_system(
                         grab_tool_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
+                            .with_run_criteria(State::on_update(ToolState::Grab(
+                                GrabToolType::Node,
+                            )))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_tool_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                            .with_run_criteria(State::on_update(ToolState::Grab(
+                                GrabToolType::Slot,
+                            )))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
@@ -257,7 +261,9 @@ impl Plugin for KanterPlugin {
                     .with_system(
                         drag_node_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
+                            .with_run_criteria(State::on_update(ToolState::Grab(
+                                GrabToolType::Node,
+                            )))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
@@ -269,19 +275,25 @@ impl Plugin for KanterPlugin {
                     .with_system(
                         grabbed_edge_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                            .with_run_criteria(State::on_update(ToolState::Grab(
+                                GrabToolType::Slot,
+                            )))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         dropped_edge_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                            .with_run_criteria(State::on_update(ToolState::Grab(
+                                GrabToolType::Slot,
+                            )))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         spawn_grabbed_edges
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                            .with_run_criteria(State::on_update(ToolState::Grab(
+                                GrabToolType::Slot,
+                            )))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
