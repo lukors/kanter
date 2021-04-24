@@ -102,22 +102,14 @@ pub(crate) fn mouse_interaction(
 
 /// Pan using the mouse.
 pub(crate) fn mouse_pan(
-    mut windows: ResMut<Windows>,
     workspace: Res<Workspace>,
     mut camera: Query<&mut Transform, With<WorkspaceCamera>>,
     i_mouse_button: Res<Input<MouseButton>>,
-    mut frozen_cursor_pos: Local<Vec2>,
 ) {
-    if i_mouse_button.just_pressed(MouseButton::Middle) {
-        *frozen_cursor_pos = workspace.cursor_screen;
-    }
     if i_mouse_button.pressed(MouseButton::Middle) && workspace.cursor_moved {
-        let window = windows.get_primary_mut().unwrap();
-        window.set_cursor_position(*frozen_cursor_pos);
-
         if let Ok(mut camera_t) = camera.single_mut() {
-            camera_t.translation.x += workspace.cursor_delta.x;
-            camera_t.translation.y -= workspace.cursor_delta.y;
+            camera_t.translation.x -= workspace.cursor_delta.x;
+            camera_t.translation.y += workspace.cursor_delta.y;
         }
     }
 }
