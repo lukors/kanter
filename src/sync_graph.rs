@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{AmbiguitySet, Draggable, Dragged, Edge, Hoverable, Hovered, Selected, Slot, Stage, THUMBNAIL_SIZE, Thumbnail, stretch_between, workspace::Workspace};
+use crate::{AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage, THUMBNAIL_SIZE, Thumbnail, stretch_between, workspace::Workspace};
 use bevy::prelude::*;
 use kanter_core::{dag::TextureProcessor, node::{Node, NodeType, Side}, node_graph::{NodeId, SlotId}};
 use rand::Rng;
@@ -11,6 +11,20 @@ const SLOT_DISTANCE_X: f32 = THUMBNAIL_SIZE / 2. + SLOT_SIZE / 2. + SLOT_MARGIN;
 const NODE_SIZE: f32 = THUMBNAIL_SIZE + SLOT_SIZE * 2. + SLOT_MARGIN * 2.;
 const SLOT_DISTANCE_Y: f32 = 32. + SLOT_MARGIN;
 const SMALLEST_DEPTH_UNIT: f32 = f32::EPSILON * 500.;
+
+// I'm saving the start and end variables for when I want to select the edges themselves.
+pub(crate) struct Edge {
+    pub start: Vec2,
+    pub end: Vec2,
+    pub output_slot: Slot,
+    pub input_slot: Slot,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Slot {
+    pub node_id: NodeId,
+    pub side: Side,
+    pub slot_id: SlotId,
+}
 
 pub(crate) struct SyncGraphPlugin;
 

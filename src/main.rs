@@ -17,8 +17,7 @@ use bevy::{
 };
 use kanter_core::{
     dag::TextureProcessor,
-    node::Side,
-    node_graph::{NodeId, SlotId},
+    node_graph::NodeId,
 };
 use add_tool::*;
 use box_select::*;
@@ -74,7 +73,6 @@ fn main() {
 }
 
 struct Crosshair;
-struct Thumbnail;
 struct Cursor;
 
 struct Hoverable;
@@ -85,30 +83,6 @@ struct Selected;
 struct Draggable;
 struct Dragged;
 struct Dropped;
-
-#[derive(Clone, Debug, PartialEq)]
-struct Slot {
-    node_id: NodeId,
-    side: Side,
-    slot_id: SlotId,
-}
-
-struct SourceSlot(Slot);
-
-struct GrabbedEdge {
-    start: Vec2,
-    slot: Slot,
-}
-// I'm saving the start and end variables for when I want to select the edges themselves.
-struct Edge {
-    start: Vec2,
-    end: Vec2,
-    output_slot: Slot,
-    input_slot: Slot,
-}
-
-pub(crate) const CAMERA_DISTANCE: f32 = 10.;
-pub(crate) const THUMBNAIL_SIZE: f32 = 128.;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum Stage {

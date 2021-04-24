@@ -1,6 +1,5 @@
 use crate::{
-    scan_code_input::ScanCodeInput, AmbiguitySet, Selected, Stage, Thumbnail, ToolState,
-    THUMBNAIL_SIZE,
+    scan_code_input::ScanCodeInput, AmbiguitySet, Selected, Stage, ToolState
 };
 use bevy::{
     prelude::*,
@@ -15,6 +14,9 @@ use kanter_core::{
 use native_dialog::FileDialog;
 /// Texture Processing
 use std::{path::Path, sync::Arc};
+
+pub(crate) const THUMBNAIL_SIZE: f32 = 128.;
+pub(crate) struct Thumbnail;
 
 pub(crate) struct ProcessingPlugin;
 

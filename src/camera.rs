@@ -1,8 +1,11 @@
 /// Box select tool
 use crate::{AmbiguitySet, Crosshair, Cursor, Stage, Workspace};
 use bevy::{prelude::*, window::WindowFocused};
+
+pub(crate) const CAMERA_DISTANCE: f32 = 10.;
 pub(crate) struct WorkspaceCameraAnchor;
 pub(crate) struct WorkspaceCamera;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 pub(crate) enum FirstPersonState {
     Off,
