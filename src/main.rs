@@ -3,6 +3,7 @@ pub mod add_tool;
 pub mod mouse_interaction;
 pub mod scan_code_input;
 pub mod workspace_drag_drop;
+pub mod processing;
 
 use std::{path::Path, sync::Arc};
 
@@ -11,12 +12,11 @@ use bevy::{
     audio::AudioPlugin,
     input::mouse::MouseMotion,
     prelude::*,
-    render::texture::{Extent3d, TextureDimension, TextureFormat},
     window::WindowFocused,
 };
 use kanter_core::{
     dag::TextureProcessor,
-    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side},
+    node::{Node, NodeType, Side},
     node_data::Size as TPSize,
     node_graph::{NodeId, SlotId},
 };
@@ -27,6 +27,7 @@ use add_tool::*;
 use mouse_interaction::*;
 use scan_code_input::*;
 use workspace_drag_drop::*;
+use processing::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum GrabToolType {
@@ -137,7 +138,7 @@ const DRAG_THRESHOLD: f32 = 5.;
 const CAMERA_DISTANCE: f32 = 10.;
 const SMALLEST_DEPTH_UNIT: f32 = f32::EPSILON * 500.;
 
-const THUMBNAIL_SIZE: f32 = 128.;
+pub const THUMBNAIL_SIZE: f32 = 128.;
 const SLOT_SIZE: f32 = 30.;
 const SLOT_MARGIN: f32 = 2.;
 const SLOT_DISTANCE_X: f32 = THUMBNAIL_SIZE / 2. + SLOT_SIZE / 2. + SLOT_MARGIN;
@@ -176,6 +177,8 @@ impl Plugin for KanterPlugin {
             .add_plugin(ScanCodeInputPlugin)
             .add_plugin(AddToolPlugin)
             .add_plugin(WorkspaceDragDropPlugin)
+            .add_plugin(ProcessingPlugin)
+            .add_plugin(MouseInteractionPlugin)
             .add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::PreUpdate,
@@ -225,11 +228,6 @@ impl Plugin for KanterPlugin {
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
-                        mouse_interaction
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::None)),
-                    )
-                    .with_system(
                         hoverable
                             .system()
                             .with_run_criteria(State::on_update(ToolState::None))
@@ -259,12 +257,6 @@ impl Plugin for KanterPlugin {
                             .with_run_criteria(State::on_update(FirstPersonState::Off))
                             .in_ambiguity_set(AmbiguitySet),
                     )
-                    .with_system(
-                        mouse_pan
-                            .system()
-                            .with_run_criteria(State::on_update(FirstPersonState::Off))
-                            .in_ambiguity_set(AmbiguitySet),
-                    ),
             )
             .add_system_set_to_stage(
                 CoreStage::Update,
@@ -280,14 +272,7 @@ impl Plugin for KanterPlugin {
                             .chain(drag_node_update.system())
                             .chain(update_edges.system())
                             .chain(material.system())
-                            .label("material"),
                     )
-                    .with_system(
-                        process
-                            .system()
-                            .with_run_criteria(State::on_enter(ToolState::Process))
-                            .after("material"),
-                    ),
             )
             .add_system_set_to_stage(
                 CoreStage::PostUpdate,
@@ -562,42 +547,6 @@ fn export(
 
     keyboard_input.clear();
     tool_state.overwrite_replace(ToolState::None).unwrap();
-}
-
-fn process(
-    mut tex_pro: ResMut<TextureProcessor>,
-    mut tool_state: ResMut<State<ToolState>>,
-    mut textures: ResMut<Assets<Texture>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut commands: Commands,
-    q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
-    q_node: Query<(Entity, &NodeId)>,
-) {
-    info!("Processing graph...");
-    tex_pro.process();
-
-    info!("Generating thumbnails...");
-    for (node_e, node_id) in q_node.iter() {
-        if let Some(texture) = generate_thumbnail(
-            &tex_pro,
-            *node_id,
-            Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
-        ) {
-            let texture_handle = textures.add(texture);
-
-            if let Some((thumbnail_e, _)) = q_thumbnail
-                .iter()
-                .find(|(_, parent_e)| parent_e.0 == node_e)
-            {
-                commands
-                    .entity(thumbnail_e)
-                    .insert(materials.add(texture_handle.into()));
-            }
-        }
-    }
-
-    tool_state.overwrite_replace(ToolState::None).unwrap();
-    info!("Done");
 }
 
 fn quit_hotkey(input: Res<ScanCodeInput>, mut app_exit_events: EventWriter<AppExit>) {
@@ -896,66 +845,6 @@ fn sync_graph(
                     end,
                 });
         }
-    }
-}
-
-fn generate_thumbnail(
-    tex_pro: &ResMut<TextureProcessor>,
-    node_id: NodeId,
-    size: Size,
-) -> Option<Texture> {
-    let mut tex_pro_thumb = TextureProcessor::new();
-
-    let node_datas = tex_pro.get_node_data(node_id);
-
-    let n_out = tex_pro_thumb
-        .node_graph
-        .add_node(Node::new(NodeType::OutputRgba))
-        .unwrap();
-
-    for (i, node_data) in node_datas.iter().take(4).enumerate() {
-        if let Ok(end_id) = tex_pro_thumb
-            .embed_node_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32))
-        {
-            let n_node_data = tex_pro_thumb
-                .node_graph
-                .add_node(Node::new(NodeType::NodeData(end_id)))
-                .unwrap();
-
-            let n_resize = tex_pro_thumb
-                .node_graph
-                .add_node(Node::new(NodeType::Resize(
-                    Some(ResizePolicy::SpecificSize(TPSize::new(
-                        size.width as u32,
-                        size.height as u32,
-                    ))),
-                    Some(ResizeFilter::Nearest),
-                )))
-                .unwrap();
-
-            tex_pro_thumb
-                .node_graph
-                .connect(n_node_data, n_resize, SlotId(0), SlotId(0))
-                .unwrap();
-
-            tex_pro_thumb
-                .node_graph
-                .connect(n_resize, n_out, SlotId(0), node_data.slot_id)
-                .unwrap()
-        }
-    }
-
-    tex_pro_thumb.process();
-
-    if let Ok(output) = tex_pro_thumb.get_output(n_out) {
-        Some(Texture::new(
-            Extent3d::new(size.width as u32, size.height as u32, 1),
-            TextureDimension::D2,
-            output,
-            TextureFormat::Rgba8Unorm,
-        ))
-    } else {
-        None
     }
 }
 

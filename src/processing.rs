@@ -1,0 +1,125 @@
+use std::sync::Arc;
+
+/// Texture Processing
+
+use crate::{Stage, ToolState, Thumbnail, THUMBNAIL_SIZE,
+};
+use bevy::{prelude::*, render::texture::{Extent3d, TextureDimension, TextureFormat}};
+use kanter_core::{dag::TextureProcessor, node::{EmbeddedNodeDataId, Node, NodeType, ResizePolicy, ResizeFilter}, node_graph::{NodeId, SlotId}, node_data::Size as TPSize};
+
+pub(crate) struct ProcessingPlugin;
+
+impl Plugin for ProcessingPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_system_set_to_stage(
+            CoreStage::Update,
+            SystemSet::new()
+                .label(Stage::Apply)
+                .after(Stage::Update)
+                .with_system(
+                    process
+                        .system()
+                        .with_run_criteria(State::on_enter(ToolState::Process))
+                        .after("material"),
+                ),
+                
+        );
+    }
+}
+
+
+fn process(
+    mut tex_pro: ResMut<TextureProcessor>,
+    mut tool_state: ResMut<State<ToolState>>,
+    mut textures: ResMut<Assets<Texture>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut commands: Commands,
+    q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
+    q_node: Query<(Entity, &NodeId)>,
+) {
+    info!("Processing graph...");
+    tex_pro.process();
+
+    info!("Generating thumbnails...");
+    for (node_e, node_id) in q_node.iter() {
+        if let Some(texture) = generate_thumbnail(
+            &tex_pro,
+            *node_id,
+            Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
+        ) {
+            let texture_handle = textures.add(texture);
+
+            if let Some((thumbnail_e, _)) = q_thumbnail
+                .iter()
+                .find(|(_, parent_e)| parent_e.0 == node_e)
+            {
+                commands
+                    .entity(thumbnail_e)
+                    .insert(materials.add(texture_handle.into()));
+            }
+        }
+    }
+
+    tool_state.overwrite_replace(ToolState::None).unwrap();
+    info!("Done");
+}
+
+fn generate_thumbnail(
+    tex_pro: &ResMut<TextureProcessor>,
+    node_id: NodeId,
+    size: Size,
+) -> Option<Texture> {
+    let mut tex_pro_thumb = TextureProcessor::new();
+
+    let node_datas = tex_pro.get_node_data(node_id);
+
+    let n_out = tex_pro_thumb
+        .node_graph
+        .add_node(Node::new(NodeType::OutputRgba))
+        .unwrap();
+
+    for (i, node_data) in node_datas.iter().take(4).enumerate() {
+        if let Ok(end_id) = tex_pro_thumb
+            .embed_node_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32))
+        {
+            let n_node_data = tex_pro_thumb
+                .node_graph
+                .add_node(Node::new(NodeType::NodeData(end_id)))
+                .unwrap();
+
+            let n_resize = tex_pro_thumb
+                .node_graph
+                .add_node(Node::new(NodeType::Resize(
+                    Some(ResizePolicy::SpecificSize(TPSize::new(
+                        size.width as u32,
+                        size.height as u32,
+                    ))),
+                    Some(ResizeFilter::Nearest),
+                )))
+                .unwrap();
+
+            tex_pro_thumb
+                .node_graph
+                .connect(n_node_data, n_resize, SlotId(0), SlotId(0))
+                .unwrap();
+
+            tex_pro_thumb
+                .node_graph
+                .connect(n_resize, n_out, SlotId(0), node_data.slot_id)
+                .unwrap()
+        }
+    }
+
+    tex_pro_thumb.process();
+
+    if let Ok(output) = tex_pro_thumb.get_output(n_out) {
+        Some(Texture::new(
+            Extent3d::new(size.width as u32, size.height as u32, 1),
+            TextureDimension::D2,
+            output,
+            TextureFormat::Rgba8Unorm,
+        ))
+    } else {
+        None
+    }
+}

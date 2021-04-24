@@ -1,9 +1,33 @@
 /// All workspace mouse interaction.
-use crate::{
-    Drag, Dropped, GrabToolType, Hovered, Selected, Slot, ToolState, Workspace, WorkspaceCamera,
-};
+use crate::{Drag, Dropped, AmbiguitySet, FirstPersonState, GrabToolType, Hovered, Selected, Slot, Stage, ToolState, Workspace, WorkspaceCamera};
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
+
+pub(crate) struct MouseInteractionPlugin;
+
+impl Plugin for MouseInteractionPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_system_set_to_stage(
+            CoreStage::Update,
+            SystemSet::new()
+                .label(Stage::Update)
+                .after(Stage::Input)
+                .with_system(
+                    mouse_interaction
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::None))
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    mouse_pan
+                        .system()
+                        .with_run_criteria(State::on_update(FirstPersonState::Off))
+                        .in_ambiguity_set(AmbiguitySet),
+                ),
+                
+        );
+    }
+}
 
 /// Handles all mouse clicks and drags in the workspace. Like dragging nodes and box select.
 #[allow(clippy::too_many_arguments)]
