@@ -5,10 +5,7 @@ use crate::{
     AmbiguitySet, GrabToolType, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{
-    dag::TextureProcessor,
-    node::{Node, NodeType},
-};
+use kanter_core::{dag::TextureProcessor, node::{MixType, Node, NodeType}};
 use native_dialog::FileDialog;
 
 pub(crate) struct AddToolPlugin;
@@ -55,13 +52,11 @@ pub(crate) fn add_update(
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
     let mut events_maybe_missed = false;
-    let mut done = false;
 
     for input in scan_code_input.get_just_pressed() {
         let node_type: Option<NodeType> = match input {
             ScanCode::KeyI => {
                 events_maybe_missed = true;
-                done = true;
 
                 match FileDialog::new()
                     // .set_location("~/Desktop")
@@ -80,8 +75,8 @@ pub(crate) fn add_update(
                     }
                 }
             }
+            ScanCode::KeyM => Some(NodeType::Mix(MixType::Add)),
             ScanCode::KeyO => {
-                done = true;
                 // let path = FileDialog::new()
                 //     // .set_location("~/Desktop")
                 //     .add_filter("PNG Image", &["png"])
@@ -104,9 +99,7 @@ pub(crate) fn add_update(
         if let Some(node_type) = node_type {
             info!("Added node: {:?}", node_type);
             tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
-        }
 
-        if done {
             tool_state
                 .overwrite_replace(ToolState::Grab(GrabToolType::Add))
                 .unwrap();
