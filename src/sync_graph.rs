@@ -1,8 +1,15 @@
 use std::sync::Arc;
 
-use crate::{AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage, THUMBNAIL_SIZE, Thumbnail, workspace::Workspace};
+use crate::{
+    workspace::Workspace, AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
+    Thumbnail, THUMBNAIL_SIZE,
+};
 use bevy::prelude::*;
-use kanter_core::{dag::TextureProcessor, node::{Node, NodeType, Side}, node_graph::{NodeId, SlotId}};
+use kanter_core::{
+    dag::TextureProcessor,
+    node::{Node, NodeType, Side},
+    node_graph::{NodeId, SlotId},
+};
 use rand::Rng;
 
 const SLOT_SIZE: f32 = 30.;
@@ -32,13 +39,13 @@ impl Plugin for SyncGraphPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_non_send_resource(TextureProcessor::new())
             .add_system_set_to_stage(
-            CoreStage::Update,
-            SystemSet::new()
-                .label(Stage::Apply)
-                .after(Stage::Update)
-                .with_system(sync_graph.system())
-                .in_ambiguity_set(AmbiguitySet),
-        );
+                CoreStage::Update,
+                SystemSet::new()
+                    .label(Stage::Apply)
+                    .after(Stage::Update)
+                    .with_system(sync_graph.system())
+                    .in_ambiguity_set(AmbiguitySet),
+            );
     }
 }
 
@@ -218,7 +225,12 @@ fn spawn_gui_node(
         });
 }
 
-pub(crate) fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, end: Vec2) {
+pub(crate) fn stretch_between(
+    sprite: &mut Sprite,
+    transform: &mut Transform,
+    start: Vec2,
+    end: Vec2,
+) {
     let midpoint = start - (start - end) / 2.;
     let distance = start.distance(end);
     let rotation = Vec2::X.angle_between(start - end);

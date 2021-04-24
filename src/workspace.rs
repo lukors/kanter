@@ -31,10 +31,10 @@ pub(crate) struct WorkspacePlugin;
 impl Plugin for WorkspacePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_resource(Workspace::default())
-        .add_system_set_to_stage(
-            CoreStage::PreUpdate,
-            SystemSet::new().with_system(workspace.system()),
-        );
+            .add_system_set_to_stage(
+                CoreStage::PreUpdate,
+                SystemSet::new().with_system(workspace.system()),
+            );
     }
 }
 
@@ -56,8 +56,10 @@ fn workspace(
     if let Some(event_cursor_screen) = event_cursor_screen {
         workspace.cursor_screen = event_cursor_screen.position;
 
-        if let (Some(window), Some(cam_transform)) = (windows.get_primary(), q_camera.iter().last()) {
-            *true_cursor_world = cursor_to_world(window, cam_transform, event_cursor_screen.position);
+        if let (Some(window), Some(cam_transform)) = (windows.get_primary(), q_camera.iter().last())
+        {
+            *true_cursor_world =
+                cursor_to_world(window, cam_transform, event_cursor_screen.position);
         }
 
         workspace.cursor_moved = true;

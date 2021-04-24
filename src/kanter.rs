@@ -1,19 +1,19 @@
-use bevy::prelude::*;
-use crate::{ToolState, add_tool::*};
 use crate::box_select::*;
 use crate::camera::*;
+use crate::delete_tool::*;
+use crate::deselect_tool::*;
+use crate::drag_drop_entity::*;
+use crate::hotkeys::*;
+use crate::hoverable::*;
+use crate::instructions::*;
+use crate::material::*;
 use crate::mouse_interaction::*;
 use crate::processing::*;
 use crate::scan_code_input::*;
-use crate::drag_drop_entity::*;
-use crate::workspace::*;
-use crate::material::*;
 use crate::sync_graph::*;
-use crate::instructions::*;
-use crate::deselect_tool::*;
-use crate::delete_tool::*;
-use crate::hotkeys::*;
-use crate::hoverable::*;
+use crate::workspace::*;
+use crate::{add_tool::*, ToolState};
+use bevy::prelude::*;
 
 pub(crate) struct KanterPlugin;
 

@@ -1,5 +1,8 @@
 /// Dragging and dropping nodes and edges.
-use crate::{AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState, control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput, stretch_between};
+use crate::{
+    control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput,
+    stretch_between, AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
+};
 use bevy::prelude::*;
 use kanter_core::{dag::TextureProcessor, node::Side, node_graph::NodeId};
 
@@ -31,21 +34,21 @@ impl Plugin for WorkspaceDragDropPlugin {
                 )
                 .with_system(
                     grab_tool_update
-                    .system()
-                    .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
-                    .in_ambiguity_set(AmbiguitySet),
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
+                        .in_ambiguity_set(AmbiguitySet),
                 )
                 .with_system(
                     drag_node_update
-                    .system()
-                    .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
-                    .in_ambiguity_set(AmbiguitySet),
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
+                        .in_ambiguity_set(AmbiguitySet),
                 )
                 .with_system(
                     grab_tool_cleanup
-                    .system()
-                    .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Node)))
-                    .in_ambiguity_set(AmbiguitySet),
+                        .system()
+                        .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Node)))
+                        .in_ambiguity_set(AmbiguitySet),
                 )
                 // Slot
                 .with_system(
@@ -83,7 +86,7 @@ impl Plugin for WorkspaceDragDropPlugin {
                         .system()
                         .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
-                )
+                ),
         )
         .add_system_set_to_stage(
             CoreStage::Update,
@@ -92,7 +95,7 @@ impl Plugin for WorkspaceDragDropPlugin {
                 .after(Stage::Update)
                 .with_system(dropped_update.system())
                 .with_system(drag_node_update.system())
-                .with_system(update_edges.system())
+                .with_system(update_edges.system()),
         );
     }
 }
@@ -238,9 +241,9 @@ pub(crate) fn grab_tool_cleanup(mut commands: Commands, q_dragged: Query<Entity,
 fn drag_node_update(
     mut commands: Commands,
     mut q_dragged_node: Query<
-            (Entity, &mut Transform, &GlobalTransform),
-            (Added<Dragged>, With<NodeId>, Without<Slot>),
-        >,
+        (Entity, &mut Transform, &GlobalTransform),
+        (Added<Dragged>, With<NodeId>, Without<Slot>),
+    >,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
 ) {
     if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
@@ -248,7 +251,7 @@ fn drag_node_update(
             let global_pos = global_transform.translation - cursor_transform.translation;
             transform.translation.x = global_pos.x;
             transform.translation.y = global_pos.y;
-            
+
             commands.entity(cursor_e).push_children(&[entity]);
         }
     }

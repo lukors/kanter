@@ -1,30 +1,30 @@
 #![allow(clippy::type_complexity)] // Avoids many warnings about very complex types.
-pub mod kanter;
 pub mod add_tool;
 pub mod box_select;
 pub mod camera;
+pub mod delete_tool;
+pub mod deselect_tool;
+pub mod drag_drop_entity;
+pub mod hotkeys;
+pub mod hoverable;
+pub mod instructions;
+pub mod kanter;
+pub mod material;
 pub mod mouse_interaction;
 pub mod processing;
 pub mod scan_code_input;
-pub mod drag_drop_entity;
-pub mod workspace;
-pub mod material;
 pub mod sync_graph;
-pub mod instructions;
-pub mod deselect_tool;
-pub mod delete_tool;
-pub mod hotkeys;
-pub mod hoverable;
+pub mod workspace;
 
 use bevy::{audio::AudioPlugin, prelude::*};
-use kanter::*;
 use camera::*;
-use processing::*;
 use drag_drop_entity::*;
-use workspace::*;
-use sync_graph::*;
 use hotkeys::*;
 use hoverable::*;
+use kanter::*;
+use processing::*;
+use sync_graph::*;
+use workspace::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, AmbiguitySetLabel)]
 pub(crate) struct AmbiguitySet;
@@ -76,5 +76,3 @@ fn main() {
         .add_plugin(KanterPlugin)
         .run();
 }
-
-

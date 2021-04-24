@@ -1,6 +1,4 @@
-use crate::{
-    scan_code_input::ScanCodeInput, AmbiguitySet, Selected, Stage, ToolState
-};
+use crate::{scan_code_input::ScanCodeInput, AmbiguitySet, Selected, Stage, ToolState};
 use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},

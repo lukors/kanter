@@ -1,6 +1,10 @@
 use bevy::{app::AppExit, prelude::*, window::WindowFocused};
 
-use crate::{Stage, GrabToolType, ToolState, camera::FirstPersonState, scan_code_input::{ScanCode, ScanCodeInput}};
+use crate::{
+    camera::FirstPersonState,
+    scan_code_input::{ScanCode, ScanCodeInput},
+    GrabToolType, Stage, ToolState,
+};
 
 pub(crate) struct HotkeysPlugin;
 

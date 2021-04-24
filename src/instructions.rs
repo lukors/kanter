@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
 
-use crate::{Stage, GrabToolType, ToolState, camera::FirstPersonState};
+use crate::{camera::FirstPersonState, GrabToolType, Stage, ToolState};
 
 const START_INSTRUCT: &str = &"Shift A: Add node";
 
@@ -12,13 +12,13 @@ pub(crate) struct InstructionPlugin;
 impl Plugin for InstructionPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_startup_system(setup.system())
-        .add_system_set_to_stage(
-            CoreStage::Update,
-            SystemSet::new()
-                .label(Stage::Apply)
-                .after(Stage::Update)
-                .with_system(update_instructions.system()),
-        );
+            .add_system_set_to_stage(
+                CoreStage::Update,
+                SystemSet::new()
+                    .label(Stage::Apply)
+                    .after(Stage::Update)
+                    .with_system(update_instructions.system()),
+            );
     }
 }
 

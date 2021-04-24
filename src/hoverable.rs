@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{AmbiguitySet, Dragged, Stage, ToolState, workspace::Workspace};
+use crate::{workspace::Workspace, AmbiguitySet, Dragged, Stage, ToolState};
 
 pub(crate) struct Hoverable;
 pub(crate) struct Hovered;
@@ -16,10 +16,11 @@ impl Plugin for HoverablePlugin {
                 .after(Stage::Input)
                 // Other
                 .with_system(
-                    hoverable.system()
-                    .with_run_criteria(State::on_update(ToolState::None))
-                    .in_ambiguity_set(AmbiguitySet),
-                )
+                    hoverable
+                        .system()
+                        .with_run_criteria(State::on_update(ToolState::None))
+                        .in_ambiguity_set(AmbiguitySet),
+                ),
         );
     }
 }
