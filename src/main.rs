@@ -9,6 +9,8 @@ pub mod drag_drop_entity;
 pub mod workspace;
 pub mod material;
 pub mod sync_graph;
+pub mod instructions;
+pub mod deselect_tool;
 
 use bevy::{
     app::AppExit, audio::AudioPlugin, prelude::*, window::WindowFocused,
@@ -28,6 +30,8 @@ use drag_drop_entity::*;
 use workspace::*;
 use material::*;
 use sync_graph::*;
+use instructions::*;
+use deselect_tool::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum GrabToolType {
@@ -70,7 +74,6 @@ fn main() {
 }
 
 struct Crosshair;
-struct Instructions;
 struct Thumbnail;
 struct Cursor;
 
@@ -133,6 +136,8 @@ impl Plugin for KanterPlugin {
             .add_plugin(WorkspacePlugin)
             .add_plugin(MaterialPlugin)
             .add_plugin(SyncGraphPlugin)
+            .add_plugin(InstructionPlugin)
+            .add_plugin(DeselectToolPlugin)
             .add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::Update,
@@ -159,14 +164,6 @@ impl Plugin for KanterPlugin {
                             .with_run_criteria(State::on_update(ToolState::None))
                             .in_ambiguity_set(AmbiguitySet),
                     ),
-            )
-            .add_system_set_to_stage(
-                CoreStage::Update,
-                SystemSet::new()
-                    .label(Stage::Apply)
-                    .after(Stage::Update)
-                    .with_system(deselect.system())
-                    .with_system(update_instructions.system()),
             )
             .add_system_set_to_stage(
                 CoreStage::PostUpdate,
@@ -210,108 +207,13 @@ fn setup(
                         .insert(Crosshair);
                 });
         });
-
     commands
         .spawn()
         .insert(Transform::default())
         .insert(GlobalTransform::default())
         .insert(Cursor);
-
-    commands.spawn_bundle(UiCameraBundle::default());
-    commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                justify_content: JustifyContent::SpaceBetween,
-                ..Default::default()
-            },
-            material: materials.add(Color::NONE.into()),
-            ..Default::default()
-        })
-        .with_children(|parent| {
-            parent
-                .spawn_bundle(TextBundle {
-                    style: Style {
-                        align_self: AlignSelf::FlexEnd,
-                        ..Default::default()
-                    },
-                    text: Text::with_section(
-                        START_INSTRUCT,
-                        TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Regular.ttf"),
-                            font_size: 20.0,
-                            color: Color::WHITE,
-                        },
-                        Default::default(),
-                    ),
-                    ..Default::default()
-                })
-                .insert(Instructions);
-        });
 }
 
-const START_INSTRUCT: &str = &"Shift A: Add node";
-
-fn update_instructions(
-    tool_state: Res<State<ToolState>>,
-    first_person_state: Res<State<FirstPersonState>>,
-    q_node: Query<&NodeId>,
-    mut previous_tool_state: Local<ToolState>,
-    mut previous_first_person_state: Local<FirstPersonState>,
-    mut q_instructions: Query<&mut Text, With<Instructions>>,
-) {
-    let fp_changed = *first_person_state.current() != *previous_first_person_state;
-    let tool_changed = *tool_state.current() != *previous_tool_state;
-
-    if fp_changed || tool_changed {
-        const ADD_INSTRUCT: &str = &"I: Input\nO: Output";
-        let node_count = q_node.iter().len();
-
-        let instruct_text = if *tool_state.current() == ToolState::Add {
-            ADD_INSTRUCT.to_string()
-        } else if node_count == 0 {
-            START_INSTRUCT.to_string()
-        } else {
-            let none_instruct =
-                "F12: Process graph\nShift Alt S: Save selected as\n\nG: Grab\nX: Delete\n";
-
-            let tool = match tool_state.current() {
-                ToolState::None => format!("{}\n{}", START_INSTRUCT, none_instruct),
-                ToolState::Add => ADD_INSTRUCT.to_string(),
-                ToolState::Grab(gtt) => {
-                    if *gtt == GrabToolType::Node || *gtt == GrabToolType::Add {
-                        "LMB: Confirm".to_string()
-                    } else {
-                        return;
-                    }
-                }
-                _ => return,
-            };
-
-            let fp = {
-                if *tool_state.current() == ToolState::None {
-                    let state = match first_person_state.current() {
-                        FirstPersonState::On => "On",
-                        FirstPersonState::Off => "Off",
-                    };
-
-                    format!("`: First person ({})\n", state)
-                } else {
-                    String::new()
-                }
-            };
-
-            format!("{}{}", fp, tool)
-        };
-
-        if let Ok(mut text) = q_instructions.single_mut() {
-            text.sections[0].value = instruct_text;
-        }
-    }
-
-    *previous_tool_state = tool_state.current().clone();
-    *previous_first_person_state = first_person_state.current().clone();
-}
 
 fn focus_change(
     mut er_window_focused: EventReader<WindowFocused>,
@@ -455,17 +357,4 @@ fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, 
     transform.translation = midpoint.extend(0.0);
     transform.rotation = Quat::from_rotation_z(rotation);
     sprite.size = Vec2::new(distance, 5.);
-}
-
-/// This function should be turned into a tool and the hotkey should live in the hotkey system.
-fn deselect(
-    input: Res<ScanCodeInput>,
-    mut commands: Commands,
-    q_selected: Query<Entity, With<Selected>>,
-) {
-    if input.just_pressed(ScanCode::KeyA) {
-        for entity in q_selected.iter() {
-            commands.entity(entity).remove::<Selected>();
-        }
-    }
 }

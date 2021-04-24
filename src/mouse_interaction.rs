@@ -19,7 +19,7 @@ impl Plugin for MouseInteractionPlugin {
                         .system()
                         .with_run_criteria(State::on_update(ToolState::None))
                         .in_ambiguity_set(AmbiguitySet),
-                ),
+                )
         );
     }
 }
