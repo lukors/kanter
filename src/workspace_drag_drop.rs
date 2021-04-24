@@ -1,4 +1,4 @@
-/// Everything related to dragging and dropping nodes and edges.
+/// Dragging and dropping nodes and edges.
 use crate::{
     box_contains_point, control_pressed, scan_code_input::ScanCodeInput, stretch_between, Cursor,
     Dragged, Dropped, Edge, GrabbedEdge, Selected, Slot, SourceSlot, ToolState,

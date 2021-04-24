@@ -80,7 +80,6 @@ pub(crate) fn mouse_pan(
         *frozen_cursor_pos = workspace.cursor_screen;
     }
     if i_mouse_button.pressed(MouseButton::Middle) && workspace.cursor_moved {
-        
         let window = windows.get_primary_mut().unwrap();
         window.set_cursor_position(*frozen_cursor_pos);
 

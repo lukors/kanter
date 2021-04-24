@@ -1,4 +1,5 @@
 #![allow(clippy::type_complexity)] // Avoids many warnings about very complex types.
+pub mod add_tool;
 pub mod mouse_interaction;
 pub mod scan_code_input;
 pub mod workspace_drag_drop;
@@ -19,9 +20,11 @@ use kanter_core::{
     node_data::Size as TPSize,
     node_graph::{NodeId, SlotId},
 };
-use mouse_interaction::*;
 use native_dialog::FileDialog;
 use rand::Rng;
+
+use add_tool::*;
+use mouse_interaction::*;
 use scan_code_input::*;
 use workspace_drag_drop::*;
 
@@ -34,6 +37,7 @@ pub enum ToolState {
     Export,
     GrabNode,
     GrabSlot,
+    GrabAdd,
     Process,
 }
 
@@ -56,7 +60,6 @@ fn main() {
         // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
         .add_plugins_with(DefaultPlugins, |group| group.disable::<AudioPlugin>())
         .add_plugin(KanterPlugin)
-        .add_plugin(ScanCodeInputPlugin)
         .run();
 }
 
@@ -165,6 +168,8 @@ impl Plugin for KanterPlugin {
             .insert_resource(Workspace::default())
             .add_state(ToolState::None)
             .add_state(FirstPersonState::Off)
+            .add_plugin(ScanCodeInputPlugin)
+            .add_plugin(AddToolPlugin)
             .add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::PreUpdate,
@@ -183,12 +188,6 @@ impl Plugin for KanterPlugin {
                 SystemSet::new()
                     .label(Stage::Update)
                     .after(Stage::Input)
-                    .with_system(
-                        add_update
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Add))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
                     .with_system(
                         delete
                             .system()
@@ -566,7 +565,7 @@ fn export(
         {
             Ok(path) => path,
             Err(e) => {
-                warn!("Unable to get export path: {:?}\nThis is a known bug on Windows, please report the bug if you are using another operating system.\nTry again a few times and it usually works.", e);
+                warn!("Unable to get export path: {:?}\n", e);
                 continue;
             }
         };
@@ -729,74 +728,6 @@ fn cancel_just_pressed(
 ) -> bool {
     scan_code_input.just_pressed(ScanCode::Escape)
         || i_mouse_button.just_pressed(MouseButton::Right)
-}
-
-fn add_update(
-    mut scan_code_input: ResMut<ScanCodeInput>,
-    mut tool_state: ResMut<State<ToolState>>,
-    mut tex_pro: ResMut<TextureProcessor>,
-) {
-    let mut events_maybe_missed = false;
-    let mut done = false;
-
-    for input in scan_code_input.get_just_pressed() {
-        let node_type: Option<NodeType> = match input {
-            ScanCode::KeyI => {
-                events_maybe_missed = true;
-                done = true;
-
-                match FileDialog::new()
-                    // .set_location("~/Desktop")
-                    .add_filter("PNG Image", &["png"])
-                    .add_filter("JPEG Image", &["jpg", "jpeg"])
-                    .show_open_single_file()
-                {
-                    Ok(Some(path)) => Some(NodeType::Image(path.to_string_lossy().to_string())),
-                    Ok(None) => {
-                        warn!("Invalid path");
-                        None
-                    }
-                    Err(e) => {
-                        warn!("Error bringing up file dialog: {}\nThis is a known bug on Windows, please report the bug if you are not using Windows.\nIf you try again a few times it usually works.", e);
-                        None
-                    }
-                }
-            }
-            ScanCode::KeyO => {
-                done = true;
-                // let path = FileDialog::new()
-                //     // .set_location("~/Desktop")
-                //     .add_filter("PNG Image", &["png"])
-                //     .show_save_single_file()
-                //     .unwrap();
-
-                // let path = match path {
-                //     Some(path) => path,
-                //     None => {
-                //         println!("Error: Invalid open file path");
-                //         return;
-                //     }
-                // };
-
-                Some(NodeType::OutputRgba)
-            }
-            _ => None,
-        };
-
-        if let Some(node_type) = node_type {
-            info!("Added node: {:?}", node_type);
-            tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
-        }
-
-        if done {
-            tool_state.overwrite_replace(ToolState::GrabNode).unwrap();
-            break;
-        }
-    }
-
-    if events_maybe_missed {
-        scan_code_input.clear();
-    }
 }
 
 fn delete(
