@@ -53,7 +53,6 @@ impl Plugin for CameraPlugin {
                         .with_run_criteria(State::on_update(FirstPersonState::Off))
                         .in_ambiguity_set(AmbiguitySet),
                 ),
-                
         );
     }
 }

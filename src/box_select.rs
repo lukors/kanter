@@ -1,5 +1,7 @@
 /// Box select tool
-use crate::{AmbiguitySet, CAMERA_DISTANCE, Drag, Draggable, Selected, Slot, Stage, ToolState, Workspace};
+use crate::{
+    AmbiguitySet, Drag, Draggable, Selected, Slot, Stage, ToolState, Workspace, CAMERA_DISTANCE,
+};
 use bevy::prelude::*;
 #[derive(Default)]
 struct BoxSelect {
@@ -32,8 +34,7 @@ impl Plugin for BoxSelectPlugin {
                         .system()
                         .with_run_criteria(State::on_exit(ToolState::BoxSelect))
                         .in_ambiguity_set(AmbiguitySet),
-                )
-                
+                ),
         );
     }
 }

@@ -1,20 +1,16 @@
 #![allow(clippy::type_complexity)] // Avoids many warnings about very complex types.
 pub mod add_tool;
-pub mod mouse_interaction;
-pub mod scan_code_input;
-pub mod workspace_drag_drop;
-pub mod processing;
 pub mod box_select;
 pub mod camera;
+pub mod mouse_interaction;
+pub mod processing;
+pub mod scan_code_input;
+pub mod workspace_drag_drop;
 
 use std::sync::Arc;
 
 use bevy::{
-    app::AppExit,
-    audio::AudioPlugin,
-    input::mouse::MouseMotion,
-    prelude::*,
-    window::WindowFocused,
+    app::AppExit, audio::AudioPlugin, input::mouse::MouseMotion, prelude::*, window::WindowFocused,
 };
 use kanter_core::{
     dag::TextureProcessor,
@@ -24,12 +20,12 @@ use kanter_core::{
 use rand::Rng;
 
 use add_tool::*;
-use mouse_interaction::*;
-use scan_code_input::*;
-use workspace_drag_drop::*;
-use processing::*;
 use box_select::*;
 use camera::*;
+use mouse_interaction::*;
+use processing::*;
+use scan_code_input::*;
+use workspace_drag_drop::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum GrabToolType {
@@ -194,7 +190,7 @@ impl Plugin for KanterPlugin {
                             .system()
                             .with_run_criteria(State::on_update(ToolState::None))
                             .in_ambiguity_set(AmbiguitySet),
-                    )
+                    ),
             )
             .add_system_set_to_stage(
                 CoreStage::Update,
@@ -209,8 +205,8 @@ impl Plugin for KanterPlugin {
                             .system()
                             .chain(drag_node_update.system())
                             .chain(update_edges.system())
-                            .chain(material.system())
-                    )
+                            .chain(material.system()),
+                    ),
             )
             .add_system_set_to_stage(
                 CoreStage::PostUpdate,

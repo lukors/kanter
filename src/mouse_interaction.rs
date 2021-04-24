@@ -1,5 +1,7 @@
 /// All workspace mouse interaction.
-use crate::{Drag, Dropped, AmbiguitySet, GrabToolType, Hovered, Selected, Slot, Stage, ToolState, Workspace};
+use crate::{
+    AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Selected, Slot, Stage, ToolState, Workspace,
+};
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
 
@@ -17,8 +19,7 @@ impl Plugin for MouseInteractionPlugin {
                         .system()
                         .with_run_criteria(State::on_update(ToolState::None))
                         .in_ambiguity_set(AmbiguitySet),
-                )
-                
+                ),
         );
     }
 }
@@ -92,4 +93,4 @@ fn mouse_interaction(
         // Drag on empty space
         tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
     }
-}   
+}

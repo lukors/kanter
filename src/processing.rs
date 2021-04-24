@@ -1,10 +1,20 @@
-/// Texture Processing
-
-use std::{path::Path, sync::Arc};
+use crate::{
+    scan_code_input::ScanCodeInput, AmbiguitySet, Selected, Stage, Thumbnail, ToolState,
+    THUMBNAIL_SIZE,
+};
+use bevy::{
+    prelude::*,
+    render::texture::{Extent3d, TextureDimension, TextureFormat},
+};
+use kanter_core::{
+    dag::TextureProcessor,
+    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy},
+    node_data::Size as TPSize,
+    node_graph::{NodeId, SlotId},
+};
 use native_dialog::FileDialog;
-use crate::{AmbiguitySet, Selected, Stage, THUMBNAIL_SIZE, Thumbnail, ToolState, scan_code_input::ScanCodeInput};
-use bevy::{prelude::*, render::texture::{Extent3d, TextureDimension, TextureFormat}};
-use kanter_core::{dag::TextureProcessor, node::{EmbeddedNodeDataId, Node, NodeType, ResizePolicy, ResizeFilter}, node_graph::{NodeId, SlotId}, node_data::Size as TPSize};
+/// Texture Processing
+use std::{path::Path, sync::Arc};
 
 pub(crate) struct ProcessingPlugin;
 
@@ -27,11 +37,9 @@ impl Plugin for ProcessingPlugin {
                         .with_run_criteria(State::on_enter(ToolState::Export))
                         .in_ambiguity_set(AmbiguitySet),
                 ),
-                
         );
     }
 }
-
 
 fn process(
     mut tex_pro: ResMut<TextureProcessor>,
