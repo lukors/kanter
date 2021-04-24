@@ -11,13 +11,10 @@ pub mod material;
 pub mod sync_graph;
 pub mod instructions;
 pub mod deselect_tool;
+pub mod delete_tool;
 
 use bevy::{
     app::AppExit, audio::AudioPlugin, prelude::*, window::WindowFocused,
-};
-use kanter_core::{
-    dag::TextureProcessor,
-    node_graph::NodeId,
 };
 use add_tool::*;
 use box_select::*;
@@ -31,6 +28,7 @@ use material::*;
 use sync_graph::*;
 use instructions::*;
 use deselect_tool::*;
+use delete_tool::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum GrabToolType {
@@ -112,6 +110,7 @@ impl Plugin for KanterPlugin {
             .add_plugin(SyncGraphPlugin)
             .add_plugin(InstructionPlugin)
             .add_plugin(DeselectToolPlugin)
+            .add_plugin(DeleteToolPlugin)
             .add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::Update,
@@ -126,12 +125,6 @@ impl Plugin for KanterPlugin {
                 SystemSet::new()
                     .label(Stage::Update)
                     .after(Stage::Input)
-                    .with_system(
-                        delete
-                            .system()
-                            .with_run_criteria(State::on_update(ToolState::Delete))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
                     .with_system(
                         hoverable
                             .system()
@@ -277,21 +270,6 @@ fn cancel_just_pressed(
 ) -> bool {
     scan_code_input.just_pressed(ScanCode::Escape)
         || i_mouse_button.just_pressed(MouseButton::Right)
-}
-
-fn delete(
-    mut tool_state: ResMut<State<ToolState>>,
-    mut tex_pro: ResMut<TextureProcessor>,
-    q_selected_nodes: Query<&NodeId, With<Selected>>,
-) {
-    for node_id in q_selected_nodes.iter() {
-        match tex_pro.node_graph.remove_node(*node_id) {
-            Ok(_) => (),
-            Err(e) => warn!("Unable to remove node with id {}: {}", node_id, e),
-        }
-    }
-
-    tool_state.overwrite_replace(ToolState::None).unwrap();
 }
 
 fn hoverable(
