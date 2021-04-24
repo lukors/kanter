@@ -1,9 +1,8 @@
-use std::sync::Arc;
-
 /// Texture Processing
 
-use crate::{Stage, ToolState, Thumbnail, THUMBNAIL_SIZE,
-};
+use std::{path::Path, sync::Arc};
+use native_dialog::FileDialog;
+use crate::{AmbiguitySet, Selected, Stage, THUMBNAIL_SIZE, Thumbnail, ToolState, scan_code_input::ScanCodeInput};
 use bevy::{prelude::*, render::texture::{Extent3d, TextureDimension, TextureFormat}};
 use kanter_core::{dag::TextureProcessor, node::{EmbeddedNodeDataId, Node, NodeType, ResizePolicy, ResizeFilter}, node_graph::{NodeId, SlotId}, node_data::Size as TPSize};
 
@@ -20,7 +19,13 @@ impl Plugin for ProcessingPlugin {
                     process
                         .system()
                         .with_run_criteria(State::on_enter(ToolState::Process))
-                        .after("material"),
+                        .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    export
+                        .system()
+                        .with_run_criteria(State::on_enter(ToolState::Export))
+                        .in_ambiguity_set(AmbiguitySet),
                 ),
                 
         );
@@ -122,4 +127,74 @@ fn generate_thumbnail(
     } else {
         None
     }
+}
+
+fn export(
+    tex_pro: Res<TextureProcessor>,
+    q_selected: Query<&NodeId, With<Selected>>,
+    mut tool_state: ResMut<State<ToolState>>,
+    mut keyboard_input: ResMut<ScanCodeInput>,
+) {
+    for node_id in q_selected.iter() {
+        let size: TPSize = match tex_pro.get_node_size(*node_id) {
+            Some(s) => s,
+            None => {
+                info!("Unable to get the size of the node");
+                continue;
+            }
+        };
+
+        let path = match FileDialog::new()
+            // .set_location("~/Desktop")
+            .add_filter("PNG Image", &["png"])
+            .show_save_single_file()
+        {
+            Ok(path) => path,
+            Err(e) => {
+                warn!("Unable to get export path: {:?}\n", e);
+                continue;
+            }
+        };
+
+        let path = match path {
+            Some(path) => path,
+            None => {
+                warn!("Invalid export path");
+                continue;
+            }
+        };
+
+        let texels = match tex_pro.get_output(*node_id) {
+            Ok(buf) => buf,
+            Err(e) => {
+                error!("Error when trying to get pixels from image: {:?}", e);
+                continue;
+            }
+        };
+
+        let buffer = match image::RgbaImage::from_vec(size.width, size.height, texels) {
+            None => {
+                error!("Output image buffer not big enough to contain texels.");
+                continue;
+            }
+            Some(buf) => buf,
+        };
+
+        match image::save_buffer(
+            &Path::new(&path),
+            &buffer,
+            size.width,
+            size.height,
+            image::ColorType::RGBA(8),
+        ) {
+            Ok(_) => info!("Image exported to {:?}", path),
+            Err(e) => {
+                error!("{}", e);
+                continue;
+            }
+        }
+    }
+
+    keyboard_input.clear();
+    tool_state.overwrite_replace(ToolState::None).unwrap();
 }

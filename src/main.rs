@@ -7,7 +7,7 @@ pub mod processing;
 pub mod box_select;
 pub mod camera;
 
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use bevy::{
     app::AppExit,
@@ -19,10 +19,8 @@ use bevy::{
 use kanter_core::{
     dag::TextureProcessor,
     node::{Node, NodeType, Side},
-    node_data::Size as TPSize,
     node_graph::{NodeId, SlotId},
 };
-use native_dialog::FileDialog;
 use rand::Rng;
 
 use add_tool::*;
@@ -189,12 +187,6 @@ impl Plugin for KanterPlugin {
                         delete
                             .system()
                             .with_run_criteria(State::on_update(ToolState::Delete))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        export
-                            .system()
-                            .with_run_criteria(State::on_enter(ToolState::Export))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
@@ -423,76 +415,6 @@ fn focus_change(
     if er_window_focused.iter().any(|event| !event.focused) {
         keyboard_input.clear();
     }
-}
-
-fn export(
-    tex_pro: Res<TextureProcessor>,
-    q_selected: Query<&NodeId, With<Selected>>,
-    mut tool_state: ResMut<State<ToolState>>,
-    mut keyboard_input: ResMut<ScanCodeInput>,
-) {
-    for node_id in q_selected.iter() {
-        let size: TPSize = match tex_pro.get_node_size(*node_id) {
-            Some(s) => s,
-            None => {
-                info!("Unable to get the size of the node");
-                continue;
-            }
-        };
-
-        let path = match FileDialog::new()
-            // .set_location("~/Desktop")
-            .add_filter("PNG Image", &["png"])
-            .show_save_single_file()
-        {
-            Ok(path) => path,
-            Err(e) => {
-                warn!("Unable to get export path: {:?}\n", e);
-                continue;
-            }
-        };
-
-        let path = match path {
-            Some(path) => path,
-            None => {
-                warn!("Invalid export path");
-                continue;
-            }
-        };
-
-        let texels = match tex_pro.get_output(*node_id) {
-            Ok(buf) => buf,
-            Err(e) => {
-                error!("Error when trying to get pixels from image: {:?}", e);
-                continue;
-            }
-        };
-
-        let buffer = match image::RgbaImage::from_vec(size.width, size.height, texels) {
-            None => {
-                error!("Output image buffer not big enough to contain texels.");
-                continue;
-            }
-            Some(buf) => buf,
-        };
-
-        match image::save_buffer(
-            &Path::new(&path),
-            &buffer,
-            size.width,
-            size.height,
-            image::ColorType::RGBA(8),
-        ) {
-            Ok(_) => info!("Image exported to {:?}", path),
-            Err(e) => {
-                error!("{}", e);
-                continue;
-            }
-        }
-    }
-
-    keyboard_input.clear();
-    tool_state.overwrite_replace(ToolState::None).unwrap();
 }
 
 fn quit_hotkey(input: Res<ScanCodeInput>, mut app_exit_events: EventWriter<AppExit>) {
