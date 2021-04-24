@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Stage, AmbiguitySet, Draggable, Dragged, Edge, Hoverable, Selected, Slot, THUMBNAIL_SIZE, Thumbnail, ToolState, stretch_between};
+use crate::{AmbiguitySet, Draggable, Dragged, Edge, Hoverable, Hovered, Selected, Slot, Stage, THUMBNAIL_SIZE, Thumbnail, stretch_between, workspace::Workspace};
 use bevy::prelude::*;
 use kanter_core::{dag::TextureProcessor, node::{Node, NodeType, Side}, node_graph::{NodeId, SlotId}};
 use rand::Rng;
@@ -35,6 +35,7 @@ fn sync_graph(
     q_edge: Query<Entity, With<Edge>>,
     q_slot: Query<(&Slot, &GlobalTransform)>,
     tex_pro: Res<TextureProcessor>,
+    workspace: Res<Workspace>,
 ) {
     if tex_pro.is_changed() {
         let tp_node_ids = tex_pro.node_graph.node_ids();
@@ -54,7 +55,7 @@ fn sync_graph(
         // Create gui nodes for any new nodes in the graph.
         for node_id in new_ids {
             let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
-            spawn_gui_node(&mut commands, &mut materials, &node);
+            spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
         }
 
         // Remove the gui nodes for any nodes that don't exist in the graph.
@@ -125,19 +126,21 @@ fn spawn_gui_node(
     commands: &mut Commands,
     materials: &mut ResMut<Assets<ColorMaterial>>,
     node: &Arc<Node>,
+    position: Vec2,
 ) {
     commands
         .spawn_bundle(SpriteBundle {
             material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
             sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
             transform: Transform::from_translation(Vec3::new(
-                0.,
-                0.,
+                position.x,
+                position.y,
                 rand::thread_rng().gen_range(0.0..9.0),
             )),
             ..Default::default()
         })
         .insert(Hoverable)
+        .insert(Hovered)
         .insert(Selected)
         .insert(Draggable)
         .insert(Dragged)

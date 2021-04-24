@@ -1,7 +1,7 @@
 /// Adding new nodes
 use crate::{
     scan_code_input::{ScanCode, ScanCodeInput},
-    workspace_drag_drop::{grab_tool_cleanup, grab_tool_node_setup},
+    drag_drop_entity::{grab_tool_cleanup, grab_tool_node_setup},
     AmbiguitySet, GrabToolType, Stage, ToolState,
 };
 use bevy::prelude::*;

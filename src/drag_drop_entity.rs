@@ -16,6 +16,7 @@ impl Plugin for WorkspaceDragDropPlugin {
             SystemSet::new()
                 .label(Stage::Update)
                 .after(Stage::Input)
+                // Node
                 .with_system(
                     grab_tool_node_setup
                         .system()
@@ -23,39 +24,40 @@ impl Plugin for WorkspaceDragDropPlugin {
                         .in_ambiguity_set(AmbiguitySet),
                 )
                 .with_system(
+                    grab_tool_update
+                    .system()
+                    .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
+                    .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    drag_node_update
+                    .system()
+                    .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
+                    .in_ambiguity_set(AmbiguitySet),
+                )
+                .with_system(
+                    grab_tool_cleanup
+                    .system()
+                    .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Node)))
+                    .in_ambiguity_set(AmbiguitySet),
+                )
+                // Slot
+                .with_system(
                     grab_tool_slot_setup
                         .system()
                         .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
                 )
                 .with_system(
-                    grab_tool_update
+                    spawn_grabbed_edges
                         .system()
-                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
+                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
                 )
                 .with_system(
                     grab_tool_update
                         .system()
                         .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
-                        .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(
-                    grab_tool_cleanup
-                        .system()
-                        .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Node)))
-                        .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(
-                    drag_node_update
-                        .system()
-                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
-                        .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(
-                    grab_tool_cleanup
-                        .system()
-                        .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
                 )
                 .with_system(
@@ -71,11 +73,11 @@ impl Plugin for WorkspaceDragDropPlugin {
                         .in_ambiguity_set(AmbiguitySet),
                 )
                 .with_system(
-                    spawn_grabbed_edges
+                    grab_tool_cleanup
                         .system()
-                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                        .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
-                ),
+                )
         )
         .add_system_set_to_stage(
             CoreStage::Update,
@@ -229,25 +231,18 @@ pub(crate) fn grab_tool_cleanup(mut commands: Commands, q_dragged: Query<Entity,
 /// Updates all dragged nodes.
 fn drag_node_update(
     mut commands: Commands,
-    mut qs_node: QuerySet<(
-        Query<
+    mut q_dragged_node: Query<
             (Entity, &mut Transform, &GlobalTransform),
             (Added<Dragged>, With<NodeId>, Without<Slot>),
         >,
-        Query<Entity, (Added<NodeId>, Without<Slot>)>,
-    )>,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
 ) {
-    let new_node_e: Vec<Entity> = qs_node.q1().iter().collect();
-    let q_dragged_node = qs_node.q0_mut();
-
     if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
         for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
-            if !new_node_e.contains(&entity) {
-                let global_pos = global_transform.translation - cursor_transform.translation;
-                transform.translation.x = global_pos.x;
-                transform.translation.y = global_pos.y;
-            }
+            let global_pos = global_transform.translation - cursor_transform.translation;
+            transform.translation.x = global_pos.x;
+            transform.translation.y = global_pos.y;
+            
             commands.entity(cursor_e).push_children(&[entity]);
         }
     }
