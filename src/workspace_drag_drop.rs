@@ -7,7 +7,7 @@ use crate::{
 use bevy::prelude::*;
 use kanter_core::{dag::TextureProcessor, node::Side, node_graph::NodeId};
 
-pub struct WorkspaceDragDropPlugin;
+pub(crate) struct WorkspaceDragDropPlugin;
 
 impl Plugin for WorkspaceDragDropPlugin {
     fn build(&self, app: &mut AppBuilder) {
@@ -76,6 +76,15 @@ impl Plugin for WorkspaceDragDropPlugin {
                         .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
                 ),
+        )
+        .add_system_set_to_stage(
+            CoreStage::Update,
+            SystemSet::new()
+                .label(Stage::Apply)
+                .after(Stage::Update)
+                .with_system(dropped_update.system())
+                .with_system(drag_node_update.system())
+                .with_system(update_edges.system())
         );
     }
 }
@@ -83,7 +92,7 @@ impl Plugin for WorkspaceDragDropPlugin {
 /// When an edge is dropped, this system updates the node graph based on where its dropped, and
 /// removes the edges.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn dropped_edge_update(
+fn dropped_edge_update(
     mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
     mut tex_pro: ResMut<TextureProcessor>,
@@ -153,7 +162,7 @@ pub(crate) fn dropped_edge_update(
 }
 
 /// Updates the visual of all dragged slots.
-pub(crate) fn grabbed_edge_update(
+fn grabbed_edge_update(
     mut q_edge: Query<(&mut Transform, &GrabbedEdge, &mut Sprite)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
 ) {
@@ -170,7 +179,7 @@ pub(crate) fn grabbed_edge_update(
 }
 
 /// Grab all selected slots.
-pub(crate) fn grab_tool_slot_setup(
+fn grab_tool_slot_setup(
     mut tool_state: ResMut<State<ToolState>>,
     mut commands: Commands,
     q_selected_slots: Query<Entity, (With<Slot>, With<Selected>)>,
@@ -200,7 +209,7 @@ pub(crate) fn grab_tool_node_setup(
 }
 
 /// Exit grab tool if mouse button is released.
-pub(crate) fn grab_tool_update(
+fn grab_tool_update(
     mut tool_state: ResMut<State<ToolState>>,
     i_mouse_button: Res<Input<MouseButton>>,
 ) {
@@ -218,7 +227,7 @@ pub(crate) fn grab_tool_cleanup(mut commands: Commands, q_dragged: Query<Entity,
 }
 
 /// Updates all dragged nodes.
-pub(crate) fn drag_node_update(
+fn drag_node_update(
     mut commands: Commands,
     mut qs_node: QuerySet<(
         Query<
@@ -235,7 +244,6 @@ pub(crate) fn drag_node_update(
     if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
         for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
             if !new_node_e.contains(&entity) {
-                dbg!(!new_node_e.contains(&entity));
                 let global_pos = global_transform.translation - cursor_transform.translation;
                 transform.translation.x = global_pos.x;
                 transform.translation.y = global_pos.y;
@@ -246,7 +254,7 @@ pub(crate) fn drag_node_update(
 }
 
 /// When a slot is grabbed this system creates its edge entity.
-pub(crate) fn spawn_grabbed_edges(
+fn spawn_grabbed_edges(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
     q_dragged_slot: Query<(&GlobalTransform, &Slot), Added<Dragged>>,
@@ -330,7 +338,7 @@ pub(crate) fn spawn_grabbed_edges(
 }
 
 /// When an entity gets the `Dropped` component, this system returns it to its un-dragged state.
-pub(crate) fn dropped_update(
+fn dropped_update(
     mut commands: Commands,
     mut q_dropped: Query<(Entity, Option<&Slot>), Added<Dropped>>,
 ) {
@@ -339,5 +347,35 @@ pub(crate) fn dropped_update(
             commands.entity(entity).remove::<Parent>();
         }
         commands.entity(entity).remove::<Dropped>();
+    }
+}
+
+fn update_edges(
+    q_node: Query<&NodeId, With<Dragged>>,
+    q_slot: Query<(&Slot, &GlobalTransform)>,
+    mut q_edge: Query<(&mut Sprite, &mut Transform, &Edge)>,
+) {
+    for node_id in q_node.iter() {
+        for (mut sprite, mut transform, edge) in q_edge.iter_mut().filter(|(_, _, edge)| {
+            edge.input_slot.node_id == *node_id || edge.output_slot.node_id == *node_id
+        }) {
+            let (mut start, mut end) = (Vec2::ZERO, Vec2::ZERO);
+
+            for (slot, slot_t) in q_slot.iter() {
+                if slot.node_id == edge.output_slot.node_id
+                    && slot.slot_id == edge.output_slot.slot_id
+                    && slot.side == edge.output_slot.side
+                {
+                    start = slot_t.translation.truncate();
+                } else if slot.node_id == edge.input_slot.node_id
+                    && slot.slot_id == edge.input_slot.slot_id
+                    && slot.side == edge.input_slot.side
+                {
+                    end = slot_t.translation.truncate();
+                }
+            }
+
+            stretch_between(&mut sprite, &mut transform, start, end);
+        }
     }
 }

@@ -6,19 +6,18 @@ pub mod mouse_interaction;
 pub mod processing;
 pub mod scan_code_input;
 pub mod workspace_drag_drop;
-
-use std::sync::Arc;
+pub mod workspace;
+pub mod material;
+pub mod sync_graph;
 
 use bevy::{
-    app::AppExit, audio::AudioPlugin, input::mouse::MouseMotion, prelude::*, window::WindowFocused,
+    app::AppExit, audio::AudioPlugin, prelude::*, window::WindowFocused,
 };
 use kanter_core::{
     dag::TextureProcessor,
-    node::{Node, NodeType, Side},
+    node::Side,
     node_graph::{NodeId, SlotId},
 };
-use rand::Rng;
-
 use add_tool::*;
 use box_select::*;
 use camera::*;
@@ -26,6 +25,9 @@ use mouse_interaction::*;
 use processing::*;
 use scan_code_input::*;
 use workspace_drag_drop::*;
+use workspace::*;
+use material::*;
+use sync_graph::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum GrabToolType {
@@ -67,29 +69,6 @@ fn main() {
         .run();
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum Drag {
-    False,
-    Starting,
-    True,
-    Dropping,
-}
-
-impl Default for Drag {
-    fn default() -> Self {
-        Drag::False
-    }
-}
-
-#[derive(Default)]
-struct Workspace {
-    cursor_screen: Vec2,
-    cursor_world: Vec2,
-    cursor_delta: Vec2,
-    cursor_moved: bool,
-    drag: Drag,
-}
-
 struct Crosshair;
 struct Instructions;
 struct Thumbnail;
@@ -125,16 +104,8 @@ struct Edge {
     input_slot: Slot,
 }
 
-const DRAG_THRESHOLD: f32 = 5.;
 pub(crate) const CAMERA_DISTANCE: f32 = 10.;
-const SMALLEST_DEPTH_UNIT: f32 = f32::EPSILON * 500.;
-
 pub(crate) const THUMBNAIL_SIZE: f32 = 128.;
-const SLOT_SIZE: f32 = 30.;
-const SLOT_MARGIN: f32 = 2.;
-const SLOT_DISTANCE_X: f32 = THUMBNAIL_SIZE / 2. + SLOT_SIZE / 2. + SLOT_MARGIN;
-const NODE_SIZE: f32 = THUMBNAIL_SIZE + SLOT_SIZE * 2. + SLOT_MARGIN * 2.;
-const SLOT_DISTANCE_Y: f32 = 32. + SLOT_MARGIN;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum Stage {
@@ -150,9 +121,7 @@ pub struct KanterPlugin;
 
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.insert_non_send_resource(TextureProcessor::new())
-            .insert_resource(Workspace::default())
-            .add_state(ToolState::None)
+        app.add_state(ToolState::None)
             .add_state(FirstPersonState::Off)
             .add_plugin(ScanCodeInputPlugin)
             .add_plugin(AddToolPlugin)
@@ -161,11 +130,10 @@ impl Plugin for KanterPlugin {
             .add_plugin(MouseInteractionPlugin)
             .add_plugin(BoxSelectPlugin)
             .add_plugin(CameraPlugin)
+            .add_plugin(WorkspacePlugin)
+            .add_plugin(MaterialPlugin)
+            .add_plugin(SyncGraphPlugin)
             .add_startup_system(setup.system())
-            .add_system_set_to_stage(
-                CoreStage::PreUpdate,
-                SystemSet::new().with_system(workspace.system()),
-            )
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
@@ -198,20 +166,13 @@ impl Plugin for KanterPlugin {
                     .label(Stage::Apply)
                     .after(Stage::Update)
                     .with_system(deselect.system())
-                    .with_system(dropped_update.system())
-                    .with_system(update_instructions.system())
-                    .with_system(
-                        sync_graph
-                            .system()
-                            .chain(drag_node_update.system())
-                            .chain(update_edges.system())
-                            .chain(material.system()),
-                    ),
+                    .with_system(update_instructions.system()),
             )
             .add_system_set_to_stage(
                 CoreStage::PostUpdate,
                 SystemSet::new().with_system(quit_hotkey.system()),
-            );
+            )
+            ;
     }
 }
 
@@ -287,58 +248,6 @@ fn setup(
                 })
                 .insert(Instructions);
         });
-}
-
-fn workspace(
-    mut er_mouse_motion: EventReader<MouseMotion>,
-    mut er_cursor_moved: EventReader<CursorMoved>,
-    windows: Res<Windows>,
-    mut workspace: ResMut<Workspace>,
-    i_mouse_button: Res<Input<MouseButton>>,
-    q_camera: Query<&Transform, With<WorkspaceCamera>>,
-    mut true_cursor_world: Local<Vec2>,
-) {
-    let mut event_cursor_delta: Vec2 = Vec2::ZERO;
-    for event_motion in er_mouse_motion.iter() {
-        event_cursor_delta += event_motion.delta;
-    }
-    let event_cursor_screen = er_cursor_moved.iter().last();
-
-    if let Some(event_cursor_screen) = event_cursor_screen {
-        workspace.cursor_screen = event_cursor_screen.position;
-
-        let window = windows.get_primary().unwrap();
-        let cam_transform = q_camera.iter().last().unwrap();
-
-        *true_cursor_world = cursor_to_world(window, cam_transform, event_cursor_screen.position);
-
-        workspace.cursor_moved = true;
-    } else {
-        workspace.cursor_moved = false;
-    }
-
-    workspace.cursor_delta = event_cursor_delta;
-
-    if !i_mouse_button.pressed(MouseButton::Left) || workspace.drag == Drag::True {
-        workspace.cursor_world = *true_cursor_world;
-    }
-
-    if workspace.drag == Drag::Dropping {
-        workspace.drag = Drag::False;
-    } else if workspace.drag == Drag::Starting {
-        workspace.drag = Drag::True;
-    }
-
-    if i_mouse_button.just_released(MouseButton::Left) && workspace.drag == Drag::True {
-        workspace.drag = Drag::Dropping;
-    }
-
-    if i_mouse_button.pressed(MouseButton::Left)
-        && true_cursor_world.distance(workspace.cursor_world) > DRAG_THRESHOLD
-        && workspace.drag == Drag::False
-    {
-        workspace.drag = Drag::Starting;
-    }
 }
 
 const START_INSTRUCT: &str = &"Shift A: Add node";
@@ -509,209 +418,6 @@ fn delete(
     tool_state.overwrite_replace(ToolState::None).unwrap();
 }
 
-fn update_edges(
-    q_node: Query<&NodeId, With<Dragged>>,
-    q_slot: Query<(&Slot, &GlobalTransform)>,
-    mut q_edge: Query<(&mut Sprite, &mut Transform, &Edge)>,
-) {
-    for node_id in q_node.iter() {
-        for (mut sprite, mut transform, edge) in q_edge.iter_mut().filter(|(_, _, edge)| {
-            edge.input_slot.node_id == *node_id || edge.output_slot.node_id == *node_id
-        }) {
-            let (mut start, mut end) = (Vec2::ZERO, Vec2::ZERO);
-
-            for (slot, slot_t) in q_slot.iter() {
-                if slot.node_id == edge.output_slot.node_id
-                    && slot.slot_id == edge.output_slot.slot_id
-                    && slot.side == edge.output_slot.side
-                {
-                    start = slot_t.translation.truncate();
-                } else if slot.node_id == edge.input_slot.node_id
-                    && slot.slot_id == edge.input_slot.slot_id
-                    && slot.side == edge.input_slot.side
-                {
-                    end = slot_t.translation.truncate();
-                }
-            }
-
-            stretch_between(&mut sprite, &mut transform, start, end);
-        }
-    }
-}
-
-fn spawn_gui_node(
-    commands: &mut Commands,
-    materials: &mut ResMut<Assets<ColorMaterial>>,
-    node: &Arc<Node>,
-) {
-    commands
-        .spawn_bundle(SpriteBundle {
-            material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
-            sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
-            transform: Transform::from_translation(Vec3::new(
-                0.,
-                0.,
-                rand::thread_rng().gen_range(0.0..9.0),
-            )),
-            ..Default::default()
-        })
-        .insert(Hoverable)
-        .insert(Selected)
-        .insert(Draggable)
-        .insert(Dragged)
-        .insert(node.node_id)
-        .with_children(|parent| {
-            parent
-                .spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(0.0, 0.0, 0.0).into()),
-                    sprite: Sprite::new(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
-                    transform: Transform::from_translation(Vec3::new(0., 0., SMALLEST_DEPTH_UNIT)),
-                    ..Default::default()
-                })
-                .insert(Thumbnail);
-            for i in 0..node.capacity(Side::Input) {
-                parent
-                    .spawn_bundle(SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                        transform: Transform::from_translation(Vec3::new(
-                            -SLOT_DISTANCE_X,
-                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
-                            SMALLEST_DEPTH_UNIT,
-                        )),
-                        ..Default::default()
-                    })
-                    .insert(Hoverable)
-                    .insert(Draggable)
-                    .insert(Slot {
-                        node_id: node.node_id,
-                        side: Side::Input,
-                        slot_id: SlotId(i as u32),
-                    })
-                    .id();
-            }
-
-            for i in 0..node.capacity(Side::Output) {
-                if node.node_type == NodeType::OutputRgba || node.node_type == NodeType::OutputGray
-                {
-                    break;
-                }
-                parent
-                    .spawn_bundle(SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                        transform: Transform::from_translation(Vec3::new(
-                            SLOT_DISTANCE_X,
-                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
-                            SMALLEST_DEPTH_UNIT,
-                        )),
-                        ..Default::default()
-                    })
-                    .insert(Hoverable)
-                    .insert(Draggable)
-                    .insert(Slot {
-                        node_id: node.node_id,
-                        side: Side::Output,
-                        slot_id: SlotId(i as u32),
-                    })
-                    .id();
-            }
-        });
-}
-
-fn sync_graph(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    q_node_id: Query<(Entity, &NodeId)>,
-    q_edge: Query<Entity, With<Edge>>,
-    q_slot: Query<(&Slot, &GlobalTransform)>,
-    tex_pro: Res<TextureProcessor>,
-) {
-    if tex_pro.is_changed() {
-        let tp_node_ids = tex_pro.node_graph.node_ids();
-        let existing_gui_node_ids: Vec<NodeId> =
-            q_node_id.iter().map(|(_, node_id)| *node_id).collect();
-        let new_ids: Vec<NodeId> = tp_node_ids
-            .iter()
-            .filter(|tp_node_id| !existing_gui_node_ids.contains(tp_node_id))
-            .copied()
-            .collect();
-        let removed_ids: Vec<NodeId> = existing_gui_node_ids
-            .iter()
-            .filter(|gui_node_id| !tp_node_ids.contains(gui_node_id))
-            .copied()
-            .collect();
-
-        // Create gui nodes for any new nodes in the graph.
-        for node_id in new_ids {
-            let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
-            spawn_gui_node(&mut commands, &mut materials, &node);
-        }
-
-        // Remove the gui nodes for any nodes that don't exist in the graph.
-        for (node_e, _) in q_node_id
-            .iter()
-            .filter(|(_, node_id)| removed_ids.contains(node_id))
-        {
-            commands.entity(node_e).despawn_recursive();
-        }
-
-        // Remove all edges so we can create new ones. This should be optimized to move
-        // existing edges.
-        for edge_e in q_edge.iter() {
-            commands.entity(edge_e).despawn_recursive();
-        }
-
-        for edge in tex_pro.node_graph.edges.iter() {
-            let output_slot = Slot {
-                node_id: edge.output_id,
-                side: Side::Output,
-                slot_id: edge.output_slot,
-            };
-            let input_slot = Slot {
-                node_id: edge.input_id,
-                side: Side::Input,
-                slot_id: edge.input_slot,
-            };
-            let mut start = Vec2::ZERO;
-            let mut end = Vec2::ZERO;
-
-            for (slot, slot_t) in q_slot.iter() {
-                if slot.node_id == output_slot.node_id
-                    && slot.slot_id == output_slot.slot_id
-                    && slot.side == output_slot.side
-                {
-                    start = slot_t.translation.truncate();
-                } else if slot.node_id == input_slot.node_id
-                    && slot.slot_id == input_slot.slot_id
-                    && slot.side == input_slot.side
-                {
-                    end = slot_t.translation.truncate();
-                }
-            }
-
-            let mut sprite = Sprite::new(Vec2::new(5., 5.));
-            let mut transform = Transform::default();
-
-            stretch_between(&mut sprite, &mut transform, start, end);
-
-            commands
-                .spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(0., 0., 0.).into()),
-                    sprite,
-                    transform,
-                    ..Default::default()
-                })
-                .insert(Edge {
-                    input_slot,
-                    output_slot,
-                    start,
-                    end,
-                });
-        }
-    }
-}
-
 fn hoverable(
     mut commands: Commands,
     workspace: Res<Workspace>,
@@ -739,83 +445,6 @@ fn box_contains_point(box_pos: Vec2, box_size: Vec2, point: Vec2) -> bool {
         && box_pos.x + half_size.x > point.x
         && box_pos.y - half_size.y < point.y
         && box_pos.y + half_size.y > point.y
-}
-
-fn material(
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    q_node: Query<
-        (
-            &Handle<ColorMaterial>,
-            Option<&Hovered>,
-            Option<&Selected>,
-            Option<&Dragged>,
-        ),
-        With<NodeId>,
-    >,
-    q_slot: Query<
-        (
-            &Handle<ColorMaterial>,
-            Option<&Hovered>,
-            Option<&Selected>,
-            Option<&Dragged>,
-        ),
-        With<Slot>,
-    >,
-) {
-    for (material, hovered, selected, dragged) in q_node.iter() {
-        if let Some(material) = materials.get_mut(material) {
-            let value = if dragged.is_some() {
-                0.9
-            } else if selected.is_some() {
-                0.75
-            } else if hovered.is_some() {
-                0.6
-            } else {
-                0.4
-            };
-
-            material.color = Color::Rgba {
-                red: value,
-                green: value,
-                blue: value,
-                alpha: 1.0,
-            };
-        }
-    }
-
-    for (material, hovered, selected, dragged) in q_slot.iter() {
-        if let Some(material) = materials.get_mut(material) {
-            let value = if dragged.is_some() {
-                0.0
-            } else if selected.is_some() {
-                0.2
-            } else if hovered.is_some() {
-                0.5
-            } else {
-                0.3
-            };
-
-            material.color = Color::Rgba {
-                red: value,
-                green: value,
-                blue: value,
-                alpha: 1.0,
-            };
-        }
-    }
-}
-
-fn cursor_to_world(window: &Window, cam_transform: &Transform, cursor_pos: Vec2) -> Vec2 {
-    // get the size of the window
-    let size = Vec2::new(window.width() as f32, window.height() as f32);
-
-    // the default orthographic projection is in pixels from the center;
-    // just undo the translation
-    let screen_pos = cursor_pos - size / 2.0;
-
-    // apply the camera transform
-    let out = cam_transform.compute_matrix() * screen_pos.extend(0.0).extend(1.0);
-    Vec2::new(out.x, out.y)
 }
 
 fn stretch_between(sprite: &mut Sprite, transform: &mut Transform, start: Vec2, end: Vec2) {
