@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Ability to delete selected nodes with X
 - Drag on empty space to box select
 
+### Changed
+- First person hotkey from (Shift `) to just (`)
+- Middle mouse pan freezes cursor for infinite movement
+
 ### Fixed
 - Fixed janky export hotkey on Linux (Shift Alt S)
 
