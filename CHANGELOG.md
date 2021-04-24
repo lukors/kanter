@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - First person hotkey from `` Shift ` `` to just `` ` `` (the tilde `~` key)
+- Moving things around with drag and drop is now a bit nicer
 
 ### Fixed
 - File dialogs should work properly on Windows now
