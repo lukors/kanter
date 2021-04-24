@@ -1,5 +1,5 @@
 /// Adding new nodes
-use crate::{AmbiguitySet, Stage, ToolState, scan_code_input::{ScanCode, ScanCodeInput}, workspace_drag_drop::{grab_tool_cleanup, grab_tool_node_setup, grab_tool_update}};
+use crate::{AmbiguitySet, GrabToolType, Stage, ToolState, scan_code_input::{ScanCode, ScanCodeInput}, workspace_drag_drop::{grab_tool_cleanup, grab_tool_node_setup}};
 use bevy::prelude::*;
 use kanter_core::{
     dag::TextureProcessor,
@@ -25,19 +25,19 @@ impl Plugin for AddToolPlugin {
                     .with_system(
                         grab_tool_node_setup
                             .system()
-                            .with_run_criteria(State::on_enter(ToolState::GrabAdd))
+                            .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Add)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_tool_add_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::GrabAdd))
+                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Add)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_tool_cleanup
                             .system()
-                            .with_run_criteria(State::on_exit(ToolState::GrabAdd))
+                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Add)))
                             .in_ambiguity_set(AmbiguitySet),
                     ),
             );
@@ -102,7 +102,7 @@ pub(crate) fn add_update(
         }
 
         if done {
-            tool_state.overwrite_replace(ToolState::GrabAdd).unwrap();
+            tool_state.overwrite_replace(ToolState::Grab(GrabToolType::Add)).unwrap();
             break;
         }
     }

@@ -29,15 +29,20 @@ use scan_code_input::*;
 use workspace_drag_drop::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum GrabToolType {
+    Add,
+    Node,
+    Slot,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ToolState {
     None,
     Add,
     BoxSelect,
     Delete,
     Export,
-    GrabNode,
-    GrabSlot,
-    GrabAdd,
+    Grab(GrabToolType),
     Process,
 }
 
@@ -222,61 +227,61 @@ impl Plugin for KanterPlugin {
                         // # Mouse interaction
                         grab_tool_node_setup
                             .system()
-                            .with_run_criteria(State::on_enter(ToolState::GrabNode))
+                            .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Node)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_tool_slot_setup
                             .system()
-                            .with_run_criteria(State::on_enter(ToolState::GrabSlot))
+                            .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Slot)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_tool_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::GrabNode))
+                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_tool_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::GrabSlot))
+                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_tool_cleanup
                             .system()
-                            .with_run_criteria(State::on_exit(ToolState::GrabNode))
+                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Node)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         drag_node_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::GrabNode))
+                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grab_tool_cleanup
                             .system()
-                            .with_run_criteria(State::on_exit(ToolState::GrabSlot))
+                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Slot)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         grabbed_edge_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::GrabSlot))
+                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         dropped_edge_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::GrabSlot))
+                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         spawn_grabbed_edges
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::GrabSlot))
+                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
@@ -505,7 +510,13 @@ fn update_instructions(
             let tool = match tool_state.current() {
                 ToolState::None => format!("{}\n{}", START_INSTRUCT, none_instruct),
                 ToolState::Add => ADD_INSTRUCT.to_string(),
-                ToolState::GrabNode => "LMB: Confirm".to_string(),
+                ToolState::Grab(gtt) => {
+                    if *gtt == GrabToolType::Node || *gtt == GrabToolType::Add {
+                        "LMB: Confirm".to_string()
+                    } else {
+                        return;
+                    }
+                }
                 _ => return,
             };
 
@@ -701,7 +712,7 @@ fn hotkeys(
                         None
                     }
                 }
-                ScanCode::KeyG => Some(tool_state.set(ToolState::GrabNode)),
+                ScanCode::KeyG => Some(tool_state.set(ToolState::Grab(GrabToolType::Node))),
                 ScanCode::KeyS => {
                     if alt_pressed(&sc_input) && shift_pressed(&sc_input) {
                         Some(tool_state.set(ToolState::Export))

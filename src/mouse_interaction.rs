@@ -1,5 +1,5 @@
 /// All workspace mouse interaction.
-use crate::{Drag, Dropped, Hovered, Selected, Slot, ToolState, Workspace, WorkspaceCamera};
+use crate::{Drag, Dropped, GrabToolType, Hovered, Selected, Slot, ToolState, Workspace, WorkspaceCamera};
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
 
@@ -41,7 +41,7 @@ pub(crate) fn mouse_interaction(
                 commands.entity(entity).remove::<Selected>();
             }
             commands.entity(entity).insert(Selected);
-            tool_state.overwrite_replace(ToolState::GrabSlot).unwrap();
+            tool_state.overwrite_replace(ToolState::Grab(GrabToolType::Slot)).unwrap();
         }
     } else if let Some(entity) = q_hovered_node.iter().next() {
         // Node
@@ -52,14 +52,14 @@ pub(crate) fn mouse_interaction(
             // Drag on node
             let some_hovered_selected_node = q_hovered_selected_node.iter().count() > 0;
             if some_hovered_selected_node {
-                tool_state.overwrite_replace(ToolState::GrabNode).unwrap();
+                tool_state.overwrite_replace(ToolState::Grab(GrabToolType::Node)).unwrap();
             } else {
                 for entity in q_selected_node.iter() {
                     commands.entity(entity).remove::<Selected>();
                 }
 
                 commands.entity(entity).insert(Selected);
-                tool_state.overwrite_replace(ToolState::GrabNode).unwrap();
+                tool_state.overwrite_replace(ToolState::Grab(GrabToolType::Node)).unwrap();
             }
         }
     } else if workspace.drag == Drag::Starting {
