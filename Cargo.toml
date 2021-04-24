@@ -1,6 +1,6 @@
 [package]
 name = "kanter"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Lukas Orsvärn <lukas@orsvarn.com>"]
 edition = "2018"
 
