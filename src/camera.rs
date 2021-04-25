@@ -25,7 +25,8 @@ pub(crate) struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system())
+        app.add_state(FirstPersonState::Off)
+            .add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()

@@ -1,18 +1,4 @@
-use crate::box_select::*;
-use crate::camera::*;
-use crate::delete_tool::*;
-use crate::deselect_tool::*;
-use crate::drag_drop_entity::*;
-use crate::hotkeys::*;
-use crate::hoverable::*;
-use crate::instruction::*;
-use crate::material::*;
-use crate::mouse_interaction::*;
-use crate::processing::*;
-use crate::scan_code_input::*;
-use crate::sync_graph::*;
-use crate::workspace::*;
-use crate::{add_tool::*, ToolState};
+use crate::ToolState;
 use bevy::prelude::*;
 
 pub(crate) struct KanterPlugin;
@@ -20,21 +6,21 @@ pub(crate) struct KanterPlugin;
 impl Plugin for KanterPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_state(ToolState::None)
-            .add_state(FirstPersonState::Off)
-            .add_plugin(ScanCodeInputPlugin)
-            .add_plugin(AddToolPlugin)
-            .add_plugin(WorkspaceDragDropPlugin)
-            .add_plugin(ProcessingPlugin)
-            .add_plugin(MouseInteractionPlugin)
-            .add_plugin(BoxSelectPlugin)
-            .add_plugin(CameraPlugin)
-            .add_plugin(WorkspacePlugin)
-            .add_plugin(MaterialPlugin)
-            .add_plugin(SyncGraphPlugin)
-            .add_plugin(InstructionPlugin)
-            .add_plugin(DeselectToolPlugin)
-            .add_plugin(DeleteToolPlugin)
-            .add_plugin(HotkeysPlugin)
-            .add_plugin(HoverablePlugin);
+            .add_plugin(crate::scan_code_input::ScanCodeInputPlugin)
+            .add_plugin(crate::add_tool::AddToolPlugin)
+            .add_plugin(crate::drag_drop_entity::WorkspaceDragDropPlugin)
+            .add_plugin(crate::processing::ProcessingPlugin)
+            .add_plugin(crate::mouse_interaction::MouseInteractionPlugin)
+            .add_plugin(crate::box_select::BoxSelectPlugin)
+            .add_plugin(crate::camera::CameraPlugin)
+            .add_plugin(crate::workspace::WorkspacePlugin)
+            .add_plugin(crate::material::MaterialPlugin)
+            .add_plugin(crate::sync_graph::SyncGraphPlugin)
+            .add_plugin(crate::instruction::InstructionPlugin)
+            .add_plugin(crate::deselect_tool::DeselectToolPlugin)
+            .add_plugin(crate::delete_tool::DeleteToolPlugin)
+            .add_plugin(crate::hotkeys::HotkeysPlugin)
+            .add_plugin(crate::hoverable::HoverablePlugin)
+            .add_plugin(crate::edit_node::EditNodePlugin);
     }
 }
