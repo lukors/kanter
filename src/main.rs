@@ -5,6 +5,7 @@ pub mod camera;
 pub mod delete_tool;
 pub mod deselect_tool;
 pub mod drag_drop_entity;
+pub mod edit_node;
 pub mod hotkeys;
 pub mod hoverable;
 pub mod instruction;
@@ -15,7 +16,6 @@ pub mod processing;
 pub mod scan_code_input;
 pub mod sync_graph;
 pub mod workspace;
-pub mod edit_node;
 
 use bevy::{audio::AudioPlugin, prelude::*};
 use camera::*;
@@ -23,6 +23,7 @@ use drag_drop_entity::*;
 use hotkeys::*;
 use hoverable::*;
 use kanter::*;
+use mouse_interaction::Selected;
 use processing::*;
 use sync_graph::*;
 use workspace::*;
@@ -50,6 +51,7 @@ pub(crate) enum ToolState {
     Add,
     BoxSelect,
     Delete,
+    EditNode,
     Export,
     Grab(GrabToolType),
     Process,
@@ -60,7 +62,6 @@ impl Default for ToolState {
         Self::None
     }
 }
-pub(crate) struct Selected;
 
 fn main() {
     App::build()

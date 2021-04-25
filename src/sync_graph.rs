@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     workspace::Workspace, AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
     Thumbnail, THUMBNAIL_SIZE,
@@ -146,7 +144,7 @@ fn sync_graph(
 fn spawn_gui_node(
     commands: &mut Commands,
     materials: &mut ResMut<Assets<ColorMaterial>>,
-    node: &Arc<Node>,
+    node: &Node,
     position: Vec2,
 ) {
     commands

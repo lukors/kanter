@@ -40,15 +40,23 @@ fn quit_hotkey(input: Res<ScanCodeInput>, mut app_exit_events: EventWriter<AppEx
     }
 }
 
-pub(crate) fn control_pressed(scan_code_input: &Res<ScanCodeInput>) -> bool {
+pub(crate) fn control_pressed(scan_code_input: &ScanCodeInput) -> bool {
     scan_code_input.pressed(ScanCode::ControlLeft)
         || scan_code_input.pressed(ScanCode::ControlRight)
 }
-fn shift_pressed(scan_code_input: &Res<ScanCodeInput>) -> bool {
+fn shift_pressed(scan_code_input: &ScanCodeInput) -> bool {
     scan_code_input.pressed(ScanCode::ShiftLeft) || scan_code_input.pressed(ScanCode::ShiftRight)
 }
-fn alt_pressed(scan_code_input: &Res<ScanCodeInput>) -> bool {
+fn alt_pressed(scan_code_input: &ScanCodeInput) -> bool {
     scan_code_input.pressed(ScanCode::AltLeft) || scan_code_input.pressed(ScanCode::AltRight)
+}
+
+fn cancel_just_pressed(
+    scan_code_input: &ScanCodeInput,
+    i_mouse_button: &Input<MouseButton>,
+) -> bool {
+    scan_code_input.just_pressed(ScanCode::Escape)
+        || i_mouse_button.just_pressed(MouseButton::Right)
 }
 
 #[allow(dead_code)]
@@ -62,7 +70,7 @@ fn hotkeys(
     mut first_person_state: ResMut<State<FirstPersonState>>,
     mut tool_state: ResMut<State<ToolState>>,
     i_mouse_button: Res<Input<MouseButton>>,
-    sc_input: Res<ScanCodeInput>,
+    mut sc_input: ResMut<ScanCodeInput>,
 ) {
     if sc_input.just_pressed(ScanCode::Backquote) {
         if *first_person_state.current() == FirstPersonState::Off {
@@ -74,9 +82,10 @@ fn hotkeys(
 
     let tool_current = tool_state.current().clone();
 
+    let mut just_released_scan_code = Vec::new();
     if tool_current == ToolState::None {
-        for key_code in sc_input.get_just_pressed() {
-            let new_tool = match key_code {
+        for scan_code in sc_input.get_just_released() {
+            let new_tool = match scan_code {
                 ScanCode::Delete | ScanCode::KeyX => Some(tool_state.set(ToolState::Delete)),
                 ScanCode::F12 => Some(tool_state.set(ToolState::Process)),
                 ScanCode::KeyA => {
@@ -94,10 +103,12 @@ fn hotkeys(
                         None
                     }
                 }
+                ScanCode::Tab => Some(tool_state.set(ToolState::EditNode)),
                 _ => None,
             };
 
             if let Some(new_tool) = new_tool {
+                just_released_scan_code.push(*scan_code);
                 new_tool.unwrap();
                 break;
             }
@@ -105,12 +116,8 @@ fn hotkeys(
     } else if cancel_just_pressed(&sc_input, &i_mouse_button) && tool_current != ToolState::None {
         tool_state.overwrite_replace(ToolState::None).unwrap();
     }
-}
 
-fn cancel_just_pressed(
-    scan_code_input: &Res<ScanCodeInput>,
-    i_mouse_button: &Res<Input<MouseButton>>,
-) -> bool {
-    scan_code_input.just_pressed(ScanCode::Escape)
-        || i_mouse_button.just_pressed(MouseButton::Right)
+    for scan_code in just_released_scan_code {
+        sc_input.clear_just_released(scan_code);
+    }
 }

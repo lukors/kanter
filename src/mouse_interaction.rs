@@ -1,10 +1,12 @@
 /// All workspace mouse interaction.
 use crate::{
-    AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Selected, Slot, Stage, ToolState, Workspace,
+    AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Slot, Stage, ToolState, Workspace,
 };
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
 
+pub(crate) struct Active;
+pub(crate) struct Selected;
 pub(crate) struct MouseInteractionPlugin;
 
 impl Plugin for MouseInteractionPlugin {
@@ -36,6 +38,7 @@ fn mouse_interaction(
     q_hovered_slot: Query<Entity, (With<Slot>, With<Hovered>)>,
     q_selected_slot: Query<Entity, (With<Slot>, With<Selected>)>,
     q_selected: Query<Entity, With<Selected>>,
+    q_active: Query<Entity, With<Active>>,
     q_dropped: Query<&Dropped>,
     workspace: Res<Workspace>,
 ) {
@@ -49,6 +52,9 @@ fn mouse_interaction(
         for entity in q_selected.iter() {
             commands.entity(entity).remove::<Selected>();
         }
+        for entity in q_active.iter() {
+            commands.entity(entity).remove::<Active>();
+        }
     }
 
     if let Some(entity) = q_hovered_slot.iter().next() {
@@ -56,6 +62,7 @@ fn mouse_interaction(
         if single_click {
             // Select the one slot
             commands.entity(entity).insert(Selected);
+            commands.entity(entity).insert(Active);
         } else if workspace.drag == Drag::Starting {
             // Drag on slot
             for entity in q_selected_slot.iter() {
@@ -71,6 +78,7 @@ fn mouse_interaction(
         if single_click {
             // Select the one node
             commands.entity(entity).insert(Selected);
+            commands.entity(entity).insert(Active);
         } else if workspace.drag == Drag::Starting {
             // Drag on node
             let some_hovered_selected_node = q_hovered_selected_node.iter().count() > 0;

@@ -107,6 +107,38 @@ impl ScanCode {
             _ => ScanCode::try_from(code).ok(),
         }
     }
+
+    pub fn is_number(&self) -> bool {
+        match self {
+            Self::Digit1
+            | Self::Digit2
+            | Self::Digit3
+            | Self::Digit4
+            | Self::Digit5
+            | Self::Digit6
+            | Self::Digit7
+            | Self::Digit8
+            | Self::Digit9
+            | Self::Digit0 => true,
+            _ => false,
+        }
+    }
+
+    pub fn to_usize(&self) -> Option<usize> {
+        match self {
+            Self::Digit1 => Some(1),
+            Self::Digit2 => Some(2),
+            Self::Digit3 => Some(3),
+            Self::Digit4 => Some(4),
+            Self::Digit5 => Some(5),
+            Self::Digit6 => Some(6),
+            Self::Digit7 => Some(7),
+            Self::Digit8 => Some(8),
+            Self::Digit9 => Some(9),
+            Self::Digit0 => Some(0),
+            _ => None,
+        }
+    }
 }
 
 pub struct ScanCodeInputPlugin;
