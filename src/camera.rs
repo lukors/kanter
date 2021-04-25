@@ -1,5 +1,5 @@
 /// Box select tool
-use crate::{AmbiguitySet, Stage, Workspace};
+use crate::{instruction::*, AmbiguitySet, Stage, Workspace};
 use bevy::{prelude::*, window::WindowFocused};
 
 pub(crate) const CAMERA_DISTANCE: f32 = 10.;
@@ -66,10 +66,13 @@ impl Plugin for CameraPlugin {
 }
 
 fn setup(
+    mut instructions: ResMut<Instructions>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
+    instructions.insert(InstructId::FirstPerson, first_person_instruct(false));
+
     let crosshair_image = asset_server.load("crosshair.png");
 
     commands
@@ -139,13 +142,23 @@ fn first_person_off_update(
     }
 }
 
+fn first_person_instruct(on: bool) -> String {
+    const TEXT: &str = &"`: First person - ";
+    let setting = if on { &"On" } else { &"Off" };
+
+    format!("{}{}\n\n", TEXT, setting)
+}
+
 fn first_person_on_setup(
+    mut instruction_list: ResMut<Instructions>,
     mut windows: ResMut<Windows>,
     mut q_camera: Query<Entity, With<WorkspaceCameraAnchor>>,
     mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
     mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
     mut commands: Commands,
 ) {
+    instruction_list.insert(InstructId::FirstPerson, first_person_instruct(true));
+
     let window = windows.get_primary_mut().unwrap();
     window.set_cursor_visibility(false);
 
@@ -163,11 +176,14 @@ fn first_person_on_setup(
 }
 
 fn first_person_on_cleanup(
+    mut instructions: ResMut<Instructions>,
     mut windows: ResMut<Windows>,
     mut q_cursor: Query<Entity, With<Cursor>>,
     mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
     mut commands: Commands,
 ) {
+    instructions.insert(InstructId::FirstPerson, first_person_instruct(false));
+
     let window = windows.get_primary_mut().unwrap();
     window.set_cursor_visibility(true);
 

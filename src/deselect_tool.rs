@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
+    instruction::ToolList,
     scan_code_input::{ScanCode, ScanCodeInput},
     Selected, Stage,
 };
@@ -9,11 +10,15 @@ pub(crate) struct DeselectToolPlugin;
 
 impl Plugin for DeselectToolPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system_to_stage(
+        app.add_startup_system(setup.system()).add_system_to_stage(
             CoreStage::Update,
             deselect.system().label(Stage::Apply).after(Stage::Update),
         );
     }
+}
+
+fn setup(mut tool_list: ResMut<ToolList>) {
+    tool_list.insert("A: Deselect all".to_string());
 }
 
 /// This function should be turned into a tool and the hotkey should live in the hotkey system.

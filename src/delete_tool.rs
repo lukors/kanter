@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 use kanter_core::{dag::TextureProcessor, node_graph::NodeId};
 
-use crate::{AmbiguitySet, Selected, Stage, ToolState};
+use crate::{instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState};
 
 pub(crate) struct DeleteToolPlugin;
 
 impl Plugin for DeleteToolPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system_to_stage(
+        app.add_startup_system(setup.system()).add_system_to_stage(
             CoreStage::Update,
             delete
                 .system()
@@ -17,6 +17,10 @@ impl Plugin for DeleteToolPlugin {
                 .in_ambiguity_set(AmbiguitySet),
         );
     }
+}
+
+fn setup(mut tool_list: ResMut<ToolList>) {
+    tool_list.insert("X: Delete node".to_string());
 }
 
 fn delete(

@@ -1,52 +1,83 @@
 /// Adding new nodes
 use crate::{
     drag_drop_entity::{grab_tool_cleanup, grab_tool_node_setup},
+    instruction::*,
     scan_code_input::{ScanCode, ScanCodeInput},
     AmbiguitySet, GrabToolType, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{dag::TextureProcessor, node::{MixType, Node, NodeType}};
+use kanter_core::{
+    dag::TextureProcessor,
+    node::{MixType, Node, NodeType},
+};
 use native_dialog::FileDialog;
 
 pub(crate) struct AddToolPlugin;
 
 impl Plugin for AddToolPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system_set_to_stage(
-            CoreStage::Update,
-            SystemSet::new()
-                .label(Stage::Update)
-                .after(Stage::Input)
-                .with_system(
-                    add_update
-                        .system()
-                        .with_run_criteria(State::on_update(ToolState::Add))
-                        .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(
-                    grab_tool_node_setup
-                        .system()
-                        .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Add)))
-                        .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(
-                    grab_tool_add_update
-                        .system()
-                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Add)))
-                        .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(
-                    grab_tool_cleanup
-                        .system()
-                        .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Add)))
-                        .in_ambiguity_set(AmbiguitySet),
-                ),
-        );
+        app.add_startup_system(setup.system())
+            .add_system_set_to_stage(
+                CoreStage::Update,
+                SystemSet::new()
+                    .label(Stage::Update)
+                    .after(Stage::Input)
+                    .with_system(
+                        add_tool_instructions
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Add))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        add_update
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::Add))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        grab_tool_add_instructions
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Add)))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        grab_tool_node_setup
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Add)))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        grab_tool_add_update
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Add)))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        grab_tool_cleanup
+                            .system()
+                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Add)))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        grab_tool_clear_instructions
+                            .system()
+                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Add)))
+                            .in_ambiguity_set(AmbiguitySet),
+                    ),
+            );
     }
 }
 
+fn setup(mut tool_list: ResMut<ToolList>) {
+    tool_list.insert("Shift A: Add node".to_string());
+}
+
+fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
+    instructions.insert(InstructId::Tool, "I: Input\nO: Output\n".to_string());
+}
+
 /// When you press the button for a node it creates that node for you.
-pub(crate) fn add_update(
+fn add_update(
     mut scan_code_input: ResMut<ScanCodeInput>,
     mut tool_state: ResMut<State<ToolState>>,
     mut tex_pro: ResMut<TextureProcessor>,
@@ -112,8 +143,16 @@ pub(crate) fn add_update(
     }
 }
 
+fn grab_tool_add_instructions(mut instructions: ResMut<Instructions>) {
+    instructions.insert(InstructId::Tool, "LMB: Confirm\n".to_string());
+}
+
+fn grab_tool_clear_instructions(mut instructions: ResMut<Instructions>) {
+    instructions.remove(&InstructId::Tool);
+}
+
 /// Exit grab tool if mouse button is pressed.
-pub(crate) fn grab_tool_add_update(
+fn grab_tool_add_update(
     mut tool_state: ResMut<State<ToolState>>,
     i_mouse_button: Res<Input<MouseButton>>,
 ) {

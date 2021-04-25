@@ -5,7 +5,7 @@ use crate::deselect_tool::*;
 use crate::drag_drop_entity::*;
 use crate::hotkeys::*;
 use crate::hoverable::*;
-use crate::instructions::*;
+use crate::instruction::*;
 use crate::material::*;
 use crate::mouse_interaction::*;
 use crate::processing::*;

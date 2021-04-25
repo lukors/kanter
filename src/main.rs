@@ -7,7 +7,7 @@ pub mod deselect_tool;
 pub mod drag_drop_entity;
 pub mod hotkeys;
 pub mod hoverable;
-pub mod instructions;
+pub mod instruction;
 pub mod kanter;
 pub mod material;
 pub mod mouse_interaction;
