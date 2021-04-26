@@ -84,7 +84,7 @@ fn hotkeys(
 
     let mut just_released_scan_code = Vec::new();
     if tool_current == ToolState::None {
-        for scan_code in sc_input.get_just_released() {
+        for scan_code in sc_input.get_just_pressed() {
             let new_tool = match scan_code {
                 ScanCode::Delete | ScanCode::KeyX => Some(tool_state.set(ToolState::Delete)),
                 ScanCode::F12 => Some(tool_state.set(ToolState::Process)),
@@ -118,6 +118,6 @@ fn hotkeys(
     }
 
     for scan_code in just_released_scan_code {
-        sc_input.clear_just_released(scan_code);
+        sc_input.clear_just_pressed(scan_code);
     }
 }

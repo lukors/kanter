@@ -79,7 +79,7 @@ fn tool_update(
     mut instructions: ResMut<Instructions>,
     mut edit_target: ResMut<OptionEditTarget>,
 ) {
-    let scan_codes: Vec<ScanCode> = scan_code_input.get_just_released().copied().collect();
+    let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
 
     for scan_code in scan_codes {
         if match scan_code {
@@ -100,7 +100,7 @@ fn tool_update(
             _ => false,
         } {
             edit_state.overwrite_replace(EditState::Inner).unwrap();
-            scan_code_input.clear_just_released(scan_code);
+            scan_code_input.clear_just_pressed(scan_code);
             break;
         }
     }
@@ -113,11 +113,11 @@ fn edit(
     q_active: Query<&NodeId, With<Active>>,
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
-    let mut number_pressed = false;
+    let mut valid_input = None;
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
         if let Some(node) = tex_pro.node_graph.node_with_id_mut(*node_id) {
-            let scan_codes: Vec<ScanCode> = scan_code_input.get_just_released().copied().collect();
+            let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
 
             for scan_code in scan_codes {
                 if let Some(i) = scan_code.to_usize() {
@@ -133,18 +133,20 @@ fn edit(
                             }
                         }
                     }
-
-                    scan_code_input.clear_just_released(scan_code);
-                    edit_state.overwrite_replace(EditState::Outer).unwrap();
-                    number_pressed = true;
+                    valid_input = Some(scan_code);
+                    break;
+                } else if scan_code == ScanCode::Tab {
+                    valid_input = Some(scan_code);
                     break;
                 }
             }
         }
     }
 
-    if number_pressed {
+    if let Some(scan_code) = valid_input {
+        scan_code_input.clear_just_pressed(scan_code);
         *edit_target = None;
+        edit_state.overwrite_replace(EditState::Outer).unwrap();
     }
 }
 
@@ -188,7 +190,7 @@ fn show_instructions(node: &Node, instructions: &mut Instructions) {
     instructions.insert(
         InstructId::Tool,
         format!(
-            "# {}\n\n{}\n\n{}",
+            "# {}\n{}\n\n{}",
             node_type_name(&node.node_type),
             specific_instructions,
             generic_instructions
