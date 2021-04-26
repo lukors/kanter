@@ -129,7 +129,7 @@ fn add_update(
 
         if let Some(node_type) = node_type {
             info!("Added node: {:?}", node_type);
-            tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
+            
 
             tool_state
                 .overwrite_replace(ToolState::Grab(GrabToolType::Add))
@@ -141,6 +141,16 @@ fn add_update(
     if events_maybe_missed {
         scan_code_input.clear();
     }
+}
+
+fn create_default_node(tex_pro: TextureProcessor) -> NodeId {
+    // let node_id = tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
+    let node_id = tex_pro.node_graph.new_id();
+    let node = Node {
+        filter_type = 
+    }
+    
+    let node = tex_pro.node_graph.node_with_id_mut(node_id);
 }
 
 fn grab_tool_add_instructions(mut instructions: ResMut<Instructions>) {

@@ -267,9 +267,6 @@ impl Listable<Self> for ResizeFilter {
         let entries = vec![
             "Nearest".to_string(),
             "Triangle".to_string(),
-            "CatmullRom".to_string(),
-            "Gaussian".to_string(),
-            "Lanczos3".to_string(),
         ];
         for (i, entry) in entries.iter().enumerate() {
             output = format!("{}{}: {}\n", output, i + 1, entry);
@@ -278,15 +275,12 @@ impl Listable<Self> for ResizeFilter {
     }
 
     fn choose(i: usize) -> Option<Self> {
-        const MAX_CHOICE: usize = 5;
+        const MAX_CHOICE: usize = 2;
 
         if i <= MAX_CHOICE {
             Some(match i {
                 1 => Self::Nearest,
-                2 => Self::Triangle,
-                3 => Self::CatmullRom,
-                4 => Self::Gaussian,
-                _ => Self::Lanczos3,
+                _ => Self::Triangle,
             })
         } else {
             None
