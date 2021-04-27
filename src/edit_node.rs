@@ -10,10 +10,13 @@ use crate::{
     instruction::*, mouse_interaction::Active, scan_code_input::*, AmbiguitySet, Stage, ToolState,
 };
 
+struct EditMarker;
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum EditState {
     Outer,
     Inner,
+    Size,
 }
 
 #[derive(Clone, Debug)]
@@ -57,7 +60,19 @@ impl Plugin for EditNodePlugin {
                         edit_exit
                             .system()
                             .with_run_criteria(State::on_update(ToolState::EditNode))
-                            .with_run_criteria(State::on_exit(EditState::Inner)),
+                            .with_run_criteria(State::on_enter(EditState::Outer)),
+                    )
+                    .with_system(
+                        edit_size_enter
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::EditNode))
+                            .with_run_criteria(State::on_enter(EditState::Size)),
+                    )
+                    .with_system(
+                        edit_size
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::EditNode))
+                            .with_run_criteria(State::on_update(EditState::Size)),
                     )
                     .with_system(
                         tool_exit
@@ -106,6 +121,59 @@ fn tool_update(
     }
 }
 
+fn edit_size_enter(
+    mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
+    q_active: Query<&NodeId, With<Active>>,
+    tex_pro: ResMut<TextureProcessor>,
+) {
+    if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
+        if let Some(node_size) = tex_pro.get_node_size(*node_id) {
+            instructions.sections[0].value = format!(
+                "Current size: {}x{}\nNew size: ",
+                node_size.width, node_size.height
+            );
+        } else {
+            instructions.sections[0].value = format!("Format: 256x256\nNew size: ");
+        }
+        instructions.sections[1].value.clear();
+    }
+}
+
+fn is_number(character: &char) -> bool {
+    matches!(character, '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' )
+}
+
+fn edit_size(
+    mut char_input_events: EventReader<ReceivedCharacter>,
+    mut edit_state: ResMut<State<EditState>>,
+    mut scan_code_input: ResMut<ScanCodeInput>,
+    mut edit_target: ResMut<OptionEditTarget>,
+    q_active: Query<&NodeId, With<Active>>,
+    mut tex_pro: ResMut<TextureProcessor>,
+    mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
+) {
+    if let Ok(mut instructions) = q_instructions.single_mut() {
+        for event in char_input_events.iter() {
+            if is_number(&event.char) || event.char == 'x' {
+                instructions.sections[1].value.push(event.char);
+            } else if event.char == '\u{8}' {
+                instructions.sections[1].value.pop();
+                dbg!(&instructions.sections[1].value);
+        } 
+        // for scan_code in scan_code_input.get_just_pressed() {
+            // if *scan_code == ScanCode::Backspace {
+            // }
+        }
+    }
+
+
+    // if let Some(scan_code) = valid_input {
+    //     scan_code_input.clear_just_pressed(scan_code);
+    //     *edit_target = None;
+    //     edit_state.overwrite_replace(EditState::Outer).unwrap();
+    // }
+}
+
 fn edit(
     mut edit_state: ResMut<State<EditState>>,
     mut scan_code_input: ResMut<ScanCodeInput>,
@@ -124,7 +192,12 @@ fn edit(
                     match edit_target {
                         EditTarget::ResizePolicy => {
                             if let Some(resize_policy) = ResizePolicy::choose(i) {
-                                node.resize_policy = resize_policy;
+                                if let ResizePolicy::SpecificSize(_) = resize_policy {
+                                    edit_state.overwrite_replace(EditState::Size).unwrap();
+                                    return;
+                                } else {
+                                    node.resize_policy = resize_policy;
+                                }
                             }
                         }
                         EditTarget::ResizeFilter => {

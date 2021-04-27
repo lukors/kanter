@@ -109,17 +109,19 @@ impl ScanCode {
     }
 
     pub fn is_number(&self) -> bool {
-        matches!(self, 
+        matches!(
+            self,
             Self::Digit1
-            | Self::Digit2
-            | Self::Digit3
-            | Self::Digit4
-            | Self::Digit5
-            | Self::Digit6
-            | Self::Digit7
-            | Self::Digit8
-            | Self::Digit9
-            | Self::Digit0)
+                | Self::Digit2
+                | Self::Digit3
+                | Self::Digit4
+                | Self::Digit5
+                | Self::Digit6
+                | Self::Digit7
+                | Self::Digit8
+                | Self::Digit9
+                | Self::Digit0
+        )
     }
 
     pub fn to_usize(&self) -> Option<usize> {
