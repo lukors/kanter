@@ -47,6 +47,7 @@ impl Plugin for SyncGraphPlugin {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn sync_graph(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,

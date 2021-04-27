@@ -130,7 +130,7 @@ fn add_update(
         };
 
         if let Some(node_type) = node_type {
-            if let Ok(_) = create_default_node(&mut tex_pro, node_type.clone()) {
+            if create_default_node(&mut tex_pro, node_type.clone()).is_ok() {
                 info!("Added node: {:?}", node_type);
 
                 tool_state

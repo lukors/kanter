@@ -199,9 +199,7 @@ fn tool_enter(
 ) {
     if let Ok(node_id) = q_active.single() {
         if let Some(node) = tex_pro.node_graph.node_with_id(*node_id) {
-            match edit_state.overwrite_replace(EditState::Outer) {
-                _ => (),
-            }
+            let _ = edit_state.overwrite_replace(EditState::Outer);
 
             show_instructions(node, &mut instructions);
         } else {
