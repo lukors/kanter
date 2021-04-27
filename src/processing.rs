@@ -88,7 +88,14 @@ fn generate_thumbnail(
 
     let n_out = tex_pro_thumb
         .node_graph
-        .add_node(Node::new(NodeType::OutputRgba))
+        .add_node(
+            Node::new(NodeType::OutputRgba)
+                .resize_policy(ResizePolicy::SpecificSize(TPSize::new(
+                    size.width as u32,
+                    size.height as u32,
+                )))
+                .resize_filter(ResizeFilter::Nearest),
+        )
         .unwrap();
 
     for (i, node_data) in node_datas.iter().take(4).enumerate() {
@@ -100,25 +107,9 @@ fn generate_thumbnail(
                 .add_node(Node::new(NodeType::NodeData(end_id)))
                 .unwrap();
 
-            let n_resize = tex_pro_thumb
-                .node_graph
-                .add_node(Node::new(NodeType::Resize(
-                    Some(ResizePolicy::SpecificSize(TPSize::new(
-                        size.width as u32,
-                        size.height as u32,
-                    ))),
-                    Some(ResizeFilter::Nearest),
-                )))
-                .unwrap();
-
             tex_pro_thumb
                 .node_graph
-                .connect(n_node_data, n_resize, SlotId(0), SlotId(0))
-                .unwrap();
-
-            tex_pro_thumb
-                .node_graph
-                .connect(n_resize, n_out, SlotId(0), node_data.slot_id)
+                .connect(n_node_data, n_out, SlotId(0), node_data.slot_id)
                 .unwrap()
         }
     }

@@ -124,12 +124,12 @@ fn edit(
                     match edit_target {
                         EditTarget::ResizePolicy => {
                             if let Some(resize_policy) = ResizePolicy::choose(i) {
-                                node.resize_policy = Some(resize_policy);
+                                node.resize_policy = resize_policy;
                             }
                         }
                         EditTarget::ResizeFilter => {
                             if let Some(resize_filter) = ResizeFilter::choose(i) {
-                                node.filter_type = Some(resize_filter);
+                                node.resize_filter = resize_filter;
                             }
                         }
                     }
@@ -169,21 +169,13 @@ fn tool_exit(mut instructions: ResMut<Instructions>) {
 }
 
 fn show_instructions(node: &Node, instructions: &mut Instructions) {
-    let resize_policy = match node.resize_policy {
-        Some(r) => r.to_string(),
-        None => ResizePolicy::default().to_string(),
-    };
-    let filter_type = match node.filter_type {
-        Some(r) => r.to_string(),
-        None => ResizeFilter::default().to_string(),
-    };
     let generic_instructions = format!(
         "R: Resize policy ({})\nF: Resize filter ({})",
-        resize_policy, filter_type
+        node.resize_policy, node.resize_filter
     );
 
     let specific_instructions = match &node.node_type {
-        NodeType::Image(path) => format!("Path: {}", path),
+        NodeType::Image(path) => format!("Path: {:#?}", path),
         _ => "Unsupported node".to_string(),
     };
 
@@ -264,10 +256,7 @@ impl Listable<Self> for ResizePolicy {
 impl Listable<Self> for ResizeFilter {
     fn list() -> String {
         let mut output = "## Resize filter\n".to_string();
-        let entries = vec![
-            "Nearest".to_string(),
-            "Triangle".to_string(),
-        ];
+        let entries = vec!["Nearest".to_string(), "Triangle".to_string()];
         for (i, entry) in entries.iter().enumerate() {
             output = format!("{}{}: {}\n", output, i + 1, entry);
         }
@@ -299,7 +288,6 @@ fn node_type_name(node_type: &NodeType) -> &'static str {
         NodeType::NodeData(_) => "Embedded Image",
         NodeType::Write(_) => "Write",
         NodeType::Value(_) => "Value",
-        NodeType::Resize(_, _) => "Resize",
         NodeType::Mix(_) => "Mix",
         NodeType::HeightToNormal => "Height To Normal",
     }

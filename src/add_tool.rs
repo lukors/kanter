@@ -95,7 +95,7 @@ fn add_update(
                     .add_filter("JPEG Image", &["jpg", "jpeg"])
                     .show_open_single_file()
                 {
-                    Ok(Some(path)) => Some(NodeType::Image(path.to_string_lossy().to_string())),
+                    Ok(Some(path)) => Some(NodeType::Image(path)),
                     Ok(None) => {
                         warn!("Invalid path");
                         None
@@ -129,7 +129,6 @@ fn add_update(
 
         if let Some(node_type) = node_type {
             info!("Added node: {:?}", node_type);
-            
 
             tool_state
                 .overwrite_replace(ToolState::Grab(GrabToolType::Add))
@@ -143,15 +142,15 @@ fn add_update(
     }
 }
 
-fn create_default_node(tex_pro: TextureProcessor) -> NodeId {
-    // let node_id = tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
-    let node_id = tex_pro.node_graph.new_id();
-    let node = Node {
-        filter_type = 
-    }
-    
-    let node = tex_pro.node_graph.node_with_id_mut(node_id);
-}
+// fn create_default_node(tex_pro: TextureProcessor) -> NodeId {
+//     // let node_id = tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
+//     let node_id = tex_pro.node_graph.new_id();
+//     let node = Node {
+//         filter_type =
+//     }
+
+//     let node = tex_pro.node_graph.node_with_id_mut(node_id);
+// }
 
 fn grab_tool_add_instructions(mut instructions: ResMut<Instructions>) {
     instructions.insert(InstructId::Tool, "LMB: Confirm\n".to_string());
