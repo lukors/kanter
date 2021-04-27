@@ -8,7 +8,9 @@ use crate::{
 use bevy::prelude::*;
 use kanter_core::{
     dag::TextureProcessor,
+    error::TexProError,
     node::{MixType, Node, NodeType},
+    node_graph::NodeId,
 };
 use native_dialog::FileDialog;
 
@@ -128,12 +130,14 @@ fn add_update(
         };
 
         if let Some(node_type) = node_type {
-            info!("Added node: {:?}", node_type);
+            if let Ok(_) = create_default_node(&mut tex_pro, node_type.clone()) {
+                info!("Added node: {:?}", node_type);
 
-            tool_state
-                .overwrite_replace(ToolState::Grab(GrabToolType::Add))
-                .unwrap();
-            break;
+                tool_state
+                    .overwrite_replace(ToolState::Grab(GrabToolType::Add))
+                    .unwrap();
+                break;
+            }
         }
     }
 
@@ -142,15 +146,16 @@ fn add_update(
     }
 }
 
-// fn create_default_node(tex_pro: TextureProcessor) -> NodeId {
-//     // let node_id = tex_pro.node_graph.add_node(Node::new(node_type)).unwrap();
-//     let node_id = tex_pro.node_graph.new_id();
-//     let node = Node {
-//         filter_type =
-//     }
-
-//     let node = tex_pro.node_graph.node_with_id_mut(node_id);
-// }
+fn create_default_node(
+    tex_pro: &mut TextureProcessor,
+    node_type: NodeType,
+) -> Result<NodeId, TexProError> {
+    tex_pro.node_graph.add_node(
+        Node::new(node_type)
+            .resize_policy(kanter_core::node::ResizePolicy::MostPixels)
+            .resize_filter(kanter_core::node::ResizeFilter::Triangle),
+    )
+}
 
 fn grab_tool_add_instructions(mut instructions: ResMut<Instructions>) {
     instructions.insert(InstructId::Tool, "LMB: Confirm\n".to_string());

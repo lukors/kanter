@@ -53,6 +53,7 @@ fn sync_graph(
     q_node_id: Query<(Entity, &NodeId)>,
     q_edge: Query<Entity, With<Edge>>,
     q_slot: Query<(&Slot, &GlobalTransform)>,
+    q_selected: Query<Entity, With<Selected>>,
     tex_pro: Res<TextureProcessor>,
     workspace: Res<Workspace>,
 ) {
@@ -71,6 +72,11 @@ fn sync_graph(
             .copied()
             .collect();
 
+        if !new_ids.is_empty() {
+            for entity in q_selected.iter() {
+                commands.entity(entity).remove::<Selected>();
+            }
+        }
         // Create gui nodes for any new nodes in the graph.
         for node_id in new_ids {
             let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
