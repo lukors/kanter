@@ -133,7 +133,7 @@ fn edit_size_enter(
                 node_size.width, node_size.height
             );
         } else {
-            instructions.sections[0].value = format!("Format: 256x256\nNew size: ");
+            instructions.sections[0].value = format!("Example format: 256x256\nNew size: ");
         }
         instructions.sections[1].value.clear();
     }
@@ -152,26 +152,38 @@ fn edit_size(
     mut tex_pro: ResMut<TextureProcessor>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
 ) {
-    if let Ok(mut instructions) = q_instructions.single_mut() {
+    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.single_mut(), q_active.single()) {
         for event in char_input_events.iter() {
+            dbg!(&event.char);
             if is_number(&event.char) || event.char == 'x' {
                 instructions.sections[1].value.push(event.char);
             } else if event.char == '\u{8}' {
                 instructions.sections[1].value.pop();
-                dbg!(&instructions.sections[1].value);
-        } 
-        // for scan_code in scan_code_input.get_just_pressed() {
-            // if *scan_code == ScanCode::Backspace {
-            // }
+            } else if event.char == '\r' {
+                // Try to parse the inputted value and put it where it should be
+                // Exit the mode
+                if let (Some(size), Some(node)) = (string_to_size(&instructions.sections[1].value), tex_pro.node_graph.node_with_id_mut(*node_id)) {
+                    node.resize_policy = ResizePolicy::SpecificSize(size);
+                } else {
+                    warn!("Invalid size format, should be for instance 256x256");
+                }
+                edit_state.overwrite_replace(EditState::Outer).unwrap();
+            }
         }
     }
+}
 
-
-    // if let Some(scan_code) = valid_input {
-    //     scan_code_input.clear_just_pressed(scan_code);
-    //     *edit_target = None;
-    //     edit_state.overwrite_replace(EditState::Outer).unwrap();
-    // }
+fn string_to_size(input: &String) -> Option<TPSize> {
+    let sizes: Vec<&str> = input.split('x').collect();
+    if sizes.len() == 2 {
+        if let (Ok(width), Ok(height)) = (sizes[0].parse(), sizes[1].parse()) {
+            Some(TPSize::new(width, height))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 fn edit(
