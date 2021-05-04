@@ -75,7 +75,10 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 }
 
 fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
-    instructions.insert(InstructId::Tool, "I: Input\nO: Output\n".to_string());
+    instructions.insert(
+        InstructId::Tool,
+        "I: Input\nO: Output\nM: Mix\n".to_string(),
+    );
 }
 
 /// When you press the button for a node it creates that node for you.

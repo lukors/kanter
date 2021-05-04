@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use kanter_core::{
     dag::TextureProcessor,
-    node::{Node, NodeType, ResizeFilter, ResizePolicy, Side},
+    node::{MixType, Node, NodeType, ResizeFilter, ResizePolicy, Side},
     node_data::Size as TPSize,
     node_graph::{NodeId, SlotId},
 };
@@ -9,8 +9,6 @@ use kanter_core::{
 use crate::{
     instruction::*, mouse_interaction::Active, scan_code_input::*, AmbiguitySet, Stage, ToolState,
 };
-
-struct EditMarker;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum EditState {
@@ -24,6 +22,7 @@ enum EditState {
 enum EditTarget {
     ResizePolicy,
     ResizeFilter,
+    MixType,
 }
 
 type OptionEditTarget = Option<EditTarget>;
@@ -125,6 +124,11 @@ fn tool_update(
                 *edit_target = Some(EditTarget::ResizeFilter);
                 true
             }
+            ScanCode::KeyT => {
+                instructions.insert(InstructId::Tool, MixType::list());
+                *edit_target = Some(EditTarget::MixType);
+                true
+            }
             _ => false,
         } {
             edit_state.overwrite_replace(EditState::Inner).unwrap();
@@ -195,7 +199,10 @@ fn edit_specific_slot_update(
                         error!("The node you're trying to edit does not exist: {}", node_id);
                     }
                 } else {
-                    error!("Could not parse the input as a number: {}", instructions.sections[1].value);
+                    error!(
+                        "Could not parse the input as a number: {}",
+                        instructions.sections[1].value
+                    );
                 }
                 edit_state.overwrite_replace(EditState::Outer).unwrap();
                 *started = false;
@@ -314,6 +321,11 @@ fn edit(
                                 node.resize_filter = resize_filter;
                             }
                         }
+                        EditTarget::MixType => {
+                            if let Some(mix_type) = MixType::choose(i) {
+                                node.node_type = NodeType::Mix(mix_type);
+                            }
+                        }
                     }
                     valid_input = Some(scan_code);
                     break;
@@ -358,6 +370,7 @@ fn show_instructions(node: &Node, instructions: &mut Instructions) {
 
     let specific_instructions = match &node.node_type {
         NodeType::Image(path) => format!("Path: {:#?}", path),
+        NodeType::Mix(mix_type) => format!("T: Type: {}", mix_type),
         _ => "Unsupported node".to_string(),
     };
 
@@ -450,6 +463,37 @@ impl Listable<Self> for ResizeFilter {
             Some(match i {
                 1 => Self::Nearest,
                 _ => Self::Triangle,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+impl Listable<Self> for MixType {
+    fn list() -> String {
+        let mut output = "## Mix Type\n".to_string();
+        let entries = vec![
+            Self::Add.to_string(),
+            Self::Subtract.to_string(),
+            Self::Multiply.to_string(),
+            Self::Divide.to_string(),
+        ];
+        for (i, entry) in entries.iter().enumerate() {
+            output = format!("{}{}: {}\n", output, i + 1, entry);
+        }
+        output
+    }
+
+    fn choose(i: usize) -> Option<Self> {
+        const MAX_CHOICE: usize = 4;
+
+        if i <= MAX_CHOICE {
+            Some(match i {
+                1 => Self::Add,
+                2 => Self::Subtract,
+                3 => Self::Multiply,
+                _ => Self::Divide,
             })
         } else {
             None
