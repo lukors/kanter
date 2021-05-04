@@ -16,6 +16,7 @@ pub mod processing;
 pub mod scan_code_input;
 pub mod sync_graph;
 pub mod workspace;
+pub mod drag_drop_import;
 
 use bevy::{audio::AudioPlugin, prelude::*};
 use camera::*;
