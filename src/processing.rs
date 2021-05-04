@@ -1,4 +1,6 @@
-use crate::{scan_code_input::ScanCodeInput, AmbiguitySet, Selected, Stage, ToolState};
+use crate::{
+    instruction::ToolList, scan_code_input::ScanCodeInput, AmbiguitySet, Selected, Stage, ToolState,
+};
 use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
@@ -20,25 +22,30 @@ pub(crate) struct ProcessingPlugin;
 
 impl Plugin for ProcessingPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system_set_to_stage(
-            CoreStage::Update,
-            SystemSet::new()
-                .label(Stage::Apply)
-                .after(Stage::Update)
-                .with_system(
-                    process
-                        .system()
-                        .with_run_criteria(State::on_enter(ToolState::Process))
-                        .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(
-                    export
-                        .system()
-                        .with_run_criteria(State::on_enter(ToolState::Export))
-                        .in_ambiguity_set(AmbiguitySet),
-                ),
-        );
+        app.add_startup_system(setup.system())
+            .add_system_set_to_stage(
+                CoreStage::Update,
+                SystemSet::new()
+                    .label(Stage::Apply)
+                    .after(Stage::Update)
+                    .with_system(
+                        process
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Process))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        export
+                            .system()
+                            .with_run_criteria(State::on_enter(ToolState::Export))
+                            .in_ambiguity_set(AmbiguitySet),
+                    ),
+            );
     }
+}
+
+fn setup(mut tool_list: ResMut<ToolList>) {
+    tool_list.insert("F12: Process graph".to_string());
 }
 
 fn process(
