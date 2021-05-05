@@ -450,6 +450,7 @@ fn show_instructions(node: &Node, instructions: &mut Instructions) {
         NodeType::Image(path) => format!("Path: {:#?}", path),
         NodeType::Mix(mix_type) => format!("T: Type: {}", mix_type),
         NodeType::Value(value) => format!("V: Value: {}", value),
+        NodeType::OutputRgba => String::new(),
         _ => "Unsupported node".to_string(),
     };
 
