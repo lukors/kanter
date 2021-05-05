@@ -5,6 +5,7 @@ pub mod camera;
 pub mod delete_tool;
 pub mod deselect_tool;
 pub mod drag_drop_entity;
+pub mod drag_drop_import;
 pub mod edit_node;
 pub mod hotkeys;
 pub mod hoverable;
@@ -16,7 +17,6 @@ pub mod processing;
 pub mod scan_code_input;
 pub mod sync_graph;
 pub mod workspace;
-pub mod drag_drop_import;
 
 use bevy::{audio::AudioPlugin, prelude::*};
 use camera::*;
