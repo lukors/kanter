@@ -77,7 +77,7 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
     instructions.insert(
         InstructId::Tool,
-        "I: Input\nO: Output\nM: Mix\n".to_string(),
+        "I: Input\nM: Mix\nO: Output\nV: Value\n".to_string(),
     );
 }
 
@@ -129,6 +129,7 @@ fn add_update(
 
                 Some(NodeType::OutputRgba)
             }
+            ScanCode::KeyV => Some(NodeType::Value(1.0)),
             _ => None,
         };
 

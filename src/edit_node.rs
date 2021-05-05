@@ -7,7 +7,8 @@ use kanter_core::{
 };
 
 use crate::{
-    instruction::*, mouse_interaction::Active, scan_code_input::*, AmbiguitySet, Stage, ToolState,
+    instruction::*, listable::*, mouse_interaction::Active, scan_code_input::*, AmbiguitySet,
+    Stage, ToolState,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -16,6 +17,7 @@ enum EditState {
     Inner,
     Size,
     Slot,
+    Value,
 }
 
 #[derive(Clone, Debug)]
@@ -87,6 +89,18 @@ impl Plugin for EditNodePlugin {
                             .with_run_criteria(State::on_update(EditState::Slot)),
                     )
                     .with_system(
+                        edit_value_enter
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::EditNode))
+                            .with_run_criteria(State::on_enter(EditState::Value)),
+                    )
+                    .with_system(
+                        edit_value_update
+                            .system()
+                            .with_run_criteria(State::on_update(ToolState::EditNode))
+                            .with_run_criteria(State::on_update(EditState::Value)),
+                    )
+                    .with_system(
                         tool_exit
                             .system()
                             .with_run_criteria(State::on_exit(ToolState::EditNode)),
@@ -117,21 +131,27 @@ fn tool_update(
             ScanCode::KeyR => {
                 instructions.insert(InstructId::Tool, ResizePolicy::list());
                 *edit_target = Some(EditTarget::ResizePolicy);
+                edit_state.overwrite_replace(EditState::Inner).unwrap();
                 true
             }
             ScanCode::KeyF => {
                 instructions.insert(InstructId::Tool, ResizeFilter::list());
                 *edit_target = Some(EditTarget::ResizeFilter);
+                edit_state.overwrite_replace(EditState::Inner).unwrap();
                 true
             }
             ScanCode::KeyT => {
                 instructions.insert(InstructId::Tool, MixType::list());
                 *edit_target = Some(EditTarget::MixType);
+                edit_state.overwrite_replace(EditState::Inner).unwrap();
+                true
+            }
+            ScanCode::KeyV => {
+                edit_state.overwrite_replace(EditState::Value).unwrap();
                 true
             }
             _ => false,
         } {
-            edit_state.overwrite_replace(EditState::Inner).unwrap();
             scan_code_input.clear_just_pressed(scan_code);
             break;
         }
@@ -180,7 +200,7 @@ fn edit_specific_slot_update(
 
     if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.single_mut(), q_active.single()) {
         for event in char_input_events.iter() {
-            if is_number(&event.char) {
+            if event.char.is_digit(10) {
                 instructions.sections[1].value.push(event.char);
             } else if event.char == '\u{8}' {
                 // Backspace
@@ -229,13 +249,6 @@ fn edit_specific_size_enter(
     }
 }
 
-fn is_number(character: &char) -> bool {
-    matches!(
-        character,
-        '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
-    )
-}
-
 fn edit_specific_size_update(
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut edit_state: ResMut<State<EditState>>,
@@ -253,7 +266,7 @@ fn edit_specific_size_update(
 
     if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.single_mut(), q_active.single()) {
         for event in char_input_events.iter() {
-            if is_number(&event.char) || event.char == 'x' {
+            if event.char.is_digit(10) || event.char == 'x' {
                 instructions.sections[1].value.push(event.char);
             } else if event.char == '\u{8}' {
                 // Backspace
@@ -288,6 +301,61 @@ fn string_to_size(input: &str) -> Option<TPSize> {
     }
 }
 
+fn edit_value_enter(
+    mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
+    q_active: Query<&NodeId, With<Active>>,
+    tex_pro: ResMut<TextureProcessor>,
+) {
+    if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
+        if let Some(node) = tex_pro.node_graph.node_with_id(*node_id) {
+            if let NodeType::Value(value) = node.node_type {
+                instructions.sections[0].value =
+                    format!("Current value: {}\nNew: ", value.to_string());
+            }
+            instructions.sections[1].value.clear();
+        }
+    }
+}
+
+fn edit_value_update(
+    mut char_input_events: EventReader<ReceivedCharacter>,
+    mut edit_state: ResMut<State<EditState>>,
+    q_active: Query<&NodeId, With<Active>>,
+    mut tex_pro: ResMut<TextureProcessor>,
+    mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
+    mut started: Local<bool>,
+) {
+    // This guard drops any input the first time the system is entered, so you do not get the
+    // input from the button that was pressed to start this sytem, in this sytem.
+    if !*started {
+        *started = true;
+        return;
+    }
+
+    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.single_mut(), q_active.single()) {
+        for event in char_input_events.iter() {
+            if event.char.is_digit(10) || event.char == '.' {
+                instructions.sections[1].value.push(event.char);
+            } else if event.char == '\u{8}' {
+                // Backspace
+                instructions.sections[1].value.pop();
+            } else if event.char == '\r' {
+                // Enter
+                if let (Ok(number), Some(node)) = (
+                    instructions.sections[1].value.parse::<f32>(),
+                    tex_pro.node_graph.node_with_id_mut(*node_id),
+                ) {
+                    node.node_type = NodeType::Value(number);
+                } else {
+                    warn!("Invalid number format, should be for instance 0.3");
+                }
+                edit_state.overwrite_replace(EditState::Outer).unwrap();
+                *started = false;
+            }
+        }
+    }
+}
+
 fn edit(
     mut edit_state: ResMut<State<EditState>>,
     mut scan_code_input: ResMut<ScanCodeInput>,
@@ -295,11 +363,12 @@ fn edit(
     q_active: Query<&NodeId, With<Active>>,
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
-    let mut valid_input = None;
+    let mut done = false;
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
         if let Some(node) = tex_pro.node_graph.node_with_id_mut(*node_id) {
             let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
+            let mut parameter_set = false;
 
             for scan_code in scan_codes {
                 if let Some(i) = scan_code.to_usize() {
@@ -313,32 +382,41 @@ fn edit(
                                 edit_state.overwrite_replace(EditState::Slot).unwrap();
                                 return;
                             }
-                            Some(resize_policy) => node.resize_policy = resize_policy,
+                            Some(resize_policy) => {
+                                node.resize_policy = resize_policy;
+                                parameter_set = true;
+                            }
                             None => (),
                         },
                         EditTarget::ResizeFilter => {
                             if let Some(resize_filter) = ResizeFilter::choose(i) {
                                 node.resize_filter = resize_filter;
+                                parameter_set = true;
                             }
                         }
                         EditTarget::MixType => {
                             if let Some(mix_type) = MixType::choose(i) {
                                 node.node_type = NodeType::Mix(mix_type);
+                                parameter_set = true;
                             }
                         }
                     }
-                    valid_input = Some(scan_code);
-                    break;
+
+                    if parameter_set {
+                        scan_code_input.clear_just_pressed(scan_code);
+                        done = true;
+                        break;
+                    }
                 } else if scan_code == ScanCode::Tab {
-                    valid_input = Some(scan_code);
+                    scan_code_input.clear_just_pressed(scan_code);
+                    done = true;
                     break;
                 }
             }
         }
     }
 
-    if let Some(scan_code) = valid_input {
-        scan_code_input.clear_just_pressed(scan_code);
+    if done {
         *edit_target = None;
         edit_state.overwrite_replace(EditState::Outer).unwrap();
     }
@@ -371,6 +449,7 @@ fn show_instructions(node: &Node, instructions: &mut Instructions) {
     let specific_instructions = match &node.node_type {
         NodeType::Image(path) => format!("Path: {:#?}", path),
         NodeType::Mix(mix_type) => format!("T: Type: {}", mix_type),
+        NodeType::Value(value) => format!("V: Value: {}", value),
         _ => "Unsupported node".to_string(),
     };
 
@@ -403,101 +482,6 @@ fn tool_enter(
         }
     } else {
         tool_state.overwrite_replace(ToolState::None).unwrap();
-    }
-}
-
-trait Listable<T> {
-    fn list() -> String;
-    fn choose(i: usize) -> Option<T>;
-}
-
-impl Listable<Self> for ResizePolicy {
-    fn list() -> String {
-        let mut output = "## Resize policy\n".to_string();
-        let entries = vec![
-            "MostPixels".to_string(),
-            "LeastPixels".to_string(),
-            "LargestAxes".to_string(),
-            "SmallestAxes".to_string(),
-            "SpecificSlot".to_string(),
-            "SpecificSize".to_string(),
-        ];
-        for (i, entry) in entries.iter().enumerate() {
-            output = format!("{}{}: {}\n", output, i + 1, entry);
-        }
-        output
-    }
-
-    fn choose(i: usize) -> Option<Self> {
-        const MAX_CHOICE: usize = 6;
-
-        if i <= MAX_CHOICE {
-            Some(match i {
-                1 => Self::MostPixels,
-                2 => Self::LeastPixels,
-                3 => Self::LargestAxes,
-                4 => Self::SmallestAxes,
-                5 => Self::SpecificSlot(SlotId(0)),
-                _ => Self::SpecificSize(TPSize::new(128, 128)),
-            })
-        } else {
-            None
-        }
-    }
-}
-
-impl Listable<Self> for ResizeFilter {
-    fn list() -> String {
-        let mut output = "## Resize filter\n".to_string();
-        let entries = vec!["Nearest".to_string(), "Triangle".to_string()];
-        for (i, entry) in entries.iter().enumerate() {
-            output = format!("{}{}: {}\n", output, i + 1, entry);
-        }
-        output
-    }
-
-    fn choose(i: usize) -> Option<Self> {
-        const MAX_CHOICE: usize = 2;
-
-        if i <= MAX_CHOICE {
-            Some(match i {
-                1 => Self::Nearest,
-                _ => Self::Triangle,
-            })
-        } else {
-            None
-        }
-    }
-}
-
-impl Listable<Self> for MixType {
-    fn list() -> String {
-        let mut output = "## Mix Type\n".to_string();
-        let entries = vec![
-            Self::Add.to_string(),
-            Self::Subtract.to_string(),
-            Self::Multiply.to_string(),
-            Self::Divide.to_string(),
-        ];
-        for (i, entry) in entries.iter().enumerate() {
-            output = format!("{}{}: {}\n", output, i + 1, entry);
-        }
-        output
-    }
-
-    fn choose(i: usize) -> Option<Self> {
-        const MAX_CHOICE: usize = 4;
-
-        if i <= MAX_CHOICE {
-            Some(match i {
-                1 => Self::Add,
-                2 => Self::Subtract,
-                3 => Self::Multiply,
-                _ => Self::Divide,
-            })
-        } else {
-            None
-        }
     }
 }
 
