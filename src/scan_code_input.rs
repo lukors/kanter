@@ -139,10 +139,12 @@ impl ScanCode {
         }
     }
 
+    /// Checks if a scan code could represent a number.
     pub fn is_number(&self) -> bool {
         matches!(
             self,
-            Self::Digit1
+            Self::Digit0
+                | Self::Digit1
                 | Self::Digit2
                 | Self::Digit3
                 | Self::Digit4
@@ -151,22 +153,32 @@ impl ScanCode {
                 | Self::Digit7
                 | Self::Digit8
                 | Self::Digit9
-                | Self::Digit0
+                | Self::Numpad0
+                | Self::Numpad1
+                | Self::Numpad2
+                | Self::Numpad3
+                | Self::Numpad4
+                | Self::Numpad5
+                | Self::Numpad6
+                | Self::Numpad7
+                | Self::Numpad8
+                | Self::Numpad9
         )
     }
 
+    /// Converts a scan code into a number
     pub fn to_usize(&self) -> Option<usize> {
         match self {
-            Self::Digit1 => Some(1),
-            Self::Digit2 => Some(2),
-            Self::Digit3 => Some(3),
-            Self::Digit4 => Some(4),
-            Self::Digit5 => Some(5),
-            Self::Digit6 => Some(6),
-            Self::Digit7 => Some(7),
-            Self::Digit8 => Some(8),
-            Self::Digit9 => Some(9),
-            Self::Digit0 => Some(0),
+            Self::Digit0 | Self::Numpad0 => Some(0),
+            Self::Digit1 | Self::Numpad1 => Some(1),
+            Self::Digit2 | Self::Numpad2 => Some(2),
+            Self::Digit3 | Self::Numpad3 => Some(3),
+            Self::Digit4 | Self::Numpad4 => Some(4),
+            Self::Digit5 | Self::Numpad5 => Some(5),
+            Self::Digit6 | Self::Numpad6 => Some(6),
+            Self::Digit7 | Self::Numpad7 => Some(7),
+            Self::Digit8 | Self::Numpad8 => Some(8),
+            Self::Digit9 | Self::Numpad9 => Some(9),
             _ => None,
         }
     }
