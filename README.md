@@ -9,8 +9,14 @@ A node based texture creation tool for Windows and Linux. It uses [Kanter Core](
 - Completeness - It should have the tools to generate every kind of texture
 
 ## Features
+In its current pre-alpha state Kanter can be used for simple tasks like packing textures, inverting channels in an image, and changing the alpha channel of an image.
+
+It is very clunky and has many rough corners, but it gets the job done.
+
 ### Nodes
 - Input: Loads an image from disk
+- Mix: Mathematically combines two inputs
+- Value: Outputs a given value
 - Output: Saves an image to disk when selected and `Shift Alt S` is pressed
 
 ### Other
