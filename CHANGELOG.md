@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2021-05-12
+### Added
+- Mix nodes can now have more than two inputs
+
+### Fixed
+- Fixed crash when processing a mix node with only one input
+
 ## [0.2.0] - 2021-05-05
 ### Added
 - Can now edit the Resize Policy and Resize Filter of nodes with `Tab`
