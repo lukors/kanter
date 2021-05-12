@@ -4,7 +4,7 @@ use crate::{
     stretch_between, AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{dag::TextureProcessor, node::Side, node_graph::NodeId};
+use kanter_core::{node::Side, node_graph::NodeId, texture_processor::TextureProcessor};
 
 pub(crate) struct Draggable;
 pub(crate) struct Dragged;
@@ -106,7 +106,7 @@ impl Plugin for WorkspaceDragDropPlugin {
 fn dropped_edge_update(
     mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
-    mut tex_pro: ResMut<TextureProcessor>,
+    tex_pro: ResMut<TextureProcessor>,
     i_mouse_button: Res<Input<MouseButton>>,
     q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
@@ -124,7 +124,6 @@ fn dropped_edge_update(
                     cursor_t.translation.truncate(),
                 ) {
                     if tex_pro
-                        .node_graph
                         .connect_arbitrary(
                             slot.node_id,
                             slot.side,
@@ -135,9 +134,9 @@ fn dropped_edge_update(
                         )
                         .is_ok()
                     {
-                        if let Some(source_slot) = source_slot {
+                    if let Some(source_slot) = source_slot {
                             if source_slot.0 != *slot {
-                                tex_pro.node_graph.disconnect_slot(
+                                tex_pro.disconnect_slot(
                                     source_slot.0.node_id,
                                     source_slot.0.side,
                                     source_slot.0.slot_id,
@@ -152,7 +151,7 @@ fn dropped_edge_update(
                 }
             }
             if let Some(source_slot) = source_slot {
-                tex_pro.node_graph.disconnect_slot(
+                tex_pro.disconnect_slot(
                     source_slot.0.node_id,
                     source_slot.0.side,
                     source_slot.0.slot_id,

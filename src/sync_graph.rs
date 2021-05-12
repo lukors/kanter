@@ -3,11 +3,7 @@ use crate::{
     Thumbnail, THUMBNAIL_SIZE,
 };
 use bevy::prelude::*;
-use kanter_core::{
-    dag::TextureProcessor,
-    node::{Node, NodeType, Side},
-    node_graph::{NodeId, SlotId},
-};
+use kanter_core::{node::{Node, NodeType, Side}, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
 use rand::Rng;
 
 const SLOT_SIZE: f32 = 30.;
@@ -59,7 +55,7 @@ fn sync_graph(
     workspace: Res<Workspace>,
 ) {
     if tex_pro.is_changed() {
-        let tp_node_ids = tex_pro.node_graph.node_ids();
+        let tp_node_ids = tex_pro.node_ids();
         let existing_gui_node_ids: Vec<NodeId> =
             q_node_id.iter().map(|(_, node_id)| *node_id).collect();
         let new_ids: Vec<NodeId> = tp_node_ids
@@ -80,7 +76,7 @@ fn sync_graph(
         }
         // Create gui nodes for any new nodes in the graph.
         for node_id in new_ids {
-            let node = tex_pro.node_graph.node_with_id(node_id).unwrap();
+            let node = tex_pro.node_with_id(node_id).unwrap();
             spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
         }
 
@@ -98,7 +94,7 @@ fn sync_graph(
             commands.entity(edge_e).despawn_recursive();
         }
 
-        for edge in tex_pro.node_graph.edges.iter() {
+        for edge in tex_pro.edges().iter() {
             let output_slot = Slot {
                 node_id: edge.output_id,
                 side: Side::Output,

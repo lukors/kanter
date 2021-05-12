@@ -5,12 +5,7 @@ use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
-use kanter_core::{
-    dag::TextureProcessor,
-    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy},
-    node_data::Size as TPSize,
-    node_graph::{NodeId, SlotId},
-};
+use kanter_core::{node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy}, node_data::Size as TPSize, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
 use native_dialog::FileDialog;
 /// Texture Processing
 use std::{path::Path, sync::Arc};
@@ -49,18 +44,26 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 }
 
 fn process(
-    mut tex_pro: ResMut<TextureProcessor>,
+    tex_pro: ResMut<TextureProcessor>,
     mut tool_state: ResMut<State<ToolState>>,
-    mut textures: ResMut<Assets<Texture>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut commands: Commands,
-    q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
-    q_node: Query<(Entity, &NodeId)>,
 ) {
     info!("Processing graph...");
     tex_pro.process();
 
     info!("Generating thumbnails...");
+
+    tool_state.overwrite_replace(ToolState::None).unwrap();
+    info!("Done");
+}
+
+fn generate_thumbnail_loop(
+    mut textures: ResMut<Assets<Texture>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut commands: Commands,
+    q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
+    q_node: Query<(Entity, &NodeId)>,
+    tex_pro: Res<TextureProcessor>,
+) {
     for (node_e, node_id) in q_node.iter() {
         if let Some(texture) = generate_thumbnail(
             &tex_pro,
@@ -79,22 +82,18 @@ fn process(
             }
         }
     }
-
-    tool_state.overwrite_replace(ToolState::None).unwrap();
-    info!("Done");
 }
 
 fn generate_thumbnail(
-    tex_pro: &ResMut<TextureProcessor>,
+    tex_pro: &Res<TextureProcessor>,
     node_id: NodeId,
     size: Size,
 ) -> Option<Texture> {
-    let mut tex_pro_thumb = TextureProcessor::new();
+    let tex_pro_thumb = TextureProcessor::new();
 
     let node_datas = tex_pro.get_node_data(node_id);
 
     let n_out = tex_pro_thumb
-        .node_graph
         .add_node(
             Node::new(NodeType::OutputRgba)
                 .resize_policy(ResizePolicy::SpecificSize(TPSize::new(
@@ -110,12 +109,10 @@ fn generate_thumbnail(
             .embed_node_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32))
         {
             let n_node_data = tex_pro_thumb
-                .node_graph
                 .add_node(Node::new(NodeType::NodeData(end_id)))
                 .unwrap();
 
             tex_pro_thumb
-                .node_graph
                 .connect(n_node_data, n_out, SlotId(0), node_data.slot_id)
                 .unwrap()
         }
@@ -123,16 +120,12 @@ fn generate_thumbnail(
 
     tex_pro_thumb.process();
 
-    if let Ok(output) = tex_pro_thumb.get_output(n_out) {
-        Some(Texture::new(
-            Extent3d::new(size.width as u32, size.height as u32, 1),
-            TextureDimension::D2,
-            output,
-            TextureFormat::Rgba8Unorm,
-        ))
-    } else {
-        None
-    }
+    Some(Texture::new(
+        Extent3d::new(size.width as u32, size.height as u32, 1),
+        TextureDimension::D2,
+        tex_pro_thumb.get_output(n_out),
+        TextureFormat::Rgba8Unorm,
+    ))
 }
 
 fn export(
@@ -142,7 +135,7 @@ fn export(
     mut keyboard_input: ResMut<ScanCodeInput>,
 ) {
     for node_id in q_selected.iter() {
-        let size: TPSize = match tex_pro.get_node_size(*node_id) {
+        let size: TPSize = match tex_pro.get_node_data_size(*node_id) {
             Some(s) => s,
             None => {
                 info!("Unable to get the size of the node");
@@ -170,7 +163,7 @@ fn export(
             }
         };
 
-        let texels = match tex_pro.get_output(*node_id) {
+        let texels = match tex_pro.try_get_output(*node_id) {
             Ok(buf) => buf,
             Err(e) => {
                 error!("Error when trying to get pixels from image: {:?}", e);

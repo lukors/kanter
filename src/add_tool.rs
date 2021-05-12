@@ -6,12 +6,7 @@ use crate::{
     AmbiguitySet, GrabToolType, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{
-    dag::TextureProcessor,
-    error::TexProError,
-    node::{MixType, Node, NodeType},
-    node_graph::NodeId,
-};
+use kanter_core::{error::TexProError, node::{MixType, Node, NodeType}, node_graph::NodeId, texture_processor::TextureProcessor};
 use native_dialog::FileDialog;
 
 pub(crate) struct AddToolPlugin;
@@ -154,7 +149,7 @@ fn create_default_node(
     tex_pro: &mut TextureProcessor,
     node_type: NodeType,
 ) -> Result<NodeId, TexProError> {
-    tex_pro.node_graph.add_node(
+    tex_pro.add_node(
         Node::new(node_type)
             .resize_policy(kanter_core::node::ResizePolicy::MostPixels)
             .resize_filter(kanter_core::node::ResizeFilter::Triangle),
