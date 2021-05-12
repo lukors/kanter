@@ -19,7 +19,7 @@ pub mod scan_code_input;
 pub mod sync_graph;
 pub mod workspace;
 
-use bevy::{audio::AudioPlugin, prelude::*};
+use bevy::prelude::*;
 use camera::*;
 use drag_drop_entity::*;
 use hotkeys::*;
@@ -76,7 +76,7 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.5)))
         // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
-        .add_plugins_with(DefaultPlugins, |group| group.disable::<AudioPlugin>())
+        .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();
 }
