@@ -1,6 +1,8 @@
 # Kanter
 A node based texture creation tool for Windows and Linux. It uses [Kanter Core](https://github.com/lukors/kanter_core) for the computation and [Bevy](https://github.com/bevyengine/bevy) for the graphical user interface.
 
+[**Download the latest version here**](https://github.com/lukors/kanter/releases/latest)
+
 ![kanter_0-2-0](https://user-images.githubusercontent.com/1719884/117169645-908b1d80-adc9-11eb-9aee-6815c34d3f53.png)
 
 ## Goals
