@@ -7,6 +7,7 @@ pub mod deselect_tool;
 pub mod drag_drop_entity;
 pub mod drag_drop_import;
 pub mod edit_node;
+pub mod export;
 pub mod hotkeys;
 pub mod hoverable;
 pub mod instruction;
