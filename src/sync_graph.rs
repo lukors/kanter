@@ -1,6 +1,6 @@
 use crate::{
     workspace::Workspace, AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
-    Thumbnail, THUMBNAIL_SIZE,
+    thumbnail::{Thumbnail, THUMBNAIL_SIZE},
 };
 use bevy::prelude::*;
 use kanter_core::{
