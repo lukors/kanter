@@ -1,16 +1,11 @@
 use crate::{
     instruction::ToolList, scan_code_input::ScanCodeInput, AmbiguitySet, Selected, Stage, ToolState,
 };
-use bevy::{
-    prelude::*,
-};
+use bevy::prelude::*;
 use kanter_core::{
-    node_data::Size as TPSize,
-    node_graph::NodeId,
-    texture_processor::TextureProcessor,
+    node_data::Size as TPSize, node_graph::NodeId, texture_processor::TextureProcessor,
 };
 use native_dialog::FileDialog;
-/// Texture Processing
 use std::path::Path;
 
 pub(crate) struct ProcessingPlugin;
@@ -44,13 +39,9 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 }
 
 fn process(tex_pro: ResMut<TextureProcessor>, mut tool_state: ResMut<State<ToolState>>) {
-    info!("Processing graph...");
+    info!("Starting graph processing...");
     tex_pro.process();
-
-    info!("Generating thumbnails...");
-
     tool_state.overwrite_replace(ToolState::None).unwrap();
-    info!("Done");
 }
 
 fn export(

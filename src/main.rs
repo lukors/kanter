@@ -17,8 +17,8 @@ pub mod mouse_interaction;
 pub mod processing;
 pub mod scan_code_input;
 pub mod sync_graph;
-pub mod workspace;
 pub mod thumbnail;
+pub mod workspace;
 
 use bevy::prelude::*;
 use camera::*;
@@ -27,7 +27,6 @@ use hotkeys::*;
 use hoverable::*;
 use kanter::*;
 use mouse_interaction::Selected;
-use processing::*;
 use sync_graph::*;
 use workspace::*;
 
