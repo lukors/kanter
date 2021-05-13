@@ -5,7 +5,12 @@ use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
-use kanter_core::{node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy}, node_data::Size as TPSize, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
+use kanter_core::{
+    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy},
+    node_data::Size as TPSize,
+    node_graph::{NodeId, SlotId},
+    texture_processor::TextureProcessor,
+};
 use native_dialog::FileDialog;
 /// Texture Processing
 use std::{path::Path, sync::Arc};
@@ -23,6 +28,11 @@ impl Plugin for ProcessingPlugin {
                 SystemSet::new()
                     .label(Stage::Apply)
                     .after(Stage::Update)
+                    .with_system(
+                        generate_thumbnail_loop
+                            .system()
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
                     .with_system(
                         process
                             .system()
@@ -43,10 +53,7 @@ fn setup(mut tool_list: ResMut<ToolList>) {
     tool_list.insert("F12: Process graph".to_string());
 }
 
-fn process(
-    tex_pro: ResMut<TextureProcessor>,
-    mut tool_state: ResMut<State<ToolState>>,
-) {
+fn process(tex_pro: ResMut<TextureProcessor>, mut tool_state: ResMut<State<ToolState>>) {
     info!("Processing graph...");
     tex_pro.process();
 
@@ -64,24 +71,45 @@ fn generate_thumbnail_loop(
     q_node: Query<(Entity, &NodeId)>,
     tex_pro: Res<TextureProcessor>,
 ) {
-    for (node_e, node_id) in q_node.iter() {
-        if let Some(texture) = generate_thumbnail(
-            &tex_pro,
-            *node_id,
-            Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
-        ) {
-            let texture_handle = textures.add(texture);
+    for node_id in tex_pro.clean_consume() {
+        if let Some((node_e, _)) = q_node.iter().find(|(_, nid)| **nid == node_id) {
+            if let Some(texture) = generate_thumbnail(
+                &tex_pro,
+                node_id,
+                Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
+            ) {
+                let texture_handle = textures.add(texture);
 
-            if let Some((thumbnail_e, _)) = q_thumbnail
-                .iter()
-                .find(|(_, parent_e)| parent_e.0 == node_e)
-            {
-                commands
-                    .entity(thumbnail_e)
-                    .insert(materials.add(texture_handle.into()));
+                if let Some((thumbnail_e, _)) = q_thumbnail
+                    .iter()
+                    .find(|(_, parent_e)| parent_e.0 == node_e)
+                {
+                    commands
+                        .entity(thumbnail_e)
+                        .insert(materials.add(texture_handle.into()));
+                }
             }
         }
     }
+
+    // for (node_e, node_id) in q_node.iter() {
+    //     if let Some(texture) = generate_thumbnail(
+    //         &tex_pro,
+    //         *node_id,
+    //         Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
+    //     ) {
+    //         let texture_handle = textures.add(texture);
+
+    //         if let Some((thumbnail_e, _)) = q_thumbnail
+    //             .iter()
+    //             .find(|(_, parent_e)| parent_e.0 == node_e)
+    //         {
+    //             commands
+    //                 .entity(thumbnail_e)
+    //                 .insert(materials.add(texture_handle.into()));
+    //         }
+    //     }
+    // }
 }
 
 fn generate_thumbnail(

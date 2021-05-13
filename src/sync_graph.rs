@@ -3,7 +3,11 @@ use crate::{
     Thumbnail, THUMBNAIL_SIZE,
 };
 use bevy::prelude::*;
-use kanter_core::{node::{Node, NodeType, Side}, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
+use kanter_core::{
+    node::{Node, NodeType, Side},
+    node_graph::{NodeId, SlotId},
+    texture_processor::TextureProcessor,
+};
 use rand::Rng;
 
 const SLOT_SIZE: f32 = 30.;

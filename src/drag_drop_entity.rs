@@ -134,7 +134,7 @@ fn dropped_edge_update(
                         )
                         .is_ok()
                     {
-                    if let Some(source_slot) = source_slot {
+                        if let Some(source_slot) = source_slot {
                             if source_slot.0 != *slot {
                                 tex_pro.disconnect_slot(
                                     source_slot.0.node_id,

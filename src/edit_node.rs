@@ -1,5 +1,10 @@
 use bevy::prelude::*;
-use kanter_core::{node::{MixType, Node, NodeType, ResizeFilter, ResizePolicy, Side}, node_data::Size as TPSize, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
+use kanter_core::{
+    node::{MixType, Node, NodeType, ResizeFilter, ResizePolicy, Side},
+    node_data::Size as TPSize,
+    node_graph::{NodeId, SlotId},
+    texture_processor::TextureProcessor,
+};
 
 use crate::{
     instruction::*, listable::*, mouse_interaction::Active, scan_code_input::*, AmbiguitySet,

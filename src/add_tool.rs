@@ -6,7 +6,12 @@ use crate::{
     AmbiguitySet, GrabToolType, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{error::TexProError, node::{MixType, Node, NodeType}, node_graph::NodeId, texture_processor::TextureProcessor};
+use kanter_core::{
+    error::TexProError,
+    node::{MixType, Node, NodeType},
+    node_graph::NodeId,
+    texture_processor::TextureProcessor,
+};
 use native_dialog::FileDialog;
 
 pub(crate) struct AddToolPlugin;
