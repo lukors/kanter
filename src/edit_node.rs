@@ -208,7 +208,13 @@ fn edit_specific_slot_update(
             } else if event.char == '\r' {
                 // Enter
                 if let Ok(slot_id) = instructions.sections[1].value.parse::<u32>() {
-                    if let Some(mut node) = tex_pro.node_with_id_mut(*node_id) {
+                    if let Some(mut node) = tex_pro
+                        .inner()
+                        .write()
+                        .unwrap()
+                        .node_graph
+                        .node_with_id_mut(*node_id)
+                    {
                         let slot_id = SlotId(slot_id);
                         if node.slot_exists(slot_id, Side::Input) {
                             node.resize_policy = ResizePolicy::SpecificSlot(slot_id);
@@ -275,7 +281,12 @@ fn edit_specific_size_update(
                 // Enter
                 if let (Some(size), Some(mut node)) = (
                     string_to_size(&instructions.sections[1].value),
-                    tex_pro.node_with_id_mut(*node_id),
+                    tex_pro
+                        .inner()
+                        .write()
+                        .unwrap()
+                        .node_graph
+                        .node_with_id_mut(*node_id),
                 ) {
                     node.resize_policy = ResizePolicy::SpecificSize(size);
                 } else {
@@ -343,7 +354,12 @@ fn edit_value_update(
                 // Enter
                 if let (Ok(number), Some(mut node)) = (
                     instructions.sections[1].value.parse::<f32>(),
-                    tex_pro.node_with_id_mut(*node_id),
+                    tex_pro
+                        .inner()
+                        .write()
+                        .unwrap()
+                        .node_graph
+                        .node_with_id_mut(*node_id),
                 ) {
                     node.node_type = NodeType::Value(number);
                 } else {
@@ -366,7 +382,13 @@ fn edit(
     let mut done = false;
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
-        if let Some(mut node) = tex_pro.node_with_id_mut(*node_id) {
+        if let Some(mut node) = tex_pro
+            .inner()
+            .write()
+            .unwrap()
+            .node_graph
+            .node_with_id_mut(*node_id)
+        {
             let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
             let mut parameter_set = false;
 
