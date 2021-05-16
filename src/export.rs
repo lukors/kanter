@@ -3,7 +3,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use kanter_core::{
-    node_data::Size as TPSize, node_graph::NodeId, texture_processor::TextureProcessor,
+    node_graph::NodeId, slot_data::Size as TPSize, texture_processor::TextureProcessor,
 };
 use native_dialog::FileDialog;
 use std::path::Path;

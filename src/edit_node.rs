@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use kanter_core::{
     node::{MixType, Node, NodeType, ResizeFilter, ResizePolicy, Side},
-    node_data::Size as TPSize,
     node_graph::{NodeId, SlotId},
+    slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
 };
 

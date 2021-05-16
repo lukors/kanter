@@ -4,9 +4,10 @@ use bevy::{
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
 use kanter_core::{
+    dag::TexProInt,
     node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy},
-    node_data::Size as TPSize,
     node_graph::{NodeId, SlotId},
+    slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
 };
 use std::sync::Arc;
@@ -41,7 +42,7 @@ fn generate_thumbnail_loop(
     tex_pro: Res<TextureProcessor>,
     mut thumb_tex_pro: ResMut<Vec<ThumbTexPro>>,
 ) {
-    for node_id in tex_pro.clean_consume() {
+    for node_id in tex_pro.get_all_clean() {
         if q_node.iter().find(|nid| **nid == node_id).is_some() {
             generate_thumbnail(
                 &tex_pro,
@@ -61,20 +62,39 @@ fn get_thumbnail_loop(
     q_node: Query<(Entity, &NodeId)>,
     mut thumb_tex_pro: ResMut<Vec<ThumbTexPro>>,
 ) {
-    for (node_id, tex_pro) in finished_thumbnails_consume(&mut thumb_tex_pro) {
-        if let Some((node_e, _)) = q_node.iter().find(|(_, nid)| **nid == node_id) {
-            if let Some(texture) = try_get_output(&tex_pro) {
+    let mut thumb_tex_pros_to_remove = Vec::new();
+
+    for (node_id, tex_pro) in thumb_tex_pro.iter() {
+        if let (Some((node_e, _)), Ok(tex_pro)) = (
+            q_node.iter().find(|(_, nid)| *nid == node_id),
+            tex_pro.inner().try_read(),
+        ) {
+            if let Some(texture) = get_output(&*tex_pro) {
                 let texture_handle = textures.add(texture);
 
                 if let Some((thumbnail_e, _)) = q_thumbnail
                     .iter()
                     .find(|(_, parent_e)| parent_e.0 == node_e)
                 {
+                    info!("Got thumbnail");
                     commands
                         .entity(thumbnail_e)
                         .insert(materials.add(texture_handle.into()));
+                } else {
+                    error!("Couldn't find a thumbnail entity for the GUI node");
                 }
+
+                thumb_tex_pros_to_remove.push(*node_id);
             }
+        }
+    }
+
+    for node_id_to_remove in thumb_tex_pros_to_remove {
+        if let Some(index) = thumb_tex_pro
+            .iter()
+            .position(|(node_id, _)| *node_id == node_id_to_remove)
+        {
+            thumb_tex_pro.remove(index);
         }
     }
 }
@@ -90,7 +110,7 @@ fn generate_thumbnail(
 ) {
     let tex_pro_thumb = TextureProcessor::new();
 
-    let node_datas = tex_pro.get_node_data(node_id);
+    let node_datas = tex_pro.node_slot_data(node_id);
 
     let n_out = tex_pro_thumb
         .add_node(
@@ -105,7 +125,7 @@ fn generate_thumbnail(
 
     for (i, node_data) in node_datas.iter().take(4).enumerate() {
         if let Ok(end_id) = tex_pro_thumb
-            .embed_node_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32))
+            .embed_slot_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32))
         {
             let n_node_data = tex_pro_thumb
                 .add_node(Node::new(NodeType::NodeData(end_id)))
@@ -126,13 +146,18 @@ fn finished_thumbnails_consume(thumb_tex_pro: &mut ResMut<Vec<ThumbTexPro>>) -> 
     let mut finished_thumbs = Vec::new();
 
     for i in (0..thumb_tex_pro.len()).rev() {
-        if thumb_tex_pro[i].1.finished() {
+        if !thumb_tex_pro[i].1.processing() {
+            dbg!("Does this run?");
             finished_thumbs.push(thumb_tex_pro.remove(i));
         }
     }
 
     finished_thumbs
 }
+
+// fn finished_thumbnails(thumb_tex_pro: &mut ResMut<Vec<ThumbTexPro>>) -> Vec<ThumbTexPro> {
+//     thumb_tex_pro.iter().filter(|(_, tp)| !tp.processing()).cloned().collect::<Vec<ThumbTexPro>>()
+// }
 
 /// Tries to get the output of a given graph.
 fn try_get_output(tex_pro: &TextureProcessor) -> Option<Texture> {
@@ -148,6 +173,29 @@ fn try_get_output(tex_pro: &TextureProcessor) -> Option<Texture> {
                 TextureFormat::Rgba8Unorm,
             ))
         } else {
+            None
+        }
+    } else {
+        error!("Tried getting an output, but the graph does not have any outputs");
+        None
+    }
+}
+
+/// Gets the output of a given TextureProcessor.
+fn get_output(tex_pro_int: &TexProInt) -> Option<Texture> {
+    if let Some(output_id) = tex_pro_int.node_graph.external_output_ids().first() {
+        if let (Ok(buffer), Some(size)) = (
+            tex_pro_int.get_output(*output_id),
+            tex_pro_int.get_node_data_size(*output_id),
+        ) {
+            Some(Texture::new(
+                Extent3d::new(size.width as u32, size.height as u32, 1),
+                TextureDimension::D2,
+                buffer,
+                TextureFormat::Rgba8Unorm,
+            ))
+        } else {
+            trace!("Tried getting an output, but the output node didn't have any data");
             None
         }
     } else {

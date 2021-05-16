@@ -1,7 +1,7 @@
 use kanter_core::{
     node::{MixType, ResizeFilter, ResizePolicy},
-    node_data::Size as TPSize,
     node_graph::SlotId,
+    slot_data::Size as TPSize,
 };
 
 pub(crate) trait Listable<T> {
