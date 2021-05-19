@@ -3,12 +3,7 @@ use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
-use kanter_core::{
-    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy},
-    node_graph::{NodeId, SlotId},
-    slot_data::Size as TPSize,
-    texture_processor::TextureProcessor,
-};
+use kanter_core::{error::TexProError, node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy}, node_graph::{NodeId, SlotId}, slot_data::Size as TPSize, texture_processor::TextureProcessor};
 use std::sync::Arc;
 
 type TexProThumb = (NodeId, TextureProcessor);
@@ -44,19 +39,20 @@ impl Plugin for ThumbnailPlugin {
 }
 
 fn generate_thumbnail_loop(
-    mut q_node: Query<(&NodeId, &mut ThumbnailState)>,
+    mut commands: Commands,
+    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState)>,
     tex_pro: Res<TextureProcessor>,
-    mut thumb_tex_pro: ResMut<Vec<TexProThumb>>,
 ) {
-    for (node_id, mut thumb_state) in q_node
+    for (entity, node_id, mut thumb_state) in q_node
         .iter_mut()
-        .filter(|(_, state)| **state == ThumbnailState::Missing)
+        .filter(|(_, _, state)| **state == ThumbnailState::Missing)
     {
-        generate_thumbnail(
-            &tex_pro,
-            &mut thumb_tex_pro,
-            *node_id,
-            Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
+        commands.entity(entity).insert(
+            thumbnail_processor(
+                &tex_pro,
+                *node_id,
+                Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
+            )
         );
         *thumb_state = ThumbnailState::Processing;
     }
@@ -67,62 +63,46 @@ fn get_thumbnail_loop(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
     q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
-    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState)>,
-    mut thumb_tex_pro: ResMut<Vec<TexProThumb>>,
+    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState, &TextureProcessor)>,
 ) {
-    let mut thumb_tex_pros_to_remove = Vec::new();
-
-    for (index, (node_id, tex_pro)) in thumb_tex_pro.iter().enumerate() {
-        if let Some((node_e, _, mut thumb_state)) =
-            q_node.iter_mut().find(|(_, nid, _)| *nid == node_id)
-        {
-            if let Some(texture) = try_get_output(&*tex_pro) {
+    for(node_e, node_id, mut thumb_state, tex_pro) in q_node.iter_mut() {
+        let material = match try_get_output(&*tex_pro) {
+            Ok(texture) => {
                 let texture_handle = textures.add(texture);
-
-                if let Some((thumbnail_e, _)) = q_thumbnail
-                    .iter()
-                    .find(|(_, parent_e)| parent_e.0 == node_e)
-                {
-                    info!("Got new thumbnail for {}", node_id);
-                    commands
-                        .entity(thumbnail_e)
-                        .insert(materials.add(texture_handle.into()));
-                } else {
-                    error!("Couldn't find a thumbnail entity for the GUI node");
-                }
-
-                thumb_tex_pros_to_remove.push(index);
-                *thumb_state = ThumbnailState::Present;
+                Some(materials.add(texture_handle.into()))
             }
-        }
-    }
+            Err(TexProError::InvalidBufferCount) => Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into())),
+            _ => None
+        };
 
-    for index in thumb_tex_pros_to_remove.into_iter().rev() {
-        thumb_tex_pro.remove(index);
+        if let Some(material) = material {
+            if let Some((thumbnail_e, _)) = q_thumbnail
+                .iter()
+                .find(|(_, parent_e)| parent_e.0 == node_e)
+            {
+                info!("Got new thumbnail for {}", node_id);
+                commands.entity(thumbnail_e).remove::<Handle<ColorMaterial>>();
+                commands
+                    .entity(thumbnail_e)
+                    .insert(material);
+            } else {
+                error!("Couldn't find a thumbnail entity for the GUI node");
+            }
+
+            *thumb_state = ThumbnailState::Present;
+            commands.entity(node_e).remove::<TextureProcessor>();
+        }
     }
 }
 
 /// Creates a `TextureProcessor` which creates a thumbnail image from the data of a node
 /// in a graph. It adds the `TextureProcessor` to the list of thumbnail processors
 /// so the result can be retrieved and used in the future.
-///
-/// If a processor already exists for a node, throw away the old one.
-fn generate_thumbnail(
+fn thumbnail_processor(
     tex_pro: &Res<TextureProcessor>,
-    tex_pro_thumbs: &mut ResMut<Vec<TexProThumb>>,
     node_id: NodeId,
     size: Size,
-) {
-    // Remove any existing thumbnail processor for the node.
-    if let Some(index) = tex_pro_thumbs
-        .iter()
-        .map(|(node_id_tp, _)| *node_id_tp)
-        .position(|node_id_tp| node_id_tp == node_id)
-    {
-        info!("Throwing away old thumbnail processor for {}", node_id);
-        tex_pro_thumbs.remove(index);
-    }
-
+) -> TextureProcessor {
     let tex_pro_thumb = TextureProcessor::new();
 
     // Todo: If there's stutter when thumbnails are generated it's probably from here.
@@ -155,18 +135,17 @@ fn generate_thumbnail(
 
     tex_pro_thumb.process_then_kill();
 
-    (*tex_pro_thumbs).push((node_id, tex_pro_thumb));
-
     info!("Created thumbnail processor for {}", node_id);
+    tex_pro_thumb
 }
 
 /// Tries to get the output of a given graph.
-fn try_get_output(tex_pro: &TextureProcessor) -> Option<Texture> {
-    let output_id = *tex_pro.external_output_ids().first()?;
-    let buffer = tex_pro.try_get_output(output_id).ok()?;
-    let size = tex_pro.try_get_slot_data_size(output_id, SlotId(0)).ok()?;
+fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
+    let output_id = *tex_pro.external_output_ids().first().ok_or(TexProError::Generic)?;
+    let buffer = tex_pro.try_get_output(output_id)?;
+    let size = tex_pro.try_get_slot_data_size(output_id, SlotId(0))?;
 
-    Some(Texture::new(
+    Ok(Texture::new(
         Extent3d::new(size.width as u32, size.height as u32, 1),
         TextureDimension::D2,
         buffer,

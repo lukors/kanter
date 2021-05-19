@@ -140,29 +140,18 @@ fn dropped_edge_update(
                         );
                         if let Some(source_slot) = source_slot {
                             if source_slot.0 != *slot {
-                                match tex_pro.disconnect_slot(
+                                if let Ok(edges) = tex_pro.disconnect_slot(
                                     source_slot.0.node_id,
                                     source_slot.0.side,
                                     source_slot.0.slot_id,
                                 ) {
-                                    Ok(edges) => {
-                                        for edge in edges {
-                                            info!(
-                                                "Removing edge from {:?} {:?} to {:?} {:?}",
-                                                edge.output_id,
-                                                edge.output_slot,
-                                                edge.input_id,
-                                                edge.input_slot
-                                            );
-                                        }
-                                    }
-                                    Err(e) => {
-                                        error!(
-                                            "Failed to disconnect slot: {}, {:?}, {}: {}",
-                                            source_slot.0.node_id,
-                                            source_slot.0.side,
-                                            source_slot.0.slot_id,
-                                            e
+                                    for edge in edges {
+                                        info!(
+                                            "Removing edge from {:?} {:?} to {:?} {:?}",
+                                            edge.output_id,
+                                            edge.output_slot,
+                                            edge.input_id,
+                                            edge.input_slot
                                         );
                                     }
                                 }
