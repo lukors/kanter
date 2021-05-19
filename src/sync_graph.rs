@@ -58,7 +58,7 @@ impl Default for NodeBundle {
             dragged: Dragged::default(),
             node_id: NodeId(0),
             node_state: NodeState::default(),
-            needs_thumbnail: ThumbnailState::Missing,
+            needs_thumbnail: ThumbnailState::Waiting,
         }
     }
 }
@@ -67,7 +67,10 @@ pub(crate) struct SyncGraphPlugin;
 
 impl Plugin for SyncGraphPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.insert_non_send_resource(TextureProcessor::new())
+        let tex_pro = TextureProcessor::new();
+        tex_pro.tex_pro_int().write().unwrap().auto_update = true;
+
+        app.insert_non_send_resource(tex_pro)
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
@@ -108,6 +111,9 @@ fn sync_graph(
                     // If the node state has been changed in some way--and it used to be
                     // clean--we can't be sure what has happened since then. So we have to
                     // assume that it has been changed.
+                    *thumbnail_state = ThumbnailState::Waiting;
+                }
+                if node_state_actual == NodeState::Clean {
                     *thumbnail_state = ThumbnailState::Missing;
                 }
                 *node_state = node_state_actual;

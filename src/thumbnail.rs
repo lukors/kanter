@@ -15,6 +15,7 @@ pub(crate) struct ThumbnailPlugin;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum ThumbnailState {
+    Waiting,
     Missing,
     Processing,
     Present,
