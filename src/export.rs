@@ -41,6 +41,7 @@ fn export(
     mut keyboard_input: ResMut<ScanCodeInput>,
 ) {
     for node_id in q_selected.iter() {
+        info!("1");
         let size: TPSize = match tex_pro.get_slot_data_size(*node_id, SlotId(0)) {
             Ok(s) => s,
             Err(_) => {
@@ -48,11 +49,12 @@ fn export(
                 continue;
             }
         };
-
+        
+        info!("2");
         let path = match FileDialog::new()
-            // .set_location("~/Desktop")
-            .add_filter("PNG Image", &["png"])
-            .show_save_single_file()
+        // .set_location("~/Desktop")
+        .add_filter("PNG Image", &["png"])
+        .show_save_single_file()
         {
             Ok(path) => path,
             Err(e) => {
@@ -60,7 +62,8 @@ fn export(
                 continue;
             }
         };
-
+        
+        info!("3");
         let path = match path {
             Some(path) => path,
             None => {
@@ -68,7 +71,8 @@ fn export(
                 continue;
             }
         };
-
+        
+        info!("4");
         let texels = match tex_pro.try_get_output(*node_id) {
             Ok(buf) => buf,
             Err(e) => {
@@ -76,7 +80,8 @@ fn export(
                 continue;
             }
         };
-
+        
+        info!("5");
         let buffer = match image::RgbaImage::from_vec(size.width, size.height, texels) {
             None => {
                 error!("Output image buffer not big enough to contain texels.");
@@ -84,7 +89,8 @@ fn export(
             }
             Some(buf) => buf,
         };
-
+        
+        info!("6");
         match image::save_buffer(
             &Path::new(&path),
             &buffer,
@@ -98,8 +104,9 @@ fn export(
                 continue;
             }
         }
+        info!("7");
     }
-
+    
     keyboard_input.clear();
     tool_state.overwrite_replace(ToolState::None).unwrap();
 }
