@@ -34,9 +34,9 @@ impl Plugin for ThumbnailPlugin {
                     .label(Stage::Apply)
                     .after(Stage::Update)
                     .with_system(
-                        generate_thumbnail_loop
+                        get_thumbnail_loop
                             .system()
-                            .chain(get_thumbnail_loop.system())
+                            .chain(generate_thumbnail_loop.system())
                             .in_ambiguity_set(AmbiguitySet),
                     ),
             );
@@ -83,7 +83,7 @@ fn get_thumbnail_loop(
                     .iter()
                     .find(|(_, parent_e)| parent_e.0 == node_e)
                 {
-                    trace!("Got thumbnail");
+                    info!("Got new thumbnail for {}", node_id);
                     commands
                         .entity(thumbnail_e)
                         .insert(materials.add(texture_handle.into()));
@@ -119,6 +119,7 @@ fn generate_thumbnail(
         .map(|(node_id_tp, _)| *node_id_tp)
         .position(|node_id_tp| node_id_tp == node_id)
     {
+        info!("Throwing away old thumbnail processor for {}", node_id);
         tex_pro_thumbs.remove(index);
     }
 
@@ -155,6 +156,8 @@ fn generate_thumbnail(
     tex_pro_thumb.process_then_kill();
 
     (*tex_pro_thumbs).push((node_id, tex_pro_thumb));
+
+    info!("Created thumbnail processor for {}", node_id);
 }
 
 /// Tries to get the output of a given graph.

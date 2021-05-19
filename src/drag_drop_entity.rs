@@ -126,31 +126,45 @@ fn dropped_edge_update(
                     slot_sprite.size,
                     cursor_t.translation.truncate(),
                 ) {
-                    if tex_pro
-                        .connect_arbitrary(
-                            slot.node_id,
-                            slot.side,
-                            slot.slot_id,
-                            grabbed_edge.slot.node_id,
-                            grabbed_edge.slot.side,
-                            grabbed_edge.slot.slot_id,
-                        )
-                        .is_ok()
-                    {
+                    if let Ok(edge) = tex_pro.connect_arbitrary(
+                        slot.node_id,
+                        slot.side,
+                        slot.slot_id,
+                        grabbed_edge.slot.node_id,
+                        grabbed_edge.slot.side,
+                        grabbed_edge.slot.slot_id,
+                    ) {
+                        info!(
+                            "Creating edge from {:?} {:?} to {:?} {:?}",
+                            edge.output_id, edge.output_slot, edge.input_id, edge.input_slot
+                        );
                         if let Some(source_slot) = source_slot {
                             if source_slot.0 != *slot {
-                                if let Err(e) = tex_pro.disconnect_slot(
+                                match tex_pro.disconnect_slot(
                                     source_slot.0.node_id,
                                     source_slot.0.side,
                                     source_slot.0.slot_id,
                                 ) {
-                                    error!(
-                                        "Failed to disconnect slot: {}, {:?}, {}: {}",
-                                        source_slot.0.node_id,
-                                        source_slot.0.side,
-                                        source_slot.0.slot_id,
-                                        e
-                                    );
+                                    Ok(edges) => {
+                                        for edge in edges {
+                                            info!(
+                                                "Removing edge from {:?} {:?} to {:?} {:?}",
+                                                edge.output_id,
+                                                edge.output_slot,
+                                                edge.input_id,
+                                                edge.input_slot
+                                            );
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error!(
+                                            "Failed to disconnect slot: {}, {:?}, {}: {}",
+                                            source_slot.0.node_id,
+                                            source_slot.0.side,
+                                            source_slot.0.slot_id,
+                                            e
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -162,15 +176,25 @@ fn dropped_edge_update(
                 }
             }
             if let Some(source_slot) = source_slot {
-                if let Err(e) = tex_pro.disconnect_slot(
+                match tex_pro.disconnect_slot(
                     source_slot.0.node_id,
                     source_slot.0.side,
                     source_slot.0.slot_id,
                 ) {
-                    error!(
-                        "Failed to disconnect slot: {}, {:?}, {}: {}",
-                        source_slot.0.node_id, source_slot.0.side, source_slot.0.slot_id, e
-                    );
+                    Ok(edges) => {
+                        for edge in edges {
+                            info!(
+                                "Removing edge from {:?} {:?} to {:?} {:?}",
+                                edge.output_id, edge.output_slot, edge.input_id, edge.input_slot
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to disconnect slot: {}, {:?}, {}: {}",
+                            source_slot.0.node_id, source_slot.0.side, source_slot.0.slot_id, e
+                        );
+                    }
                 }
             }
         }
