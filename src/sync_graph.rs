@@ -286,7 +286,7 @@ pub(crate) fn stretch_between(
     let distance = start.distance(end);
     let rotation = Vec2::X.angle_between(start - end);
 
-    transform.translation = midpoint.extend(0.0);
+    transform.translation = midpoint.extend(9.0);
     transform.rotation = Quat::from_rotation_z(rotation);
     sprite.size = Vec2::new(distance, 5.);
 }
