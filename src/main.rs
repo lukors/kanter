@@ -15,7 +15,6 @@ pub mod kanter;
 pub mod listable;
 pub mod material;
 pub mod mouse_interaction;
-pub mod processing;
 pub mod scan_code_input;
 pub mod sync_graph;
 pub mod thumbnail;

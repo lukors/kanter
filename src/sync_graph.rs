@@ -1,10 +1,11 @@
 use crate::{
-    thumbnail::{Thumbnail, THUMBNAIL_SIZE},
+    thumbnail::{Thumbnail, ThumbnailState, THUMBNAIL_SIZE},
     workspace::Workspace,
     AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
 };
 use bevy::prelude::*;
 use kanter_core::{
+    dag::NodeState,
     node::{Node, NodeType, Side},
     node_graph::{NodeId, SlotId},
     texture_processor::TextureProcessor,
@@ -32,6 +33,36 @@ pub(crate) struct Slot {
     pub slot_id: SlotId,
 }
 
+#[derive(Bundle)]
+pub(crate) struct NodeBundle {
+    #[bundle]
+    sprite_bundle: SpriteBundle,
+    hoverable: Hoverable,
+    hovered: Hovered,
+    selected: Selected,
+    draggable: Draggable,
+    dragged: Dragged,
+    node_id: NodeId,
+    node_state: NodeState,
+    needs_thumbnail: ThumbnailState,
+}
+
+impl Default for NodeBundle {
+    fn default() -> Self {
+        Self {
+            sprite_bundle: SpriteBundle::default(),
+            hoverable: Hoverable::default(),
+            hovered: Hovered::default(),
+            selected: Selected::default(),
+            draggable: Draggable::default(),
+            dragged: Dragged::default(),
+            node_id: NodeId(0),
+            node_state: NodeState::default(),
+            needs_thumbnail: ThumbnailState::Missing,
+        }
+    }
+}
+
 pub(crate) struct SyncGraphPlugin;
 
 impl Plugin for SyncGraphPlugin {
@@ -52,54 +83,64 @@ impl Plugin for SyncGraphPlugin {
 fn sync_graph(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    q_node_id: Query<(Entity, &NodeId)>,
-    q_edge: Query<Entity, With<Edge>>,
+    mut q_node: Query<(Entity, &NodeId, &mut NodeState, &mut ThumbnailState)>,
+    q_edge: Query<(Entity, &Edge)>,
     q_slot: Query<(&Slot, &GlobalTransform)>,
     q_selected: Query<Entity, With<Selected>>,
-    tex_pro: Res<TextureProcessor>,
     workspace: Res<Workspace>,
+    tex_pro: Res<TextureProcessor>,
 ) {
-    if tex_pro.is_changed() {
-        let tp_node_ids = tex_pro.node_ids();
-        let existing_gui_node_ids: Vec<NodeId> =
-            q_node_id.iter().map(|(_, node_id)| *node_id).collect();
-        let new_ids: Vec<NodeId> = tp_node_ids
-            .iter()
-            .filter(|tp_node_id| !existing_gui_node_ids.contains(tp_node_id))
-            .copied()
-            .collect();
-        let removed_ids: Vec<NodeId> = existing_gui_node_ids
-            .iter()
-            .filter(|gui_node_id| !tp_node_ids.contains(gui_node_id))
-            .copied()
-            .collect();
+    for node_id in tex_pro.changed_consume() {
+        if let Some((node_gui_e, _, mut node_state, mut thumbnail_state)) = q_node
+            .iter_mut()
+            .find(|(_, node_id_query, _, _)| **node_id_query == node_id)
+        {
+            if tex_pro.has_node_with_id(node_id).is_err() {
+                info!("Removing node: {}", node_id);
+                commands.entity(node_gui_e).despawn_recursive();
+            } else if let Ok(node_state_actual) = tex_pro.node_state(node_id) {
+                info!(
+                    "Updating node state of {} from {:?} to {:?}",
+                    node_id, *node_state, node_state_actual
+                );
 
-        if !new_ids.is_empty() {
+                if *node_state == NodeState::Clean {
+                    // If the node state has been changed in some way--and it used to be
+                    // clean--we can't be sure what has happened since then. So we have to
+                    // assume that it has been changed.
+                    *thumbnail_state = ThumbnailState::Missing;
+                }
+                *node_state = node_state_actual;
+            } else {
+                error!(
+                    "Tried updating the state of a node that doesn't exist in the graph: {}",
+                    node_id
+                );
+            }
+        } else {
+            info!("Adding node: {}", node_id);
             for entity in q_selected.iter() {
                 commands.entity(entity).remove::<Selected>();
             }
-        }
-        // Create gui nodes for any new nodes in the graph.
-        for node_id in new_ids {
+
             let node = tex_pro.node_with_id(node_id).unwrap();
             spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
         }
 
-        // Remove the gui nodes for any nodes that don't exist in the graph.
-        for (node_e, _) in q_node_id
+        // Removing edges for the node
+        for (entity, _) in q_edge
             .iter()
-            .filter(|(_, node_id)| removed_ids.contains(node_id))
+            .filter(|(_, edge)| edge.input_slot.node_id == node_id)
         {
-            commands.entity(node_e).despawn_recursive();
+            commands.entity(entity).despawn_recursive();
         }
 
-        // Remove all edges so we can create new ones. This should be optimized to move
-        // existing edges.
-        for edge_e in q_edge.iter() {
-            commands.entity(edge_e).despawn_recursive();
-        }
-
-        for edge in tex_pro.edges().iter() {
+        // Adding the current edges
+        for edge in tex_pro
+            .edges()
+            .iter()
+            .filter(|edge| edge.input_id == node_id)
+        {
             let output_slot = Slot {
                 node_id: edge.output_id,
                 side: Side::Output,
@@ -156,22 +197,20 @@ fn spawn_gui_node(
     position: Vec2,
 ) {
     commands
-        .spawn_bundle(SpriteBundle {
-            material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
-            sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
-            transform: Transform::from_translation(Vec3::new(
-                position.x,
-                position.y,
-                rand::thread_rng().gen_range(0.0..9.0),
-            )),
+        .spawn_bundle(NodeBundle {
+            sprite_bundle: SpriteBundle {
+                material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
+                sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
+                transform: Transform::from_translation(Vec3::new(
+                    position.x,
+                    position.y,
+                    rand::thread_rng().gen_range(0.0..9.0),
+                )),
+                ..Default::default()
+            },
+            node_id: node.node_id,
             ..Default::default()
         })
-        .insert(Hoverable)
-        .insert(Hovered)
-        .insert(Selected)
-        .insert(Draggable)
-        .insert(Dragged)
-        .insert(node.node_id)
         .with_children(|parent| {
             parent
                 .spawn_bundle(SpriteBundle {

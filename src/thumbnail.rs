@@ -4,7 +4,6 @@ use bevy::{
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
 use kanter_core::{
-    dag::TexProInt,
     node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy},
     node_graph::{NodeId, SlotId},
     slot_data::Size as TPSize,
@@ -12,16 +11,23 @@ use kanter_core::{
 };
 use std::sync::Arc;
 
-type ThumbTexPro = (NodeId, TextureProcessor);
+type TexProThumb = (NodeId, TextureProcessor);
 
 pub(crate) const THUMBNAIL_SIZE: f32 = 128.;
 pub(crate) struct Thumbnail;
 
 pub(crate) struct ThumbnailPlugin;
 
+#[derive(Debug, PartialEq)]
+pub(crate) enum ThumbnailState {
+    Missing,
+    Processing,
+    Present,
+}
+
 impl Plugin for ThumbnailPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.insert_non_send_resource(Vec::<ThumbTexPro>::new())
+        app.insert_non_send_resource(Vec::<TexProThumb>::new())
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
@@ -38,19 +44,21 @@ impl Plugin for ThumbnailPlugin {
 }
 
 fn generate_thumbnail_loop(
-    q_node: Query<&NodeId>,
+    mut q_node: Query<(&NodeId, &mut ThumbnailState)>,
     tex_pro: Res<TextureProcessor>,
-    mut thumb_tex_pro: ResMut<Vec<ThumbTexPro>>,
+    mut thumb_tex_pro: ResMut<Vec<TexProThumb>>,
 ) {
-    for node_id in tex_pro.get_all_clean() {
-        if q_node.iter().find(|nid| **nid == node_id).is_some() {
-            generate_thumbnail(
-                &tex_pro,
-                &mut thumb_tex_pro,
-                node_id,
-                Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
-            );
-        }
+    for (node_id, mut thumb_state) in q_node
+        .iter_mut()
+        .filter(|(_, state)| **state == ThumbnailState::Missing)
+    {
+        generate_thumbnail(
+            &tex_pro,
+            &mut thumb_tex_pro,
+            *node_id,
+            Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
+        );
+        *thumb_state = ThumbnailState::Processing;
     }
 }
 
@@ -59,24 +67,23 @@ fn get_thumbnail_loop(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
     q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
-    q_node: Query<(Entity, &NodeId)>,
-    mut thumb_tex_pro: ResMut<Vec<ThumbTexPro>>,
+    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState)>,
+    mut thumb_tex_pro: ResMut<Vec<TexProThumb>>,
 ) {
     let mut thumb_tex_pros_to_remove = Vec::new();
 
-    for (node_id, tex_pro) in thumb_tex_pro.iter() {
-        if let (Some((node_e, _)), Ok(tex_pro)) = (
-            q_node.iter().find(|(_, nid)| *nid == node_id),
-            tex_pro.inner().try_read(),
-        ) {
-            if let Some(texture) = get_output(&*tex_pro) {
+    for (index, (node_id, tex_pro)) in thumb_tex_pro.iter().enumerate() {
+        if let Some((node_e, _, mut thumb_state)) =
+            q_node.iter_mut().find(|(_, nid, _)| *nid == node_id)
+        {
+            if let Some(texture) = try_get_output(&*tex_pro) {
                 let texture_handle = textures.add(texture);
 
                 if let Some((thumbnail_e, _)) = q_thumbnail
                     .iter()
                     .find(|(_, parent_e)| parent_e.0 == node_e)
                 {
-                    info!("Got thumbnail");
+                    trace!("Got thumbnail");
                     commands
                         .entity(thumbnail_e)
                         .insert(materials.add(texture_handle.into()));
@@ -84,33 +91,41 @@ fn get_thumbnail_loop(
                     error!("Couldn't find a thumbnail entity for the GUI node");
                 }
 
-                thumb_tex_pros_to_remove.push(*node_id);
+                thumb_tex_pros_to_remove.push(index);
+                *thumb_state = ThumbnailState::Present;
             }
         }
     }
 
-    for node_id_to_remove in thumb_tex_pros_to_remove {
-        if let Some(index) = thumb_tex_pro
-            .iter()
-            .position(|(node_id, _)| *node_id == node_id_to_remove)
-        {
-            thumb_tex_pro.remove(index);
-        }
+    for index in thumb_tex_pros_to_remove.into_iter().rev() {
+        thumb_tex_pro.remove(index);
     }
 }
 
 /// Creates a `TextureProcessor` which creates a thumbnail image from the data of a node
 /// in a graph. It adds the `TextureProcessor` to the list of thumbnail processors
 /// so the result can be retrieved and used in the future.
+///
+/// If a processor already exists for a node, throw away the old one.
 fn generate_thumbnail(
     tex_pro: &Res<TextureProcessor>,
-    thumb_tex_pro: &mut ResMut<Vec<ThumbTexPro>>,
+    tex_pro_thumbs: &mut ResMut<Vec<TexProThumb>>,
     node_id: NodeId,
     size: Size,
 ) {
+    // Remove any existing thumbnail processor for the node.
+    if let Some(index) = tex_pro_thumbs
+        .iter()
+        .map(|(node_id_tp, _)| *node_id_tp)
+        .position(|node_id_tp| node_id_tp == node_id)
+    {
+        tex_pro_thumbs.remove(index);
+    }
+
     let tex_pro_thumb = TextureProcessor::new();
 
-    let node_datas = tex_pro.node_slot_data(node_id);
+    // Todo: If there's stutter when thumbnails are generated it's probably from here.
+    let node_datas = tex_pro.node_slot_data(node_id).unwrap();
 
     let n_out = tex_pro_thumb
         .add_node(
@@ -137,69 +152,21 @@ fn generate_thumbnail(
         }
     }
 
-    tex_pro_thumb.process();
+    tex_pro_thumb.process_then_kill();
 
-    (*thumb_tex_pro).push((node_id, tex_pro_thumb));
+    (*tex_pro_thumbs).push((node_id, tex_pro_thumb));
 }
-
-fn finished_thumbnails_consume(thumb_tex_pro: &mut ResMut<Vec<ThumbTexPro>>) -> Vec<ThumbTexPro> {
-    let mut finished_thumbs = Vec::new();
-
-    for i in (0..thumb_tex_pro.len()).rev() {
-        if !thumb_tex_pro[i].1.processing() {
-            dbg!("Does this run?");
-            finished_thumbs.push(thumb_tex_pro.remove(i));
-        }
-    }
-
-    finished_thumbs
-}
-
-// fn finished_thumbnails(thumb_tex_pro: &mut ResMut<Vec<ThumbTexPro>>) -> Vec<ThumbTexPro> {
-//     thumb_tex_pro.iter().filter(|(_, tp)| !tp.processing()).cloned().collect::<Vec<ThumbTexPro>>()
-// }
 
 /// Tries to get the output of a given graph.
 fn try_get_output(tex_pro: &TextureProcessor) -> Option<Texture> {
-    if let Some(output_id) = tex_pro.external_output_ids().first() {
-        if let (Ok(buffer), Some(size)) = (
-            tex_pro.try_get_output(*output_id),
-            tex_pro.get_node_data_size(*output_id),
-        ) {
-            Some(Texture::new(
-                Extent3d::new(size.width as u32, size.height as u32, 1),
-                TextureDimension::D2,
-                buffer,
-                TextureFormat::Rgba8Unorm,
-            ))
-        } else {
-            None
-        }
-    } else {
-        error!("Tried getting an output, but the graph does not have any outputs");
-        None
-    }
-}
+    let output_id = *tex_pro.external_output_ids().first()?;
+    let buffer = tex_pro.try_get_output(output_id).ok()?;
+    let size = tex_pro.try_get_slot_data_size(output_id, SlotId(0)).ok()?;
 
-/// Gets the output of a given TextureProcessor.
-fn get_output(tex_pro_int: &TexProInt) -> Option<Texture> {
-    if let Some(output_id) = tex_pro_int.node_graph.external_output_ids().first() {
-        if let (Ok(buffer), Some(size)) = (
-            tex_pro_int.get_output(*output_id),
-            tex_pro_int.get_node_data_size(*output_id),
-        ) {
-            Some(Texture::new(
-                Extent3d::new(size.width as u32, size.height as u32, 1),
-                TextureDimension::D2,
-                buffer,
-                TextureFormat::Rgba8Unorm,
-            ))
-        } else {
-            trace!("Tried getting an output, but the output node didn't have any data");
-            None
-        }
-    } else {
-        error!("Tried getting an output, but the graph does not have any outputs");
-        None
-    }
+    Some(Texture::new(
+        Extent3d::new(size.width as u32, size.height as u32, 1),
+        TextureDimension::D2,
+        buffer,
+        TextureFormat::Rgba8Unorm,
+    ))
 }

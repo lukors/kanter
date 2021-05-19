@@ -2,7 +2,9 @@ use bevy::prelude::*;
 
 use crate::{workspace::Workspace, AmbiguitySet, Dragged, Stage, ToolState};
 
+#[derive(Default)]
 pub(crate) struct Hoverable;
+#[derive(Default)]
 pub(crate) struct Hovered;
 
 pub(crate) struct HoverablePlugin;

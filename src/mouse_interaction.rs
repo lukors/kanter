@@ -5,7 +5,9 @@ use crate::{
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
 
+#[derive(Default)]
 pub(crate) struct Active;
+#[derive(Default)]
 pub(crate) struct Selected;
 pub(crate) struct MouseInteractionPlugin;
 

@@ -6,8 +6,11 @@ use crate::{
 use bevy::prelude::*;
 use kanter_core::{node::Side, node_graph::NodeId, texture_processor::TextureProcessor};
 
+#[derive(Default)]
 pub(crate) struct Draggable;
+#[derive(Default)]
 pub(crate) struct Dragged;
+#[derive(Default)]
 pub(crate) struct Dropped;
 struct SourceSlot(Slot);
 
@@ -136,11 +139,19 @@ fn dropped_edge_update(
                     {
                         if let Some(source_slot) = source_slot {
                             if source_slot.0 != *slot {
-                                tex_pro.disconnect_slot(
+                                if let Err(e) = tex_pro.disconnect_slot(
                                     source_slot.0.node_id,
                                     source_slot.0.side,
                                     source_slot.0.slot_id,
-                                );
+                                ) {
+                                    error!(
+                                        "Failed to disconnect slot: {}, {:?}, {}: {}",
+                                        source_slot.0.node_id,
+                                        source_slot.0.side,
+                                        source_slot.0.slot_id,
+                                        e
+                                    );
+                                }
                             }
                         }
                         continue 'outer;
@@ -151,11 +162,16 @@ fn dropped_edge_update(
                 }
             }
             if let Some(source_slot) = source_slot {
-                tex_pro.disconnect_slot(
+                if let Err(e) = tex_pro.disconnect_slot(
                     source_slot.0.node_id,
                     source_slot.0.side,
                     source_slot.0.slot_id,
-                )
+                ) {
+                    error!(
+                        "Failed to disconnect slot: {}, {:?}, {}: {}",
+                        source_slot.0.node_id, source_slot.0.side, source_slot.0.slot_id, e
+                    );
+                }
             }
         }
 

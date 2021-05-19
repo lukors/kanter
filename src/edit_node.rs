@@ -165,7 +165,7 @@ fn edit_specific_slot_enter(
     tex_pro: ResMut<TextureProcessor>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Some(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.node_with_id(*node_id) {
             if node.capacity(Side::Input) == 0 {
                 warn!("The node doesn't have any input slots");
                 edit_state.overwrite_set(EditState::Outer).unwrap();
@@ -209,14 +209,14 @@ fn edit_specific_slot_update(
                 // Enter
                 if let Ok(slot_id) = instructions.sections[1].value.parse::<u32>() {
                     if let Some(mut node) = tex_pro
-                        .inner()
+                        .tex_pro_int()
                         .write()
                         .unwrap()
                         .node_graph
                         .node_with_id_mut(*node_id)
                     {
                         let slot_id = SlotId(slot_id);
-                        if node.slot_exists(slot_id, Side::Input) {
+                        if node.slot_exists(slot_id, Side::Input).is_ok() {
                             node.resize_policy = ResizePolicy::SpecificSlot(slot_id);
                         } else {
                             warn!("Node does not have a slot with the given ID: {}", slot_id);
@@ -243,7 +243,7 @@ fn edit_specific_size_enter(
     tex_pro: ResMut<TextureProcessor>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Some(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.node_with_id(*node_id) {
             if let ResizePolicy::SpecificSize(size) = node.resize_policy {
                 instructions.sections[0].value =
                     format!("Current: {}x{}\nNew: ", size.width, size.height);
@@ -282,7 +282,7 @@ fn edit_specific_size_update(
                 if let (Some(size), Some(mut node)) = (
                     string_to_size(&instructions.sections[1].value),
                     tex_pro
-                        .inner()
+                        .tex_pro_int()
                         .write()
                         .unwrap()
                         .node_graph
@@ -318,7 +318,7 @@ fn edit_value_enter(
     tex_pro: ResMut<TextureProcessor>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Some(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.node_with_id(*node_id) {
             if let NodeType::Value(value) = node.node_type {
                 instructions.sections[0].value =
                     format!("Current value: {}\nNew: ", value.to_string());
@@ -355,7 +355,7 @@ fn edit_value_update(
                 if let (Ok(number), Some(mut node)) = (
                     instructions.sections[1].value.parse::<f32>(),
                     tex_pro
-                        .inner()
+                        .tex_pro_int()
                         .write()
                         .unwrap()
                         .node_graph
@@ -383,7 +383,7 @@ fn edit(
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
         if let Some(mut node) = tex_pro
-            .inner()
+            .tex_pro_int()
             .write()
             .unwrap()
             .node_graph
@@ -450,7 +450,7 @@ fn edit_exit(
     tex_pro: ResMut<TextureProcessor>,
 ) {
     if let Ok(node_id) = q_active.single() {
-        if let Some(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.node_with_id(*node_id) {
             show_instructions(&node, &mut instructions);
         } else {
             error!("Could not find a node with that ID in the graph");
@@ -495,7 +495,7 @@ fn tool_enter(
     mut instructions: ResMut<Instructions>,
 ) {
     if let Ok(node_id) = q_active.single() {
-        if let Some(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.node_with_id(*node_id) {
             let _ = edit_state.overwrite_replace(EditState::Outer);
 
             show_instructions(&node, &mut instructions);

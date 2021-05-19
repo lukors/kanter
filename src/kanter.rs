@@ -9,7 +9,6 @@ impl Plugin for KanterPlugin {
             .add_plugin(crate::scan_code_input::ScanCodeInputPlugin)
             .add_plugin(crate::add_tool::AddToolPlugin)
             .add_plugin(crate::drag_drop_entity::WorkspaceDragDropPlugin)
-            .add_plugin(crate::processing::ProcessingPlugin)
             .add_plugin(crate::mouse_interaction::MouseInteractionPlugin)
             .add_plugin(crate::box_select::BoxSelectPlugin)
             .add_plugin(crate::camera::CameraPlugin)

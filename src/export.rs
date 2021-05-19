@@ -3,7 +3,9 @@ use crate::{
 };
 use bevy::prelude::*;
 use kanter_core::{
-    node_graph::NodeId, slot_data::Size as TPSize, texture_processor::TextureProcessor,
+    node_graph::{NodeId, SlotId},
+    slot_data::Size as TPSize,
+    texture_processor::TextureProcessor,
 };
 use native_dialog::FileDialog;
 use std::path::Path;
@@ -39,9 +41,9 @@ fn export(
     mut keyboard_input: ResMut<ScanCodeInput>,
 ) {
     for node_id in q_selected.iter() {
-        let size: TPSize = match tex_pro.get_node_data_size(*node_id) {
-            Some(s) => s,
-            None => {
+        let size: TPSize = match tex_pro.get_slot_data_size(*node_id, SlotId(0)) {
+            Ok(s) => s,
+            Err(_) => {
                 info!("Unable to get the size of the node");
                 continue;
             }
