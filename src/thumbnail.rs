@@ -122,7 +122,7 @@ fn thumbnail_processor(
                     size.width as u32,
                     size.height as u32,
                 )))
-                .resize_filter(ResizeFilter::Nearest),
+                .resize_filter(ResizeFilter::Triangle),
         )
         .unwrap();
 
