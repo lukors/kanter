@@ -23,6 +23,7 @@ impl Plugin for KanterPlugin {
             .add_plugin(crate::edit_node::EditNodePlugin)
             .add_plugin(crate::thumbnail::ThumbnailPlugin)
             .add_plugin(crate::export::ExportPlugin)
+            .add_plugin(crate::none_tool::NoneToolPlugin)
             // .add_plugin(crate::drag_drop_import::DragDropImport)
             ;
     }

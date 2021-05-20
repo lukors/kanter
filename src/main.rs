@@ -19,6 +19,7 @@ pub mod scan_code_input;
 pub mod sync_graph;
 pub mod thumbnail;
 pub mod workspace;
+pub mod none_tool;
 
 use bevy::prelude::*;
 use camera::*;
