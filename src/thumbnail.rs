@@ -5,7 +5,7 @@ use bevy::{
 };
 use kanter_core::{
     error::TexProError,
-    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy},
+    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side},
     node_graph::{NodeId, SlotId},
     slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
@@ -153,7 +153,25 @@ fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
         .first()
         .ok_or(TexProError::Generic)?;
     let buffer = tex_pro.try_get_output(output_id)?;
-    let size = tex_pro.try_get_slot_data_size(output_id, SlotId(0))?;
+    let mut size = None;
+
+    // NOTE: Assuming that the size of the up to 4 first outputs is the same. This is not a valid
+    // assumption, because they can differ. This needs to be handled in some better way.
+    //
+    // Should probably be handled by adding an RGBA SlotData type, which can be guaranteed
+    // to have the same size on all things, and then if it's a grayscale SlotData, it can only
+    // be retrieved on its own.
+    for i in 0..tex_pro.node_with_id(output_id)?.capacity(Side::Output) {
+        dbg!(i);
+        size = tex_pro
+            .try_get_slot_data_size(output_id, SlotId(i as u32))
+            .ok();
+        if size.is_some() {
+            break;
+        }
+    }
+
+    let size = size.ok_or(TexProError::InvalidBufferCount)?;
 
     Ok(Texture::new(
         Extent3d::new(size.width as u32, size.height as u32, 1),
