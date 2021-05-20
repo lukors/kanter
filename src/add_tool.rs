@@ -88,6 +88,7 @@ fn add_update(
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
     let mut events_maybe_missed = false;
+    let mut done = false;
 
     for input in scan_code_input.get_just_pressed() {
         let node_type: Option<NodeType> = match input {
@@ -103,10 +104,12 @@ fn add_update(
                     Ok(Some(path)) => Some(NodeType::Image(path)),
                     Ok(None) => {
                         warn!("Invalid path");
+                        done = true;
                         None
                     }
                     Err(e) => {
                         warn!("Error bringing up file dialog: {}", e);
+                        done = true;
                         None
                     }
                 }
@@ -136,12 +139,14 @@ fn add_update(
         if let Some(node_type) = node_type {
             if create_default_node(&mut tex_pro, node_type.clone()).is_ok() {
                 info!("Added node: {:?}", node_type);
-
-                tool_state
-                    .overwrite_replace(ToolState::Grab(GrabToolType::Add))
-                    .unwrap();
-                break;
             }
+            tool_state
+                .overwrite_replace(ToolState::Grab(GrabToolType::Add))
+                .unwrap();
+            break;
+        } else if done {
+            tool_state.overwrite_replace(ToolState::None).unwrap();
+            break;
         }
     }
 
