@@ -5,7 +5,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use kanter_core::{
-    dag::NodeState,
+    engine::NodeState,
     node::{Node, NodeType, Side},
     node_graph::{NodeId, SlotId},
     texture_processor::TextureProcessor,
