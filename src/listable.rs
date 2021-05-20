@@ -76,6 +76,7 @@ impl Listable<Self> for MixType {
             Self::Subtract.to_string(),
             Self::Multiply.to_string(),
             Self::Divide.to_string(),
+            Self::Pow.to_string(),
         ];
         for (i, entry) in entries.iter().enumerate() {
             output = format!("{}{}: {}\n", output, i + 1, entry);
@@ -84,14 +85,15 @@ impl Listable<Self> for MixType {
     }
 
     fn choose(i: usize) -> Option<Self> {
-        const MAX_CHOICE: usize = 4;
+        const MAX_CHOICE: usize = 5;
 
         if i <= MAX_CHOICE {
             Some(match i {
                 1 => Self::Add,
                 2 => Self::Subtract,
                 3 => Self::Multiply,
-                _ => Self::Divide,
+                4 => Self::Divide,
+                _ => Self::Pow,
             })
         } else {
             None
