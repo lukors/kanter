@@ -25,7 +25,6 @@ fn setup(mut tool_list: ResMut<ToolList>) {
     tool_list.insert("A: Deselect all".to_string());
 }
 
-/// This function should be turned into a tool and the hotkey should live in the hotkey system.
 fn deselect(
     input: Res<ScanCodeInput>,
     mut commands: Commands,
