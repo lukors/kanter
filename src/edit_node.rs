@@ -100,11 +100,6 @@ impl Plugin for EditNodePlugin {
                             .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_update(EditState::Value)),
                     )
-                    .with_system(
-                        tool_exit
-                            .system()
-                            .with_run_criteria(State::on_exit(ToolState::EditNode)),
-                    ),
             );
     }
 }
@@ -456,10 +451,6 @@ fn edit_exit(
             error!("Could not find a node with that ID in the graph");
         }
     }
-}
-
-fn tool_exit(mut instructions: ResMut<Instructions>) {
-    instructions.remove(&InstructId::Tool);
 }
 
 fn show_instructions(node: &Node, instructions: &mut Instructions) {
