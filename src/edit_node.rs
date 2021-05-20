@@ -203,11 +203,10 @@ fn edit_specific_slot_update(
             } else if event.char == '\r' {
                 // Enter
                 if let Ok(slot_id) = instructions.sections[1].value.parse::<u32>() {
-                    if let Some(mut node) = tex_pro
+                    if let Ok(mut node) = tex_pro
                         .engine()
                         .write()
                         .unwrap()
-                        .node_graph
                         .node_with_id_mut(*node_id)
                     {
                         let slot_id = SlotId(slot_id);
@@ -274,13 +273,12 @@ fn edit_specific_size_update(
                 instructions.sections[1].value.pop();
             } else if event.char == '\r' {
                 // Enter
-                if let (Some(size), Some(mut node)) = (
+                if let (Some(size), Ok(mut node)) = (
                     string_to_size(&instructions.sections[1].value),
                     tex_pro
                         .engine()
                         .write()
                         .unwrap()
-                        .node_graph
                         .node_with_id_mut(*node_id),
                 ) {
                     node.resize_policy = ResizePolicy::SpecificSize(size);
@@ -347,13 +345,12 @@ fn edit_value_update(
                 instructions.sections[1].value.pop();
             } else if event.char == '\r' {
                 // Enter
-                if let (Ok(number), Some(mut node)) = (
+                if let (Ok(number), Ok(mut node)) = (
                     instructions.sections[1].value.parse::<f32>(),
                     tex_pro
                         .engine()
                         .write()
                         .unwrap()
-                        .node_graph
                         .node_with_id_mut(*node_id),
                 ) {
                     node.node_type = NodeType::Value(number);
@@ -377,11 +374,10 @@ fn edit(
     let mut done = false;
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
-        if let Some(mut node) = tex_pro
+        if let Ok(mut node) = tex_pro
             .engine()
             .write()
             .unwrap()
-            .node_graph
             .node_with_id_mut(*node_id)
         {
             let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
@@ -488,7 +484,7 @@ fn tool_enter(
     if let Ok(node_id) = q_active.single() {
         if let Ok(node) = tex_pro.node_with_id(*node_id) {
             let _ = edit_state.overwrite_replace(EditState::Outer);
-
+            
             show_instructions(&node, &mut instructions);
         } else {
             error!("Could not find a node with that ID in the graph");
