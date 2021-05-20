@@ -368,11 +368,9 @@ fn edit(
     let mut done = false;
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
-        if let Ok(mut node) = tex_pro
+        if let Ok(mut engine) = tex_pro
             .engine()
             .write()
-            .unwrap()
-            .node_with_id_mut(*node_id)
         {
             let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
             let mut parameter_set = false;
@@ -390,21 +388,33 @@ fn edit(
                                 return;
                             }
                             Some(resize_policy) => {
-                                node.resize_policy = resize_policy;
-                                parameter_set = true;
+                                if let Ok(node) = engine.node_with_id_mut(*node_id) {
+                                    node.resize_policy = resize_policy;
+                                    parameter_set = true;
+                                } else {
+                                    error!("Unable to get node with id: {}", node_id);
+                                }
                             }
                             None => (),
                         },
                         EditTarget::ResizeFilter => {
                             if let Some(resize_filter) = ResizeFilter::choose(i) {
-                                node.resize_filter = resize_filter;
-                                parameter_set = true;
+                                if let Ok(node) = engine.node_with_id_mut(*node_id) {
+                                    node.resize_filter = resize_filter;
+                                    parameter_set = true;
+                                } else {
+                                    error!("Unable to get node with id: {}", node_id);
+                                }
                             }
                         }
                         EditTarget::MixType => {
                             if let Some(mix_type) = MixType::choose(i) {
-                                node.node_type = NodeType::Mix(mix_type);
-                                parameter_set = true;
+                                if let Ok(node) = engine.node_with_id_mut(*node_id) {
+                                    node.node_type = NodeType::Mix(mix_type);
+                                    parameter_set = true;
+                                } else {
+                                    error!("Unable to get node with id: {}", node_id);
+                                }
                             }
                         }
                     }
