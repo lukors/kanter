@@ -6,13 +6,11 @@ use kanter_core::{
     texture_processor::TextureProcessor,
 };
 
-use crate::{
-    instruction::*, listable::*, mouse_interaction::Active, scan_code_input::*, AmbiguitySet,
-    Stage, ToolState,
-};
+use crate::{AmbiguitySet, Stage, ToolState, instruction::*, listable::*, mouse_interaction::Active, scan_code_input::*};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum EditState {
+    None,
     Outer,
     Inner,
     Size,
@@ -33,7 +31,7 @@ pub(crate) struct EditNodePlugin;
 
 impl Plugin for EditNodePlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_state(EditState::Outer)
+        app.add_state(EditState::None)
             .insert_resource(OptionEditTarget::default())
             .add_startup_system(setup.system())
             .add_system_set_to_stage(
@@ -48,56 +46,52 @@ impl Plugin for EditNodePlugin {
                             .with_run_criteria(State::on_enter(ToolState::EditNode)),
                     )
                     .with_system(
+                        tool_exit
+                            .system()
+                            .with_run_criteria(State::on_exit(ToolState::EditNode)),
+                    )
+                    .with_system(
                         tool_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::EditNode))
-                            .with_run_criteria(State::on_update(EditState::Outer)),
+                            .with_run_criteria(State::on_update(EditState::Outer))
                     )
                     .with_system(
                         edit.system()
-                            .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_update(EditState::Inner)),
                     )
                     .with_system(
                         edit_exit
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_enter(EditState::Outer)),
                     )
                     .with_system(
                         edit_specific_size_enter
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_enter(EditState::Size)),
                     )
                     .with_system(
                         edit_specific_size_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_update(EditState::Size)),
                     )
                     .with_system(
                         edit_specific_slot_enter
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_enter(EditState::Slot)),
                     )
                     .with_system(
                         edit_specific_slot_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_update(EditState::Slot)),
                     )
                     .with_system(
                         edit_value_enter
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_enter(EditState::Value)),
                     )
                     .with_system(
                         edit_value_update
                             .system()
-                            .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_update(EditState::Value)),
                     ),
             );
@@ -493,6 +487,12 @@ fn tool_enter(
     } else {
         tool_state.overwrite_replace(ToolState::None).unwrap();
     }
+}
+
+fn tool_exit(
+    mut edit_state: ResMut<State<EditState>>,
+) {
+    edit_state.overwrite_replace(EditState::None).unwrap();
 }
 
 fn node_type_name(node_type: &NodeType) -> &'static str {
