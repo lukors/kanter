@@ -68,7 +68,7 @@ pub(crate) struct SyncGraphPlugin;
 impl Plugin for SyncGraphPlugin {
     fn build(&self, app: &mut AppBuilder) {
         let tex_pro = TextureProcessor::new();
-        tex_pro.tex_pro_int().write().unwrap().auto_update = true;
+        tex_pro.engine().write().unwrap().auto_update = true;
 
         app.insert_non_send_resource(tex_pro)
             .add_system_set_to_stage(

@@ -204,7 +204,7 @@ fn edit_specific_slot_update(
                 // Enter
                 if let Ok(slot_id) = instructions.sections[1].value.parse::<u32>() {
                     if let Some(mut node) = tex_pro
-                        .tex_pro_int()
+                        .engine()
                         .write()
                         .unwrap()
                         .node_graph
@@ -277,7 +277,7 @@ fn edit_specific_size_update(
                 if let (Some(size), Some(mut node)) = (
                     string_to_size(&instructions.sections[1].value),
                     tex_pro
-                        .tex_pro_int()
+                        .engine()
                         .write()
                         .unwrap()
                         .node_graph
@@ -350,7 +350,7 @@ fn edit_value_update(
                 if let (Ok(number), Some(mut node)) = (
                     instructions.sections[1].value.parse::<f32>(),
                     tex_pro
-                        .tex_pro_int()
+                        .engine()
                         .write()
                         .unwrap()
                         .node_graph
@@ -378,7 +378,7 @@ fn edit(
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
         if let Some(mut node) = tex_pro
-            .tex_pro_int()
+            .engine()
             .write()
             .unwrap()
             .node_graph
