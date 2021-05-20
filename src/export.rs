@@ -1,12 +1,10 @@
-use crate::{
-    instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState,
-};
+use crate::{instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState};
 use bevy::prelude::*;
 use kanter_core::{
+    error::TexProError,
     node_graph::{NodeId, SlotId},
     slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
-    error::TexProError,
 };
 use native_dialog::FileDialog;
 use std::path::Path;

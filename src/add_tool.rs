@@ -2,7 +2,6 @@
 use crate::{
     drag_drop_entity::{grab_tool_cleanup, grab_tool_node_setup},
     instruction::*,
-    scan_code_input::{ScanCode, ScanCodeInput},
     AmbiguitySet, GrabToolType, Stage, ToolState,
 };
 use bevy::prelude::*;
@@ -83,18 +82,15 @@ fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
 
 /// When you press the button for a node it creates that node for you.
 fn add_update(
-    mut scan_code_input: ResMut<ScanCodeInput>,
+    mut char_input_events: EventReader<ReceivedCharacter>,
     mut tool_state: ResMut<State<ToolState>>,
     mut tex_pro: ResMut<TextureProcessor>,
 ) {
-    let mut events_maybe_missed = false;
     let mut done = false;
 
-    for input in scan_code_input.get_just_pressed() {
-        let node_type: Option<NodeType> = match input {
-            ScanCode::KeyI => {
-                events_maybe_missed = true;
-
+    for event in char_input_events.iter() {
+        let node_type: Option<NodeType> = match event.char.to_ascii_lowercase() {
+            'i' => {
                 match FileDialog::new()
                     // .set_location("~/Desktop")
                     .add_filter("PNG Image", &["png"])
@@ -114,8 +110,8 @@ fn add_update(
                     }
                 }
             }
-            ScanCode::KeyM => Some(NodeType::Mix(MixType::Add)),
-            ScanCode::KeyO => {
+            'm' => Some(NodeType::Mix(MixType::Add)),
+            'o' => {
                 // let path = FileDialog::new()
                 //     // .set_location("~/Desktop")
                 //     .add_filter("PNG Image", &["png"])
@@ -132,7 +128,7 @@ fn add_update(
 
                 Some(NodeType::OutputRgba)
             }
-            ScanCode::KeyV => Some(NodeType::Value(1.0)),
+            'v' => Some(NodeType::Value(1.0)),
             _ => None,
         };
 
@@ -148,10 +144,6 @@ fn add_update(
             tool_state.overwrite_replace(ToolState::None).unwrap();
             break;
         }
-    }
-
-    if events_maybe_missed {
-        scan_code_input.clear();
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{AmbiguitySet, Stage, ToolState, instruction::*, scan_code_input::ScanCodeInput};
+use crate::{instruction::*, scan_code_input::ScanCodeInput, AmbiguitySet, Stage, ToolState};
 use bevy::prelude::*;
 
 pub(crate) struct NoneToolPlugin;
@@ -13,7 +13,7 @@ impl Plugin for NoneToolPlugin {
                 .with_run_criteria(State::on_enter(ToolState::None))
                 .in_ambiguity_set(AmbiguitySet)
                 .with_system(restore_instructions.system())
-                .with_system(reset_buttonpresses.system())
+                .with_system(reset_input.system()),
         );
     }
 }
@@ -22,6 +22,6 @@ fn restore_instructions(mut instructions: ResMut<Instructions>) {
     instructions.clear();
 }
 
-fn reset_buttonpresses(mut keyboard_input: ResMut<ScanCodeInput>) {
+fn reset_input(mut keyboard_input: ResMut<ScanCodeInput>) {
     keyboard_input.clear();
 }
