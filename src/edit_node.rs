@@ -99,7 +99,7 @@ impl Plugin for EditNodePlugin {
                             .system()
                             .with_run_criteria(State::on_update(ToolState::EditNode))
                             .with_run_criteria(State::on_update(EditState::Value)),
-                    )
+                    ),
             );
     }
 }

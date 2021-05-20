@@ -3,7 +3,13 @@ use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
-use kanter_core::{error::TexProError, node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy}, node_graph::{NodeId, SlotId}, slot_data::Size as TPSize, texture_processor::TextureProcessor};
+use kanter_core::{
+    error::TexProError,
+    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy},
+    node_graph::{NodeId, SlotId},
+    slot_data::Size as TPSize,
+    texture_processor::TextureProcessor,
+};
 use std::sync::Arc;
 
 type TexProThumb = (NodeId, TextureProcessor);
@@ -48,13 +54,11 @@ fn generate_thumbnail_loop(
         .iter_mut()
         .filter(|(_, _, state)| **state == ThumbnailState::Missing)
     {
-        commands.entity(entity).insert(
-            thumbnail_processor(
-                &tex_pro,
-                *node_id,
-                Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
-            )
-        );
+        commands.entity(entity).insert(thumbnail_processor(
+            &tex_pro,
+            *node_id,
+            Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
+        ));
         *thumb_state = ThumbnailState::Processing;
     }
 }
@@ -66,14 +70,16 @@ fn get_thumbnail_loop(
     q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
     mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState, &TextureProcessor)>,
 ) {
-    for(node_e, node_id, mut thumb_state, tex_pro) in q_node.iter_mut() {
+    for (node_e, node_id, mut thumb_state, tex_pro) in q_node.iter_mut() {
         let material = match try_get_output(&*tex_pro) {
             Ok(texture) => {
                 let texture_handle = textures.add(texture);
                 Some(materials.add(texture_handle.into()))
             }
-            Err(TexProError::InvalidBufferCount) => Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into())),
-            _ => None
+            Err(TexProError::InvalidBufferCount) => {
+                Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into()))
+            }
+            _ => None,
         };
 
         if let Some(material) = material {
@@ -82,10 +88,10 @@ fn get_thumbnail_loop(
                 .find(|(_, parent_e)| parent_e.0 == node_e)
             {
                 info!("Got new thumbnail for {}", node_id);
-                commands.entity(thumbnail_e).remove::<Handle<ColorMaterial>>();
                 commands
                     .entity(thumbnail_e)
-                    .insert(material);
+                    .remove::<Handle<ColorMaterial>>();
+                commands.entity(thumbnail_e).insert(material);
             } else {
                 error!("Couldn't find a thumbnail entity for the GUI node");
             }
@@ -142,7 +148,10 @@ fn thumbnail_processor(
 
 /// Tries to get the output of a given graph.
 fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
-    let output_id = *tex_pro.external_output_ids().first().ok_or(TexProError::Generic)?;
+    let output_id = *tex_pro
+        .external_output_ids()
+        .first()
+        .ok_or(TexProError::Generic)?;
     let buffer = tex_pro.try_get_output(output_id)?;
     let size = tex_pro.try_get_slot_data_size(output_id, SlotId(0))?;
 

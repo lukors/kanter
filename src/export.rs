@@ -49,12 +49,12 @@ fn export(
                 continue;
             }
         };
-        
+
         info!("2");
         let path = match FileDialog::new()
-        // .set_location("~/Desktop")
-        .add_filter("PNG Image", &["png"])
-        .show_save_single_file()
+            // .set_location("~/Desktop")
+            .add_filter("PNG Image", &["png"])
+            .show_save_single_file()
         {
             Ok(path) => path,
             Err(e) => {
@@ -62,7 +62,7 @@ fn export(
                 continue;
             }
         };
-        
+
         info!("3");
         let path = match path {
             Some(path) => path,
@@ -71,7 +71,7 @@ fn export(
                 continue;
             }
         };
-        
+
         info!("4");
         let texels = match tex_pro.try_get_output(*node_id) {
             Ok(buf) => buf,
@@ -80,7 +80,7 @@ fn export(
                 continue;
             }
         };
-        
+
         info!("5");
         let buffer = match image::RgbaImage::from_vec(size.width, size.height, texels) {
             None => {
@@ -89,7 +89,7 @@ fn export(
             }
             Some(buf) => buf,
         };
-        
+
         info!("6");
         match image::save_buffer(
             &Path::new(&path),
@@ -106,7 +106,7 @@ fn export(
         }
         info!("7");
     }
-    
+
     keyboard_input.clear();
     tool_state.overwrite_replace(ToolState::None).unwrap();
 }

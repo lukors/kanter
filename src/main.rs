@@ -15,11 +15,11 @@ pub mod kanter;
 pub mod listable;
 pub mod material;
 pub mod mouse_interaction;
+pub mod none_tool;
 pub mod scan_code_input;
 pub mod sync_graph;
 pub mod thumbnail;
 pub mod workspace;
-pub mod none_tool;
 
 use bevy::prelude::*;
 use camera::*;

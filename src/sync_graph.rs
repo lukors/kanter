@@ -187,10 +187,10 @@ fn sync_graph(
                     ..Default::default()
                 })
                 .insert(Edge {
-                    input_slot,
-                    output_slot,
                     start,
                     end,
+                    output_slot,
+                    input_slot,
                 });
         }
     }
