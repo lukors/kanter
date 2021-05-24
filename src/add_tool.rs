@@ -76,7 +76,7 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
     instructions.insert(
         InstructId::Tool,
-        "I: Input\nM: Mix\nO: Output\nV: Value\n".to_string(),
+        "C: Combine\nI: Input\nM: Mix\nO: Output\nV: Value\nS: Separate\n".to_string(),
     );
 }
 
@@ -90,6 +90,7 @@ fn add_update(
 
     for event in char_input_events.iter() {
         let node_type: Option<NodeType> = match event.char.to_ascii_lowercase() {
+            'c' => Some(NodeType::CombineRgba),
             'i' => {
                 match FileDialog::new()
                     // .set_location("~/Desktop")
@@ -126,8 +127,9 @@ fn add_update(
                 //     }
                 // };
 
-                Some(NodeType::OutputRgba)
+                Some(NodeType::OutputRgba("untitled".into()))
             }
+            's' => Some(NodeType::SeparateRgba),
             'v' => Some(NodeType::Value(1.0)),
             _ => None,
         };
