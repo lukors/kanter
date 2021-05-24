@@ -61,6 +61,8 @@ fn generate_thumbnail_loop(
         ) {
             commands.entity(entity).insert(thumb_processor);
             *thumb_state = ThumbnailState::Processing;
+        } else {
+            *thumb_state = ThumbnailState::Present;
         }
     }
 }
