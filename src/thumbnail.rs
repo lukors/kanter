@@ -1,16 +1,16 @@
-use crate::{AmbiguitySet, Stage, sync_graph::Slot};
+use crate::{AmbiguitySet, Stage};
 use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
 use kanter_core::{
     error::TexProError,
-    node::{EmbeddedSlotDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side},
+    node::{EmbeddedSlotDataId, Node, NodeType, ResizeFilter, ResizePolicy},
     node_graph::{NodeId, SlotId},
     slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
 };
-use std::sync::{Arc, RwLockReadGuard};
+use std::sync::Arc;
 
 type TexProThumb = (NodeId, TextureProcessor);
 

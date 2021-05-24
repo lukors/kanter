@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use kanter_core::{node::SlotType, node_graph::NodeId};
 
-use crate::{Dragged, Hovered, Selected, Slot};
+use crate::{Hovered, Selected};
 
 pub(crate) struct MaterialPlugin;
 
@@ -20,8 +20,7 @@ fn material(
         (
             &Handle<ColorMaterial>,
             Option<&Hovered>,
-            Option<&Selected>,
-            Option<&Dragged>,
+            Option<&Selected>
         ),
         With<NodeId>,
     >,
@@ -30,16 +29,13 @@ fn material(
             &SlotType,
             &Handle<ColorMaterial>,
             Option<&Hovered>,
-            Option<&Selected>,
-            Option<&Dragged>,
+            Option<&Selected>
         ),
     >,
 ) {
-    for (material, hovered, selected, dragged) in q_node.iter() {
+    for (material, hovered, selected) in q_node.iter() {
         if let Some(material) = materials.get_mut(material) {
-            let value = if dragged.is_some() {
-                0.25
-            } else if selected.is_some() {
+            let value = if selected.is_some() {
                 0.25
             } else if hovered.is_some() {
                 0.35
@@ -56,11 +52,9 @@ fn material(
         }
     }
 
-    for (slot_type, material, hovered, selected, dragged) in q_slot.iter() {
+    for (slot_type, material, hovered, selected) in q_slot.iter() {
         if let Some(material) = materials.get_mut(material) {
-            let value = if dragged.is_some() {
-                1.0
-            } else if selected.is_some() {
+            let value = if selected.is_some() {
                 1.0
             } else if hovered.is_some() {
                 0.8

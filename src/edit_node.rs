@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use kanter_core::{
-    node::{MixType, Node, NodeType, ResizeFilter, ResizePolicy, Side},
-    node_graph::{NodeId, SlotId},
+    node::{MixType, Node, NodeType, ResizeFilter, ResizePolicy},
+    node_graph::NodeId,
     slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
 };
@@ -454,7 +454,7 @@ fn show_instructions(node: &Node, instructions: &mut Instructions) {
 
     let specific_instructions = {
         if let Some(name) = node.node_type.name() {
-            format!("N: Name")
+            format!("N: Name: {}", name)
         } else {
             match &node.node_type {
                 NodeType::Image(path) => format!("Path: {:#?}", path),

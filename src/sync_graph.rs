@@ -4,7 +4,7 @@ use crate::{
     AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
 };
 use bevy::prelude::*;
-use kanter_core::{engine::NodeState, node::{Node, NodeType, Side, SlotType}, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
+use kanter_core::{engine::NodeState, node::{Node, Side, SlotType}, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
 use rand::Rng;
 
 const SLOT_SIZE: f32 = 30.;
