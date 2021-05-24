@@ -113,7 +113,6 @@ fn thumbnail_processor(
     node_id: NodeId,
     size: Size,
 ) -> Option<TextureProcessor> {
-    
     if let Ok(slot_data) = tex_pro.slot_data(node_id, SlotId(0)) {
         let tex_pro_thumb = TextureProcessor::new();
         let embedded_slot_data_id = tex_pro_thumb
@@ -150,8 +149,6 @@ fn thumbnail_processor(
 fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
     let output_id = tex_pro.output_ids()[0];
     let slot_data = tex_pro.engine().read()?.slot_data(output_id, SlotId(0))?;
-    // dbg!(slot_data.len());
-    // let slot_data = slot_data.first().ok_or(TexProError::InvalidBufferCount)?;
 
     Ok(Texture::new(
         Extent3d::new(slot_data.size.width as u32, slot_data.size.height as u32, 1),
