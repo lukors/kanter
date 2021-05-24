@@ -4,12 +4,7 @@ use crate::{
     AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
 };
 use bevy::prelude::*;
-use kanter_core::{
-    engine::NodeState,
-    node::{Node, NodeType, Side},
-    node_graph::{NodeId, SlotId},
-    texture_processor::TextureProcessor,
-};
+use kanter_core::{engine::NodeState, node::{Node, NodeType, Side, SlotType}, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
 use rand::Rng;
 
 const SLOT_SIZE: f32 = 30.;
@@ -26,14 +21,14 @@ pub(crate) struct Edge {
     pub output_slot: Slot,
     pub input_slot: Slot,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Slot {
     pub node_id: NodeId,
     pub side: Side,
     pub slot_id: SlotId,
 }
 
-#[derive(Bundle)]
+#[derive(Bundle, Default)]
 pub(crate) struct NodeBundle {
     #[bundle]
     sprite_bundle: SpriteBundle,
@@ -47,20 +42,14 @@ pub(crate) struct NodeBundle {
     needs_thumbnail: ThumbnailState,
 }
 
-impl Default for NodeBundle {
-    fn default() -> Self {
-        Self {
-            sprite_bundle: SpriteBundle::default(),
-            hoverable: Hoverable::default(),
-            hovered: Hovered::default(),
-            selected: Selected::default(),
-            draggable: Draggable::default(),
-            dragged: Dragged::default(),
-            node_id: NodeId(0),
-            node_state: NodeState::default(),
-            needs_thumbnail: ThumbnailState::Waiting,
-        }
-    }
+#[derive(Bundle, Default)]
+pub(crate) struct SlotBundle {
+    #[bundle]
+    sprite_bundle: SpriteBundle,
+    hoverable: Hoverable,
+    draggable: Draggable,
+    slot: Slot,
+    slot_type: SlotType,
 }
 
 pub(crate) struct SyncGraphPlugin;
@@ -125,6 +114,8 @@ fn sync_graph(
             }
         } else {
             info!("Adding node: {}", node_id);
+
+            // Deselect everything so the new node(s) can be selected instead.
             for entity in q_selected.iter() {
                 commands.entity(entity).remove::<Selected>();
             }
@@ -226,48 +217,50 @@ fn spawn_gui_node(
                     ..Default::default()
                 })
                 .insert(Thumbnail);
-            for i in 0..node.input_slots().len() {
+            for (i, slot) in node.input_slots().into_iter().enumerate() {
                 parent
-                    .spawn_bundle(SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                        transform: Transform::from_translation(Vec3::new(
-                            -SLOT_DISTANCE_X,
-                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
-                            SMALLEST_DEPTH_UNIT,
-                        )),
+                    .spawn_bundle(SlotBundle {
+                        sprite_bundle: SpriteBundle {
+                            material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                            sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                            transform: Transform::from_translation(Vec3::new(
+                                -SLOT_DISTANCE_X,
+                                THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
+                                SMALLEST_DEPTH_UNIT,
+                            )),
+                            ..Default::default()
+                        },
+                        slot: Slot {
+                            node_id: node.node_id,
+                            side: Side::Input,
+                            slot_id: SlotId(i as u32),
+                        },
+                        slot_type: slot.slot_type,
                         ..Default::default()
-                    })
-                    .insert(Hoverable)
-                    .insert(Draggable)
-                    .insert(Slot {
-                        node_id: node.node_id,
-                        side: Side::Input,
-                        slot_id: SlotId(i as u32),
-                    })
-                    .id();
+                    });
             }
 
-            for i in 0..node.output_slots().len() {
+            for (i, slot) in node.output_slots().into_iter().enumerate() {
                 parent
-                    .spawn_bundle(SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                        transform: Transform::from_translation(Vec3::new(
-                            SLOT_DISTANCE_X,
-                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
-                            SMALLEST_DEPTH_UNIT,
-                        )),
+                    .spawn_bundle(SlotBundle {
+                        sprite_bundle: SpriteBundle {
+                            material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                            sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                            transform: Transform::from_translation(Vec3::new(
+                                SLOT_DISTANCE_X,
+                                THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
+                                SMALLEST_DEPTH_UNIT,
+                            )),
+                            ..Default::default()
+                        },
+                        slot: Slot {
+                            node_id: node.node_id,
+                            side: Side::Output,
+                            slot_id: SlotId(i as u32),
+                        },
+                        slot_type: slot.slot_type,
                         ..Default::default()
-                    })
-                    .insert(Hoverable)
-                    .insert(Draggable)
-                    .insert(Slot {
-                        node_id: node.node_id,
-                        side: Side::Output,
-                        slot_id: SlotId(i as u32),
-                    })
-                    .id();
+                    });
             }
         });
 }

@@ -27,6 +27,12 @@ pub(crate) enum ThumbnailState {
     Present,
 }
 
+impl Default for ThumbnailState {
+    fn default() -> Self {
+        Self::Waiting
+    }
+}
+
 impl Plugin for ThumbnailPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_non_send_resource(Vec::<TexProThumb>::new())

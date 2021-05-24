@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use kanter_core::node_graph::NodeId;
+use kanter_core::{node::SlotType, node_graph::NodeId};
 
 use crate::{Dragged, Hovered, Selected, Slot};
 
@@ -27,22 +27,22 @@ fn material(
     >,
     q_slot: Query<
         (
+            &SlotType,
             &Handle<ColorMaterial>,
             Option<&Hovered>,
             Option<&Selected>,
             Option<&Dragged>,
         ),
-        With<Slot>,
     >,
 ) {
     for (material, hovered, selected, dragged) in q_node.iter() {
         if let Some(material) = materials.get_mut(material) {
             let value = if dragged.is_some() {
-                0.9
+                0.25
             } else if selected.is_some() {
-                0.75
+                0.25
             } else if hovered.is_some() {
-                0.6
+                0.35
             } else {
                 0.4
             };
@@ -56,24 +56,32 @@ fn material(
         }
     }
 
-    for (material, hovered, selected, dragged) in q_slot.iter() {
+    for (slot_type, material, hovered, selected, dragged) in q_slot.iter() {
         if let Some(material) = materials.get_mut(material) {
             let value = if dragged.is_some() {
-                0.0
+                1.0
             } else if selected.is_some() {
-                0.2
+                1.0
             } else if hovered.is_some() {
-                0.5
+                0.8
             } else {
-                0.3
+                0.7
             };
 
-            material.color = Color::Rgba {
-                red: value,
-                green: value,
-                blue: value,
-                alpha: 1.0,
+            let mut color = match slot_type {
+                SlotType::Gray => {
+                    let gray_slot = 0.9;
+                    Color::rgb(gray_slot, gray_slot, gray_slot)
+                }
+                SlotType::Rgba => Color::rgb(1.0, 0.8, 0.6),
+                SlotType::GrayOrRgba => Color::rgb(0.6, 1.0, 0.8),
             };
+
+            color.set_r(color.r() * value);
+            color.set_g(color.g() * value);
+            color.set_b(color.b() * value);
+
+            material.color = color;
         }
     }
 }
