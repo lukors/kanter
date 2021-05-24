@@ -158,7 +158,7 @@ fn edit_specific_slot_enter(
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
         if let Ok(node) = tex_pro.node_with_id(*node_id) {
-            if node.capacity(Side::Input) == 0 {
+            if node.input_slots().is_empty() {
                 warn!("The node doesn't have any input slots");
                 edit_state.overwrite_set(EditState::Outer).unwrap();
                 return;
@@ -166,8 +166,8 @@ fn edit_specific_slot_enter(
                 instructions.sections[0].value = format!("Current: {}\nNew: ", slot);
             } else {
                 instructions.sections[0].value = format!(
-                    "Available IDs are 0 through {}\nChoice: ",
-                    node.capacity(Side::Input)
+                    "Available slots are 0 through {}\nChoice: ",
+                    node.input_slots().len()
                 );
             }
         }
@@ -199,15 +199,19 @@ fn edit_specific_slot_update(
                 instructions.sections[1].value.pop();
             } else if event.char == '\r' {
                 // Enter
-                if let Ok(slot_id) = instructions.sections[1].value.parse::<u32>() {
+                if let Ok(index) = instructions.sections[1].value.parse::<u32>() {
                     if let Ok(mut node) =
                         tex_pro.engine().write().unwrap().node_with_id_mut(*node_id)
                     {
-                        let slot_id = SlotId(slot_id);
-                        if node.slot_exists(slot_id, Side::Input).is_ok() {
-                            node.resize_policy = ResizePolicy::SpecificSlot(slot_id);
+                        if let Some(slot) = node.input_slots().get(index as usize) {
+                            let slot_id = (*slot).slot_id;
+                            if node.input_slot_with_id(slot_id).is_ok() {
+                                node.resize_policy = ResizePolicy::SpecificSlot(slot_id);
+                            } else {
+                                warn!("Node does not have a slot with the given ID: {}", slot_id);
+                            }
                         } else {
-                            warn!("Node does not have a slot with the given ID: {}", slot_id);
+                            warn!("That slot does not exist: {}", index);
                         }
                     } else {
                         error!("The node you're trying to edit does not exist: {}", node_id);
@@ -448,12 +452,17 @@ fn show_instructions(node: &Node, instructions: &mut Instructions) {
         node.resize_policy, node.resize_filter
     );
 
-    let specific_instructions = match &node.node_type {
-        NodeType::Image(path) => format!("Path: {:#?}", path),
-        NodeType::Mix(mix_type) => format!("T: Type: {}", mix_type),
-        NodeType::Value(value) => format!("V: Value: {}", value),
-        NodeType::OutputRgba => String::new(),
-        _ => "Unsupported node".to_string(),
+    let specific_instructions = {
+        if let Some(name) = node.node_type.name() {
+            format!("N: Name")
+        } else {
+            match &node.node_type {
+                NodeType::Image(path) => format!("Path: {:#?}", path),
+                NodeType::Mix(mix_type) => format!("T: Type: {}", mix_type),
+                NodeType::Value(value) => format!("V: Value: {}", value),
+                _ => "Unsupported node".to_string(),
+            }
+        }
     };
 
     instructions.insert(
@@ -494,16 +503,18 @@ fn tool_exit(mut edit_state: ResMut<State<EditState>>) {
 
 fn node_type_name(node_type: &NodeType) -> &'static str {
     match node_type {
-        NodeType::InputGray => "InputGray",
-        NodeType::InputRgba => "InputRgba",
-        NodeType::OutputGray => "OutputGray",
-        NodeType::OutputRgba => "OutputRgba",
+        NodeType::InputGray(_) => "InputGray",
+        NodeType::InputRgba(_) => "InputRgba",
+        NodeType::OutputGray(_) => "OutputGray",
+        NodeType::OutputRgba(_) => "OutputRgba",
         NodeType::Graph(_) => "Graph",
         NodeType::Image(_) => "Image",
-        NodeType::NodeData(_) => "Embedded Image",
+        NodeType::Embedded(_) => "Embedded Image",
         NodeType::Write(_) => "Write",
         NodeType::Value(_) => "Value",
         NodeType::Mix(_) => "Mix",
         NodeType::HeightToNormal => "Height To Normal",
+        NodeType::SeparateRgba => "Separate RGBA",
+        NodeType::CombineRgba => "Combine RGBA",
     }
 }

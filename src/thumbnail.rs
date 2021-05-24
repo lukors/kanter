@@ -117,7 +117,7 @@ fn thumbnail_processor(
 
     let n_out = tex_pro_thumb
         .add_node(
-            Node::new(NodeType::OutputRgba)
+            Node::new(NodeType::OutputRgba("out".into()))
                 .resize_policy(ResizePolicy::SpecificSize(TPSize::new(
                     size.width as u32,
                     size.height as u32,
@@ -131,7 +131,7 @@ fn thumbnail_processor(
             .embed_slot_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32))
         {
             let n_node_data = tex_pro_thumb
-                .add_node(Node::new(NodeType::NodeData(end_id)))
+                .add_node(Node::new(NodeType::Embedded(end_id)))
                 .unwrap();
 
             tex_pro_thumb
@@ -148,35 +148,13 @@ fn thumbnail_processor(
 
 /// Tries to get the output of a given graph.
 fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
-    let output_id = *tex_pro
-        .external_output_ids()
-        .first()
-        .ok_or(TexProError::Generic)?;
-    let buffer = tex_pro.try_get_output(output_id)?;
-    let mut size = None;
-
-    // NOTE: Assuming that the size of the up to 4 first outputs is the same. This is not a valid
-    // assumption, because they can differ. This needs to be handled in some better way.
-    //
-    // Should probably be handled by adding an RGBA SlotData type, which can be guaranteed
-    // to have the same size on all things, and then if it's a grayscale SlotData, it can only
-    // be retrieved on its own.
-    for i in 0..tex_pro.node_with_id(output_id)?.capacity(Side::Output) {
-        dbg!(i);
-        size = tex_pro
-            .try_get_slot_data_size(output_id, SlotId(i as u32))
-            .ok();
-        if size.is_some() {
-            break;
-        }
-    }
-
-    let size = size.ok_or(TexProError::InvalidBufferCount)?;
+    let slot_data = tex_pro.engine().try_read()?.slot_datas_output();
+    let slot_data = slot_data.first().ok_or(TexProError::InvalidBufferCount)?;
 
     Ok(Texture::new(
-        Extent3d::new(size.width as u32, size.height as u32, 1),
+        Extent3d::new(slot_data.size.width as u32, slot_data.size.height as u32, 1),
         TextureDimension::D2,
-        buffer,
+        slot_data.image.to_rgba(),
         TextureFormat::Rgba8Unorm,
     ))
 }

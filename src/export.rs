@@ -74,7 +74,7 @@ fn export(
             }
         };
 
-        let texels = match engine.get_output(*node_id) {
+        let texels = match engine.get_output_rgba(*node_id, SlotId(0)) {
             Ok(buf) => buf,
             Err(e) => {
                 error!("Error when trying to get pixels from image: {:?}", e);

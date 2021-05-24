@@ -226,7 +226,7 @@ fn spawn_gui_node(
                     ..Default::default()
                 })
                 .insert(Thumbnail);
-            for i in 0..node.capacity(Side::Input) {
+            for i in 0..node.input_slots().len() {
                 parent
                     .spawn_bundle(SpriteBundle {
                         material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
@@ -248,11 +248,11 @@ fn spawn_gui_node(
                     .id();
             }
 
-            for i in 0..node.capacity(Side::Output) {
-                if node.node_type == NodeType::OutputRgba || node.node_type == NodeType::OutputGray
-                {
-                    break;
-                }
+            for i in 0..node.output_slots().len() {
+                // if node.node_type.is_output()
+                // {
+                //     break;
+                // }
                 parent
                     .spawn_bundle(SpriteBundle {
                         material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
