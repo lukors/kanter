@@ -156,7 +156,7 @@ fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
     Ok(Texture::new(
         Extent3d::new(slot_data.size.width as u32, slot_data.size.height as u32, 1),
         TextureDimension::D2,
-        slot_data.image.to_rgba(),
+        slot_data.image.to_u8(),
         TextureFormat::Rgba8Unorm,
     ))
 }
