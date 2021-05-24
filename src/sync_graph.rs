@@ -249,10 +249,6 @@ fn spawn_gui_node(
             }
 
             for i in 0..node.output_slots().len() {
-                // if node.node_type.is_output()
-                // {
-                //     break;
-                // }
                 parent
                     .spawn_bundle(SpriteBundle {
                         material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),

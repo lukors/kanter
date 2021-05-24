@@ -1,16 +1,16 @@
-use crate::{AmbiguitySet, Stage};
+use crate::{AmbiguitySet, Stage, sync_graph::Slot};
 use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
 use kanter_core::{
     error::TexProError,
-    node::{EmbeddedNodeDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side},
+    node::{EmbeddedSlotDataId, Node, NodeType, ResizeFilter, ResizePolicy, Side},
     node_graph::{NodeId, SlotId},
     slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
 };
-use std::sync::Arc;
+use std::sync::{Arc, RwLockReadGuard};
 
 type TexProThumb = (NodeId, TextureProcessor);
 
@@ -54,12 +54,14 @@ fn generate_thumbnail_loop(
         .iter_mut()
         .filter(|(_, _, state)| **state == ThumbnailState::Missing)
     {
-        commands.entity(entity).insert(thumbnail_processor(
+        if let Some(thumb_processor) = thumbnail_processor(
             &tex_pro,
             *node_id,
             Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
-        ));
-        *thumb_state = ThumbnailState::Processing;
+        ) {
+            commands.entity(entity).insert(thumb_processor);
+            *thumb_state = ThumbnailState::Processing;
+        }
     }
 }
 
@@ -77,6 +79,7 @@ fn get_thumbnail_loop(
                 Some(materials.add(texture_handle.into()))
             }
             Err(TexProError::InvalidBufferCount) => {
+                dbg!("OK");
                 Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into()))
             }
             _ => None,
@@ -109,47 +112,46 @@ fn thumbnail_processor(
     tex_pro: &Res<TextureProcessor>,
     node_id: NodeId,
     size: Size,
-) -> TextureProcessor {
-    let tex_pro_thumb = TextureProcessor::new();
+) -> Option<TextureProcessor> {
+    
+    if let Ok(slot_data) = tex_pro.slot_data(node_id, SlotId(0)) {
+        let tex_pro_thumb = TextureProcessor::new();
+        let embedded_slot_data_id = tex_pro_thumb
+            .embed_slot_data_with_id(Arc::clone(&slot_data), EmbeddedSlotDataId(0))
+            .unwrap();
+    
+        let n_embedded = tex_pro_thumb.add_node(Node::new(NodeType::Embedded(embedded_slot_data_id))).unwrap();
+        let n_out = tex_pro_thumb
+            .add_node(
+                Node::new(NodeType::OutputRgba("out".into()))
+                    .resize_policy(ResizePolicy::SpecificSize(TPSize::new(
+                        size.width as u32,
+                        size.height as u32,
+                    )))
+                    .resize_filter(ResizeFilter::Triangle),
+            )
+            .unwrap();
+    
+        tex_pro_thumb.connect(n_embedded, n_out, SlotId(0), SlotId(0)).unwrap();
+    
+        tex_pro_thumb.process_then_kill();
+    
+        info!("Created thumbnail processor for {}", node_id);
 
-    // Todo: If there's stutter when thumbnails are generated it's probably from here.
-    let node_datas = tex_pro.node_slot_data(node_id).unwrap();
-
-    let n_out = tex_pro_thumb
-        .add_node(
-            Node::new(NodeType::OutputRgba("out".into()))
-                .resize_policy(ResizePolicy::SpecificSize(TPSize::new(
-                    size.width as u32,
-                    size.height as u32,
-                )))
-                .resize_filter(ResizeFilter::Triangle),
-        )
-        .unwrap();
-
-    for (i, node_data) in node_datas.iter().take(4).enumerate() {
-        if let Ok(end_id) = tex_pro_thumb
-            .embed_slot_data_with_id(Arc::clone(node_data), EmbeddedNodeDataId(i as u32))
-        {
-            let n_node_data = tex_pro_thumb
-                .add_node(Node::new(NodeType::Embedded(end_id)))
-                .unwrap();
-
-            tex_pro_thumb
-                .connect(n_node_data, n_out, SlotId(0), node_data.slot_id)
-                .unwrap()
-        }
+        Some(tex_pro_thumb)
+    } else {
+        info!("Failed to create thumbnail processor for {}", node_id);
+        
+        None
     }
-
-    tex_pro_thumb.process_then_kill();
-
-    info!("Created thumbnail processor for {}", node_id);
-    tex_pro_thumb
 }
 
-/// Tries to get the output of a given graph.
+/// Tries to get the first output of a given graph.
 fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
-    let slot_data = tex_pro.engine().try_read()?.slot_datas_output();
-    let slot_data = slot_data.first().ok_or(TexProError::InvalidBufferCount)?;
+    let output_id = tex_pro.output_ids()[0];
+    let slot_data = tex_pro.engine().read()?.slot_data(output_id, SlotId(0))?;
+    // dbg!(slot_data.len());
+    // let slot_data = slot_data.first().ok_or(TexProError::InvalidBufferCount)?;
 
     Ok(Texture::new(
         Extent3d::new(slot_data.size.width as u32, slot_data.size.height as u32, 1),
