@@ -4,7 +4,12 @@ use crate::{
     AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
 };
 use bevy::prelude::*;
-use kanter_core::{engine::NodeState, node::{Node, Side, SlotType}, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
+use kanter_core::{
+    engine::NodeState,
+    node::{Node, Side, SlotType},
+    node_graph::{NodeId, SlotId},
+    texture_processor::TextureProcessor,
+};
 use rand::Rng;
 
 const SLOT_SIZE: f32 = 30.;
@@ -218,49 +223,47 @@ fn spawn_gui_node(
                 })
                 .insert(Thumbnail);
             for (i, slot) in node.input_slots().into_iter().enumerate() {
-                parent
-                    .spawn_bundle(SlotBundle {
-                        sprite_bundle: SpriteBundle {
-                            material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                            sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                            transform: Transform::from_translation(Vec3::new(
-                                -SLOT_DISTANCE_X,
-                                THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
-                                SMALLEST_DEPTH_UNIT,
-                            )),
-                            ..Default::default()
-                        },
-                        slot: Slot {
-                            node_id: node.node_id,
-                            side: Side::Input,
-                            slot_id: SlotId(i as u32),
-                        },
-                        slot_type: slot.slot_type,
+                parent.spawn_bundle(SlotBundle {
+                    sprite_bundle: SpriteBundle {
+                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        transform: Transform::from_translation(Vec3::new(
+                            -SLOT_DISTANCE_X,
+                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
+                            SMALLEST_DEPTH_UNIT,
+                        )),
                         ..Default::default()
-                    });
+                    },
+                    slot: Slot {
+                        node_id: node.node_id,
+                        side: Side::Input,
+                        slot_id: SlotId(i as u32),
+                    },
+                    slot_type: slot.slot_type,
+                    ..Default::default()
+                });
             }
 
             for (i, slot) in node.output_slots().into_iter().enumerate() {
-                parent
-                    .spawn_bundle(SlotBundle {
-                        sprite_bundle: SpriteBundle {
-                            material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                            sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
-                            transform: Transform::from_translation(Vec3::new(
-                                SLOT_DISTANCE_X,
-                                THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
-                                SMALLEST_DEPTH_UNIT,
-                            )),
-                            ..Default::default()
-                        },
-                        slot: Slot {
-                            node_id: node.node_id,
-                            side: Side::Output,
-                            slot_id: SlotId(i as u32),
-                        },
-                        slot_type: slot.slot_type,
+                parent.spawn_bundle(SlotBundle {
+                    sprite_bundle: SpriteBundle {
+                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        transform: Transform::from_translation(Vec3::new(
+                            SLOT_DISTANCE_X,
+                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
+                            SMALLEST_DEPTH_UNIT,
+                        )),
                         ..Default::default()
-                    });
+                    },
+                    slot: Slot {
+                        node_id: node.node_id,
+                        side: Side::Output,
+                        slot_id: SlotId(i as u32),
+                    },
+                    slot_type: slot.slot_type,
+                    ..Default::default()
+                });
             }
         });
 }

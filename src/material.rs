@@ -16,22 +16,13 @@ impl Plugin for MaterialPlugin {
 
 fn material(
     mut materials: ResMut<Assets<ColorMaterial>>,
-    q_node: Query<
-        (
-            &Handle<ColorMaterial>,
-            Option<&Hovered>,
-            Option<&Selected>
-        ),
-        With<NodeId>,
-    >,
-    q_slot: Query<
-        (
-            &SlotType,
-            &Handle<ColorMaterial>,
-            Option<&Hovered>,
-            Option<&Selected>
-        ),
-    >,
+    q_node: Query<(&Handle<ColorMaterial>, Option<&Hovered>, Option<&Selected>), With<NodeId>>,
+    q_slot: Query<(
+        &SlotType,
+        &Handle<ColorMaterial>,
+        Option<&Hovered>,
+        Option<&Selected>,
+    )>,
 ) {
     for (material, hovered, selected) in q_node.iter() {
         if let Some(material) = materials.get_mut(material) {

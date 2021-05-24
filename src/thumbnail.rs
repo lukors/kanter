@@ -126,8 +126,10 @@ fn thumbnail_processor(
         let embedded_slot_data_id = tex_pro_thumb
             .embed_slot_data_with_id(Arc::clone(&slot_data), EmbeddedSlotDataId(0))
             .unwrap();
-    
-        let n_embedded = tex_pro_thumb.add_node(Node::new(NodeType::Embedded(embedded_slot_data_id))).unwrap();
+
+        let n_embedded = tex_pro_thumb
+            .add_node(Node::new(NodeType::Embedded(embedded_slot_data_id)))
+            .unwrap();
         let n_out = tex_pro_thumb
             .add_node(
                 Node::new(NodeType::OutputRgba("out".into()))
@@ -138,17 +140,19 @@ fn thumbnail_processor(
                     .resize_filter(ResizeFilter::Triangle),
             )
             .unwrap();
-    
-        tex_pro_thumb.connect(n_embedded, n_out, SlotId(0), SlotId(0)).unwrap();
-    
+
+        tex_pro_thumb
+            .connect(n_embedded, n_out, SlotId(0), SlotId(0))
+            .unwrap();
+
         tex_pro_thumb.process_then_kill();
-    
+
         info!("Created thumbnail processor for {}", node_id);
 
         Some(tex_pro_thumb)
     } else {
         info!("Failed to create thumbnail processor for {}", node_id);
-        
+
         None
     }
 }
