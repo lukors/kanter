@@ -20,6 +20,7 @@ const SLOT_DISTANCE_Y: f32 = 32. + SLOT_MARGIN;
 const SMALLEST_DEPTH_UNIT: f32 = f32::EPSILON * 500.;
 
 // I'm saving the start and end variables for when I want to select the edges themselves.
+#[derive(Debug)]
 pub(crate) struct Edge {
     pub start: Vec2,
     pub end: Vec2,
@@ -237,7 +238,7 @@ fn spawn_gui_node(
                     slot: Slot {
                         node_id: node.node_id,
                         side: Side::Input,
-                        slot_id: SlotId(i as u32),
+                        slot_id: slot.slot_id,
                     },
                     slot_type: slot.slot_type,
                     ..Default::default()
@@ -259,7 +260,7 @@ fn spawn_gui_node(
                     slot: Slot {
                         node_id: node.node_id,
                         side: Side::Output,
-                        slot_id: SlotId(i as u32),
+                        slot_id: slot.slot_id,
                     },
                     slot_type: slot.slot_type,
                     ..Default::default()

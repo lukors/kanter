@@ -14,9 +14,7 @@ impl Plugin for HotkeysPlugin {
             CoreStage::Update,
             SystemSet::new()
                 .label(Stage::Input)
-                .with_system(hotkeys.system())
-                // .with_system(print_pressed_keys.system())
-                .with_system(focus_change.system()),
+                .with_system(focus_change.system().chain(hotkeys.system())), // .with_system(print_pressed_keys.system())
         )
         .add_system_set_to_stage(
             CoreStage::PostUpdate,
@@ -27,10 +25,10 @@ impl Plugin for HotkeysPlugin {
 
 fn focus_change(
     mut er_window_focused: EventReader<WindowFocused>,
-    mut keyboard_input: ResMut<ScanCodeInput>,
+    mut scan_code_input: ResMut<ScanCodeInput>,
 ) {
     if er_window_focused.iter().any(|event| !event.focused) {
-        keyboard_input.clear();
+        scan_code_input.clear();
     }
 }
 

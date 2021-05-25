@@ -15,7 +15,7 @@ impl Plugin for HoverablePlugin {
             CoreStage::Update,
             SystemSet::new()
                 .label(Stage::Update)
-                .after(Stage::Input)
+                .after(Stage::Setup)
                 // Other
                 .with_system(
                     hoverable

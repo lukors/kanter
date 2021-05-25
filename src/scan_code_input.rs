@@ -189,7 +189,7 @@ pub struct ScanCodeInputPlugin;
 impl Plugin for ScanCodeInputPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_resource(ScanCodeInput::default())
-            .add_system_to_stage(CoreStage::First, scan_code_grab_input.system());
+            .add_system_to_stage(CoreStage::PreUpdate, scan_code_grab_input.system());
     }
 }
 

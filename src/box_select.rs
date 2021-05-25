@@ -16,7 +16,7 @@ impl Plugin for BoxSelectPlugin {
             CoreStage::Update,
             SystemSet::new()
                 .label(Stage::Update)
-                .after(Stage::Input)
+                .after(Stage::Setup)
                 .with_system(
                     box_select_setup
                         .system()

@@ -17,11 +17,11 @@ pub(crate) struct AddToolPlugin;
 
 impl Plugin for AddToolPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system())
+        app.add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .label(Stage::Update)
+                    .label(Stage::Setup)
                     .after(Stage::Input)
                     .with_system(
                         add_tool_instructions
@@ -55,12 +55,6 @@ impl Plugin for AddToolPlugin {
                     )
                     .with_system(
                         grab_tool_cleanup
-                            .system()
-                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Add)))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_clear_instructions
                             .system()
                             .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Add)))
                             .in_ambiguity_set(AmbiguitySet),
@@ -162,10 +156,6 @@ fn create_default_node(
 
 fn grab_tool_add_instructions(mut instructions: ResMut<Instructions>) {
     instructions.insert(InstructId::Tool, "LMB: Confirm\n".to_string());
-}
-
-fn grab_tool_clear_instructions(mut instructions: ResMut<Instructions>) {
-    instructions.remove(&InstructId::Tool);
 }
 
 /// Exit grab tool if mouse button is pressed.

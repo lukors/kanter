@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use bevy::{prelude::*, utils::HashMap};
 
-use crate::{Stage, ToolState};
+use crate::{AmbiguitySet, Stage, ToolState};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum InstructId {
@@ -48,13 +48,13 @@ impl Plugin for InstructionPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_non_send_resource(ToolList::default())
             .insert_non_send_resource(Instructions::default())
-            .add_startup_system(setup.system())
+            .add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
                     .label(Stage::Apply)
                     .after(Stage::Update)
-                    .with_system(update_instructions.system()),
+                    .with_system(update_instructions.system().in_ambiguity_set(AmbiguitySet)),
             );
     }
 }

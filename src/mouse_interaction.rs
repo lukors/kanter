@@ -16,7 +16,7 @@ impl Plugin for MouseInteractionPlugin {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(Stage::Update)
+                .label(Stage::Setup)
                 .after(Stage::Input)
                 .with_system(
                     mouse_interaction

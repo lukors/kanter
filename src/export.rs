@@ -13,7 +13,7 @@ pub(crate) struct ExportPlugin;
 
 impl Plugin for ExportPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system())
+        app.add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()

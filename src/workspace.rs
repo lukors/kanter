@@ -1,5 +1,8 @@
 use crate::camera::WorkspaceCamera;
-use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy::{
+    input::{mouse::MouseMotion, InputSystem},
+    prelude::*,
+};
 
 /// Keeps track of and gives access to all that's going on in the workspace.
 
@@ -33,7 +36,9 @@ impl Plugin for WorkspacePlugin {
         app.insert_resource(Workspace::default())
             .add_system_set_to_stage(
                 CoreStage::PreUpdate,
-                SystemSet::new().with_system(workspace.system()),
+                SystemSet::new()
+                    .after(InputSystem)
+                    .with_system(workspace.system()),
             );
     }
 }

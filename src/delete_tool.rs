@@ -7,15 +7,16 @@ pub(crate) struct DeleteToolPlugin;
 
 impl Plugin for DeleteToolPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system()).add_system_to_stage(
-            CoreStage::Update,
-            delete
-                .system()
-                .label(Stage::Update)
-                .after(Stage::Input)
-                .with_run_criteria(State::on_update(ToolState::Delete))
-                .in_ambiguity_set(AmbiguitySet),
-        );
+        app.add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
+            .add_system_to_stage(
+                CoreStage::Update,
+                delete
+                    .system()
+                    .label(Stage::Setup)
+                    .after(Stage::Input)
+                    .with_run_criteria(State::on_update(ToolState::Delete))
+                    .in_ambiguity_set(AmbiguitySet),
+            );
     }
 }
 

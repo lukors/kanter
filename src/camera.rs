@@ -26,11 +26,11 @@ pub(crate) struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_state(FirstPersonState::Off)
-            .add_startup_system(setup.system())
+            .add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .label(Stage::Update)
+                    .label(Stage::Setup)
                     .after(Stage::Input)
                     .with_system(
                         first_person_on_setup

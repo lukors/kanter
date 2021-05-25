@@ -37,6 +37,7 @@ pub(crate) struct AmbiguitySet;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 pub(crate) enum Stage {
     Input,
+    Setup,
     Update,
     Apply,
 }
@@ -76,7 +77,7 @@ fn main() {
             ..Default::default()
         })
         .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.5)))
-        // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
+        .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();

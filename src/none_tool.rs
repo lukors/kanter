@@ -9,7 +9,7 @@ impl Plugin for NoneToolPlugin {
             CoreStage::Update,
             SystemSet::new()
                 .label(Stage::Update)
-                .after(Stage::Input)
+                .after(Stage::Setup)
                 .with_run_criteria(State::on_enter(ToolState::None))
                 .in_ambiguity_set(AmbiguitySet)
                 .with_system(restore_instructions.system())

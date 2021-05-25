@@ -36,12 +36,12 @@ impl Plugin for EditNodePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_state(EditState::None)
             .insert_resource(OptionEditTarget::default())
-            .add_startup_system(setup.system())
+            .add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
                     .label(Stage::Update)
-                    .after(Stage::Input)
+                    .after(Stage::Setup)
                     .in_ambiguity_set(AmbiguitySet)
                     .with_system(
                         tool_enter
