@@ -15,6 +15,7 @@ pub mod kanter;
 pub mod listable;
 pub mod material;
 pub mod mouse_interaction;
+pub mod node_state;
 pub mod none_tool;
 pub mod scan_code_input;
 pub mod sync_graph;
@@ -77,7 +78,7 @@ fn main() {
             ..Default::default()
         })
         .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.5)))
-        .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
+        // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
         .add_plugins(DefaultPlugins)
         .add_plugin(KanterPlugin)
         .run();

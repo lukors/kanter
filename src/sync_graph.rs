@@ -12,7 +12,7 @@ use kanter_core::{
 };
 use rand::Rng;
 
-const SLOT_SIZE: f32 = 30.;
+pub const SLOT_SIZE: f32 = 30.;
 const SLOT_MARGIN: f32 = 2.;
 const SLOT_DISTANCE_X: f32 = THUMBNAIL_SIZE / 2. + SLOT_SIZE / 2. + SLOT_MARGIN;
 const NODE_SIZE: f32 = THUMBNAIL_SIZE + SLOT_SIZE * 2. + SLOT_MARGIN * 2.;
@@ -97,7 +97,7 @@ fn sync_graph(
                 info!("Removing node: {}", node_id);
                 commands.entity(node_gui_e).despawn_recursive();
             } else if let Ok(node_state_actual) = tex_pro.node_state(node_id) {
-                info!(
+                trace!(
                     "Updating node state of {} from {:?} to {:?}",
                     node_id, *node_state, node_state_actual
                 );
@@ -223,6 +223,7 @@ fn spawn_gui_node(
                     ..Default::default()
                 })
                 .insert(Thumbnail);
+
             for (i, slot) in node.input_slots().into_iter().enumerate() {
                 parent.spawn_bundle(SlotBundle {
                     sprite_bundle: SpriteBundle {
