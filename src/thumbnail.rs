@@ -19,7 +19,7 @@ pub(crate) struct Thumbnail;
 
 pub(crate) struct ThumbnailPlugin;
 
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) enum ThumbnailState {
     Waiting,
     Missing,

@@ -20,6 +20,7 @@ pub mod none_tool;
 pub mod scan_code_input;
 pub mod sync_graph;
 pub mod thumbnail;
+pub mod thumbnail_state;
 pub mod workspace;
 
 use bevy::prelude::*;

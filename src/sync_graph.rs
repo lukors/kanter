@@ -99,7 +99,9 @@ fn sync_graph(
             } else if let Ok(node_state_actual) = tex_pro.node_state(node_id) {
                 trace!(
                     "Updating node state of {} from {:?} to {:?}",
-                    node_id, *node_state, node_state_actual
+                    node_id,
+                    *node_state,
+                    node_state_actual
                 );
 
                 if *node_state == NodeState::Clean {
