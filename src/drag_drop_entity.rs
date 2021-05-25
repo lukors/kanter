@@ -3,7 +3,7 @@ use crate::{
     control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput,
     stretch_between, AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, transform::{TransformSystem, transform_propagate_system}};
 use kanter_core::{node::Side, node_graph::NodeId, texture_processor::TextureProcessor};
 
 #[derive(Default)]
@@ -28,6 +28,7 @@ impl Plugin for WorkspaceDragDropPlugin {
             SystemSet::new()
                 .label(Stage::Update)
                 .after(Stage::Input)
+                .with_system(dropped_update.system())
                 // Node
                 .with_system(
                     grab_tool_node_setup
@@ -37,12 +38,6 @@ impl Plugin for WorkspaceDragDropPlugin {
                 )
                 .with_system(
                     grab_tool_update
-                        .system()
-                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
-                        .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(
-                    drag_node_update
                         .system()
                         .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
                         .in_ambiguity_set(AmbiguitySet),
@@ -92,13 +87,12 @@ impl Plugin for WorkspaceDragDropPlugin {
                 ),
         )
         .add_system_set_to_stage(
-            CoreStage::Update,
+            CoreStage::PostUpdate,
             SystemSet::new()
                 .label(Stage::Apply)
                 .after(Stage::Update)
-                .with_system(dropped_update.system())
-                .with_system(drag_node_update.system())
-                .with_system(update_edges.system()),
+                .with_system(drag_node_update
+                    .system().chain(drag_edge_update.system()))
         );
     }
 }
@@ -382,8 +376,8 @@ fn dropped_update(
     }
 }
 
-fn update_edges(
-    q_node: Query<&NodeId, With<Dragged>>,
+fn drag_edge_update(
+    q_node: Query<&NodeId, Or<(With<Dragged>, With<Dropped>)>>,
     q_slot: Query<(&Slot, &GlobalTransform)>,
     mut q_edge: Query<(&mut Sprite, &mut Transform, &Edge)>,
 ) {
@@ -391,7 +385,7 @@ fn update_edges(
         for (mut sprite, mut transform, edge) in q_edge.iter_mut().filter(|(_, _, edge)| {
             edge.input_slot.node_id == *node_id || edge.output_slot.node_id == *node_id
         }) {
-            let (mut start, mut end) = (Vec2::ZERO, Vec2::ZERO);
+            let (mut start, mut end) = (edge.start, edge.end);
 
             for (slot, slot_t) in q_slot.iter() {
                 if slot.node_id == edge.output_slot.node_id
