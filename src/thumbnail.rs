@@ -5,7 +5,7 @@ use bevy::{
 };
 use kanter_core::{
     error::TexProError,
-    node::{EmbeddedSlotDataId, Node, NodeType, ResizeFilter, ResizePolicy},
+    node::{embed::EmbeddedSlotDataId, node_type::NodeType, Node, ResizeFilter, ResizePolicy},
     node_graph::{NodeId, SlotId},
     slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
@@ -128,7 +128,7 @@ fn thumbnail_processor(
             .unwrap();
 
         let n_embedded = tex_pro_thumb
-            .add_node(Node::new(NodeType::Embedded(embedded_slot_data_id)))
+            .add_node(Node::new(NodeType::Embed(embedded_slot_data_id)))
             .unwrap();
         let n_out = tex_pro_thumb
             .add_node(
@@ -165,7 +165,7 @@ fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
     Ok(Texture::new(
         Extent3d::new(slot_data.size.width as u32, slot_data.size.height as u32, 1),
         TextureDimension::D2,
-        slot_data.image.to_u8_srgb(),
+        slot_data.image_cache().write().unwrap().get().to_u8_srgb(),
         TextureFormat::Rgba8Unorm,
     ))
 }

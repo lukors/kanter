@@ -1,5 +1,5 @@
 use kanter_core::{
-    node::{MixType, ResizeFilter, ResizePolicy},
+    node::{mix::MixType, ResizeFilter, ResizePolicy},
     node_graph::SlotId,
     slot_data::Size as TPSize,
 };

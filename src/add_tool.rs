@@ -7,7 +7,7 @@ use crate::{
 use bevy::prelude::*;
 use kanter_core::{
     error::TexProError,
-    node::{MixType, Node, NodeType},
+    node::{mix::MixType, node_type::NodeType, Node},
     node_graph::NodeId,
     texture_processor::TextureProcessor,
 };

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use kanter_core::{
-    node::{MixType, Node, NodeType, ResizeFilter, ResizePolicy},
+    node::{mix::MixType, node_type::NodeType, Node, ResizeFilter, ResizePolicy},
     node_graph::NodeId,
     slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
@@ -509,7 +509,7 @@ fn node_type_name(node_type: &NodeType) -> &'static str {
         NodeType::OutputRgba(_) => "OutputRgba",
         NodeType::Graph(_) => "Graph",
         NodeType::Image(_) => "Image",
-        NodeType::Embedded(_) => "Embedded Image",
+        NodeType::Embed(_) => "Embedded Image",
         NodeType::Write(_) => "Write",
         NodeType::Value(_) => "Value",
         NodeType::Mix(_) => "Mix",
