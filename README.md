@@ -26,6 +26,6 @@ It is very clunky and has many rough corners, but it gets the job done.
 - Instructional text in the program to guide the user
 
 ## Roadmap
-The current focus is to build out basic functionality like save/load graphs, a set of basic nodes and make it nice to use. That's as far as the roadmap goes right now.
+The focus right now is on beefing up the backend library that this application uses, so the artist won't have as many technical limitations. Then the plan is to build out basic functionality like save/load graphs, a set of basic nodes and make it nice to use. That's as far as the roadmap goes right now.
 
-I keep all planned tasks as issues on GitHub, so check those to see what's coming up.
+I keep most planned tasks as issues on GitHub, so check those to see what's coming up.
