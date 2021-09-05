@@ -1827,7 +1827,7 @@ dependencies = [
 
 [[package]]
 name = "kanter"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "bevy",
  "image 0.20.1",
@@ -1839,7 +1839,8 @@ dependencies = [
 
 [[package]]
 name = "kanter_core"
-version = "0.4.0"
+version = "0.5.0"
+source = "git+https://github.com/lukors/kanter_core?tag=v0.5.0#39457a5f9e4ab7fce6b66e1aa5bab53364ac29ab"
 dependencies = [
  "image 0.20.1",
  "nalgebra",
