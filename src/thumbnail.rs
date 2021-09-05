@@ -160,13 +160,12 @@ fn thumbnail_processor(
 /// Tries to get the first output of a given graph.
 fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
     let output_id = tex_pro.output_ids()[0];
-    let slot_data = tex_pro.slot_data(output_id, SlotId(0))?;
-    let size = slot_data.size()?;
+    let size = tex_pro.try_get_slot_data_size(output_id, SlotId(0))?;
 
     Ok(Texture::new(
         Extent3d::new(size.width as u32, size.height as u32, 1),
         TextureDimension::D2,
-        slot_data.image.to_u8_srgb()?,
+        tex_pro.try_buffer_srgba(output_id, SlotId(0))?,
         TextureFormat::Rgba8Unorm,
     ))
 }
