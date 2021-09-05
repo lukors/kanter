@@ -38,11 +38,8 @@ fn export(
     q_selected: Query<&NodeId, With<Selected>>,
     mut tool_state: ResMut<State<ToolState>>,
 ) {
-    let engine = tex_pro.engine();
-    let engine = engine.read().unwrap();
-
     for node_id in q_selected.iter() {
-        let size: TPSize = match engine.get_slot_data_size(*node_id, SlotId(0)) {
+        let size: TPSize = match tex_pro.slot_data(*node_id, SlotId(0)).unwrap().size() {
             Ok(s) => s,
             Err(TexProError::InvalidBufferCount) => {
                 warn!("Seems the node doesn't have any outputs");
@@ -74,7 +71,12 @@ fn export(
             }
         };
 
-        let texels = match engine.buffer_rgba(*node_id, SlotId(0)) {
+        let texels = match tex_pro
+            .engine()
+            .write()
+            .unwrap()
+            .buffer_rgba(*node_id, SlotId(0))
+        {
             Ok(buf) => buf,
             Err(e) => {
                 error!("Error when trying to get pixels from image: {:?}", e);
