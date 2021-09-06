@@ -121,10 +121,10 @@ fn thumbnail_processor(
     node_id: NodeId,
     size: Size,
 ) -> Option<TextureProcessor> {
-    if let Ok(slot_data) = tex_pro.slot_data(node_id, SlotId(0)) {
+    if let Ok(slot_data) = tex_pro.slot_data_new(node_id, SlotId(0)) {
         let tex_pro_thumb = TextureProcessor::new();
         let embedded_slot_data_id = tex_pro_thumb
-            .embed_slot_data_with_id(Arc::clone(&slot_data), EmbeddedSlotDataId(0))
+            .embed_slot_data_with_id(Arc::new(slot_data), EmbeddedSlotDataId(0))
             .unwrap();
 
         let n_embedded = tex_pro_thumb

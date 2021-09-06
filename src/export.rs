@@ -39,7 +39,7 @@ fn export(
     mut tool_state: ResMut<State<ToolState>>,
 ) {
     for node_id in q_selected.iter() {
-        let size: TPSize = match tex_pro.slot_data(*node_id, SlotId(0)).unwrap().size() {
+        let size: TPSize = match tex_pro.await_slot_data_size(*node_id, SlotId(0)) {
             Ok(s) => s,
             Err(TexProError::InvalidBufferCount) => {
                 warn!("Seems the node doesn't have any outputs");
