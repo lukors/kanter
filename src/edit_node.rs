@@ -157,7 +157,7 @@ fn edit_specific_slot_enter(
     tex_pro: ResMut<TextureProcessor>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Ok(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
             if node.input_slots().is_empty() {
                 warn!("The node doesn't have any input slots");
                 edit_state.overwrite_set(EditState::Outer).unwrap();
@@ -200,9 +200,7 @@ fn edit_specific_slot_update(
             } else if event.char == '\r' {
                 // Enter
                 if let Ok(index) = instructions.sections[1].value.parse::<u32>() {
-                    if let Ok(mut node) =
-                        tex_pro.engine().write().unwrap().node_with_id_mut(*node_id)
-                    {
+                    if let Ok(mut node) = tex_pro.engine().write().unwrap().node_mut(*node_id) {
                         if let Some(slot) = node.input_slots().get(index as usize) {
                             let slot_id = (*slot).slot_id;
                             if node.input_slot_with_id(slot_id).is_ok() {
@@ -235,7 +233,7 @@ fn edit_specific_size_enter(
     tex_pro: ResMut<TextureProcessor>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Ok(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
             if let ResizePolicy::SpecificSize(size) = node.resize_policy {
                 instructions.sections[0].value =
                     format!("Current: {}x{}\nNew: ", size.width, size.height);
@@ -273,7 +271,7 @@ fn edit_specific_size_update(
                 // Enter
                 if let (Some(size), Ok(mut node)) = (
                     string_to_size(&instructions.sections[1].value),
-                    tex_pro.engine().write().unwrap().node_with_id_mut(*node_id),
+                    tex_pro.engine().write().unwrap().node_mut(*node_id),
                 ) {
                     node.resize_policy = ResizePolicy::SpecificSize(size);
                 } else {
@@ -305,7 +303,7 @@ fn edit_value_enter(
     tex_pro: ResMut<TextureProcessor>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Ok(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
             if let NodeType::Value(value) = node.node_type {
                 instructions.sections[0].value =
                     format!("Current value: {}\nNew: ", value.to_string());
@@ -341,7 +339,7 @@ fn edit_value_update(
                 // Enter
                 if let (Ok(number), Ok(mut node)) = (
                     instructions.sections[1].value.parse::<f32>(),
-                    tex_pro.engine().write().unwrap().node_with_id_mut(*node_id),
+                    tex_pro.engine().write().unwrap().node_mut(*node_id),
                 ) {
                     node.node_type = NodeType::Value(number);
                 } else {
@@ -381,7 +379,7 @@ fn edit(
                                 return;
                             }
                             Some(resize_policy) => {
-                                if let Ok(node) = engine.node_with_id_mut(*node_id) {
+                                if let Ok(node) = engine.node_mut(*node_id) {
                                     node.resize_policy = resize_policy;
                                     parameter_set = true;
                                 } else {
@@ -392,7 +390,7 @@ fn edit(
                         },
                         EditTarget::ResizeFilter => {
                             if let Some(resize_filter) = ResizeFilter::choose(i) {
-                                if let Ok(node) = engine.node_with_id_mut(*node_id) {
+                                if let Ok(node) = engine.node_mut(*node_id) {
                                     node.resize_filter = resize_filter;
                                     parameter_set = true;
                                 } else {
@@ -402,7 +400,7 @@ fn edit(
                         }
                         EditTarget::MixType => {
                             if let Some(mix_type) = MixType::choose(i) {
-                                if let Ok(node) = engine.node_with_id_mut(*node_id) {
+                                if let Ok(node) = engine.node_mut(*node_id) {
                                     node.node_type = NodeType::Mix(mix_type);
                                     parameter_set = true;
                                 } else {
@@ -438,7 +436,7 @@ fn edit_exit(
     tex_pro: ResMut<TextureProcessor>,
 ) {
     if let Ok(node_id) = q_active.single() {
-        if let Ok(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
             show_instructions(&node, &mut instructions);
         } else {
             error!("Could not find a node with that ID in the graph");
@@ -484,7 +482,7 @@ fn tool_enter(
     mut instructions: ResMut<Instructions>,
 ) {
     if let Ok(node_id) = q_active.single() {
-        if let Ok(node) = tex_pro.node_with_id(*node_id) {
+        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
             let _ = edit_state.overwrite_replace(EditState::Outer);
 
             show_instructions(&node, &mut instructions);

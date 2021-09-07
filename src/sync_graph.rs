@@ -88,12 +88,14 @@ fn sync_graph(
     workspace: Res<Workspace>,
     tex_pro: Res<TextureProcessor>,
 ) {
-    for node_id in tex_pro.changed_consume() {
+    let changed_node_ids = tex_pro.engine().write().unwrap().changed_consume();
+
+    for node_id in changed_node_ids {
         if let Some((node_gui_e, _, mut node_state, mut thumbnail_state)) = q_node
             .iter_mut()
             .find(|(_, node_id_query, _, _)| **node_id_query == node_id)
         {
-            if tex_pro.has_node_with_id(node_id).is_err() {
+            if tex_pro.engine().read().unwrap().has_node(node_id).is_err() {
                 info!("Removing node: {}", node_id);
                 commands.entity(node_gui_e).despawn_recursive();
             } else if let Ok(node_state_actual) = tex_pro.node_state(node_id) {
@@ -128,7 +130,7 @@ fn sync_graph(
                 commands.entity(entity).remove::<Selected>();
             }
 
-            let node = tex_pro.node_with_id(node_id).unwrap();
+            let node = tex_pro.engine().read().unwrap().node(node_id).unwrap();
             spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
         }
 
@@ -142,6 +144,9 @@ fn sync_graph(
 
         // Adding the current edges
         for edge in tex_pro
+            .engine()
+            .read()
+            .unwrap()
             .edges()
             .iter()
             .filter(|edge| edge.input_id == node_id)

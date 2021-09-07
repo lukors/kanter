@@ -124,6 +124,9 @@ fn thumbnail_processor(
     if let Ok(slot_data) = tex_pro.slot_data_new(node_id, SlotId(0)) {
         let tex_pro_thumb = TextureProcessor::new();
         let embedded_slot_data_id = tex_pro_thumb
+            .engine()
+            .write()
+            .unwrap()
             .embed_slot_data_with_id(Arc::new(slot_data), EmbeddedSlotDataId(0))
             .unwrap();
 
@@ -145,7 +148,7 @@ fn thumbnail_processor(
             .connect(n_embedded, n_out, SlotId(0), SlotId(0))
             .unwrap();
 
-        tex_pro_thumb.process_then_kill();
+        tex_pro_thumb.process_then_destroy();
 
         info!("Created thumbnail processor for {}", node_id);
 
@@ -159,7 +162,7 @@ fn thumbnail_processor(
 
 /// Tries to get the first output of a given graph.
 fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
-    let output_id = tex_pro.output_ids()[0];
+    let output_id = tex_pro.engine().read()?.output_ids()[0];
     let size = tex_pro.try_get_slot_data_size(output_id, SlotId(0))?;
 
     Ok(Texture::new(
