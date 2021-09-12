@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 /// Adding new nodes
 use crate::{
     drag_drop_entity::{grab_tool_cleanup, grab_tool_node_setup},
@@ -5,12 +7,7 @@ use crate::{
     AmbiguitySet, GrabToolType, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{
-    error::TexProError,
-    node::{mix::MixType, node_type::NodeType, Node},
-    node_graph::NodeId,
-    texture_processor::TextureProcessor,
-};
+use kanter_core::{error::TexProError, live_graph::LiveGraph, node::{mix::MixType, node_type::NodeType, Node}, node_graph::NodeId};
 use native_dialog::FileDialog;
 
 pub(crate) struct AddToolPlugin;
@@ -78,7 +75,7 @@ fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
 fn add_update(
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut tool_state: ResMut<State<ToolState>>,
-    mut tex_pro: ResMut<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     let mut done = false;
 
@@ -129,7 +126,7 @@ fn add_update(
         };
 
         if let Some(node_type) = node_type {
-            if create_default_node(&mut tex_pro, node_type.clone()).is_ok() {
+            if create_default_node(&live_graph, node_type.clone()).is_ok() {
                 info!("Added node: {:?}", node_type);
             }
             tool_state
@@ -144,10 +141,10 @@ fn add_update(
 }
 
 fn create_default_node(
-    tex_pro: &mut TextureProcessor,
+    live_graph: &Arc<RwLock<LiveGraph>>,
     node_type: NodeType,
 ) -> Result<NodeId, TexProError> {
-    tex_pro.add_node(
+    live_graph.write().unwrap().add_node(
         Node::new(node_type)
             .resize_policy(kanter_core::node::ResizePolicy::MostPixels)
             .resize_filter(kanter_core::node::ResizeFilter::Triangle),

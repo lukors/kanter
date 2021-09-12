@@ -1,10 +1,7 @@
+use std::sync::{Arc, RwLock};
+
 use bevy::prelude::*;
-use kanter_core::{
-    node::{mix::MixType, node_type::NodeType, Node, ResizeFilter, ResizePolicy},
-    node_graph::NodeId,
-    slot_data::Size as TPSize,
-    texture_processor::TextureProcessor,
-};
+use kanter_core::{live_graph::LiveGraph, node::{mix::MixType, node_type::NodeType, Node, ResizeFilter, ResizePolicy}, node_graph::NodeId, slot_data::Size as TPSize};
 
 use crate::{
     instruction::*, listable::*, mouse_interaction::Active, scan_code_input::*, AmbiguitySet,
@@ -154,10 +151,10 @@ fn edit_specific_slot_enter(
     mut edit_state: ResMut<State<EditState>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     q_active: Query<&NodeId, With<Active>>,
-    tex_pro: ResMut<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             if node.input_slots().is_empty() {
                 warn!("The node doesn't have any input slots");
                 edit_state.overwrite_set(EditState::Outer).unwrap();
@@ -179,7 +176,7 @@ fn edit_specific_slot_update(
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut edit_state: ResMut<State<EditState>>,
     q_active: Query<&NodeId, With<Active>>,
-    tex_pro: Res<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     mut started: Local<bool>,
 ) {
@@ -200,7 +197,7 @@ fn edit_specific_slot_update(
             } else if event.char == '\r' {
                 // Enter
                 if let Ok(index) = instructions.sections[1].value.parse::<u32>() {
-                    if let Ok(mut node) = tex_pro.engine().write().unwrap().node_mut(*node_id) {
+                    if let Ok(mut node) = live_graph.write().unwrap().node_mut(*node_id) {
                         if let Some(slot) = node.input_slots().get(index as usize) {
                             let slot_id = (*slot).slot_id;
                             if node.input_slot_with_id(slot_id).is_ok() {
@@ -230,10 +227,10 @@ fn edit_specific_slot_update(
 fn edit_specific_size_enter(
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     q_active: Query<&NodeId, With<Active>>,
-    tex_pro: ResMut<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             if let ResizePolicy::SpecificSize(size) = node.resize_policy {
                 instructions.sections[0].value =
                     format!("Current: {}x{}\nNew: ", size.width, size.height);
@@ -249,7 +246,7 @@ fn edit_specific_size_update(
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut edit_state: ResMut<State<EditState>>,
     q_active: Query<&NodeId, With<Active>>,
-    tex_pro: Res<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     mut started: Local<bool>,
 ) {
@@ -271,7 +268,7 @@ fn edit_specific_size_update(
                 // Enter
                 if let (Some(size), Ok(mut node)) = (
                     string_to_size(&instructions.sections[1].value),
-                    tex_pro.engine().write().unwrap().node_mut(*node_id),
+                    live_graph.write().unwrap().node_mut(*node_id),
                 ) {
                     node.resize_policy = ResizePolicy::SpecificSize(size);
                 } else {
@@ -300,10 +297,10 @@ fn string_to_size(input: &str) -> Option<TPSize> {
 fn edit_value_enter(
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     q_active: Query<&NodeId, With<Active>>,
-    tex_pro: ResMut<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             if let NodeType::Value(value) = node.node_type {
                 instructions.sections[0].value =
                     format!("Current value: {}\nNew: ", value.to_string());
@@ -317,7 +314,7 @@ fn edit_value_update(
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut edit_state: ResMut<State<EditState>>,
     q_active: Query<&NodeId, With<Active>>,
-    tex_pro: Res<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     mut started: Local<bool>,
 ) {
@@ -339,7 +336,7 @@ fn edit_value_update(
                 // Enter
                 if let (Ok(number), Ok(mut node)) = (
                     instructions.sections[1].value.parse::<f32>(),
-                    tex_pro.engine().write().unwrap().node_mut(*node_id),
+                    live_graph.write().unwrap().node_mut(*node_id),
                 ) {
                     node.node_type = NodeType::Value(number);
                 } else {
@@ -357,12 +354,12 @@ fn edit(
     mut scan_code_input: ResMut<ScanCodeInput>,
     mut edit_target: ResMut<OptionEditTarget>,
     q_active: Query<&NodeId, With<Active>>,
-    tex_pro: Res<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     let mut done = false;
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
-        if let Ok(mut engine) = tex_pro.engine().write() {
+        if let Ok(mut engine) = live_graph.write() {
             let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
             let mut parameter_set = false;
 
@@ -433,10 +430,10 @@ fn edit(
 fn edit_exit(
     q_active: Query<&NodeId, With<Active>>,
     mut instructions: ResMut<Instructions>,
-    tex_pro: ResMut<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let Ok(node_id) = q_active.single() {
-        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             show_instructions(&node, &mut instructions);
         } else {
             error!("Could not find a node with that ID in the graph");
@@ -478,11 +475,11 @@ fn tool_enter(
     mut edit_state: ResMut<State<EditState>>,
     mut tool_state: ResMut<State<ToolState>>,
     q_active: Query<&NodeId, With<Active>>,
-    tex_pro: Res<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut instructions: ResMut<Instructions>,
 ) {
     if let Ok(node_id) = q_active.single() {
-        if let Ok(node) = tex_pro.engine().read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             let _ = edit_state.overwrite_replace(EditState::Outer);
 
             show_instructions(&node, &mut instructions);

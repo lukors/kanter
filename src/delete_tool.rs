@@ -1,5 +1,7 @@
+use std::sync::{Arc, RwLock};
+
 use bevy::prelude::*;
-use kanter_core::{node_graph::NodeId, texture_processor::TextureProcessor};
+use kanter_core::{live_graph::LiveGraph, node_graph::NodeId};
 
 use crate::{instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState};
 
@@ -26,11 +28,11 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 
 fn delete(
     mut tool_state: ResMut<State<ToolState>>,
-    tex_pro: ResMut<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
     q_selected_nodes: Query<&NodeId, With<Selected>>,
 ) {
     for node_id in q_selected_nodes.iter() {
-        match tex_pro.remove_node(*node_id) {
+        match live_graph.write().unwrap().remove_node(*node_id) {
             Ok(_) => (),
             Err(e) => warn!("Unable to remove node with id {}: {}", node_id, e),
         }

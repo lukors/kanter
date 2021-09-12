@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use kanter_core::engine::NodeState;
+use kanter_core::live_graph::NodeState;
 
 use crate::{sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, Stage};
 

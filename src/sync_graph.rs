@@ -1,15 +1,12 @@
+use std::sync::{Arc, RwLock};
+
 use crate::{
     thumbnail::{Thumbnail, ThumbnailState, THUMBNAIL_SIZE},
     workspace::Workspace,
     AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
 };
 use bevy::prelude::*;
-use kanter_core::{
-    engine::NodeState,
-    node::{Node, Side, SlotType},
-    node_graph::{NodeId, SlotId},
-    texture_processor::TextureProcessor,
-};
+use kanter_core::{live_graph::{LiveGraph, NodeState}, node::{Node, Side, SlotType}, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
 use rand::Rng;
 
 pub const SLOT_SIZE: f32 = 30.;
@@ -62,10 +59,7 @@ pub(crate) struct SyncGraphPlugin;
 
 impl Plugin for SyncGraphPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        let tex_pro = TextureProcessor::new();
-        tex_pro.engine().write().unwrap().auto_update = true;
-
-        app.insert_non_send_resource(tex_pro)
+        app.add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
@@ -77,6 +71,13 @@ impl Plugin for SyncGraphPlugin {
     }
 }
 
+fn setup(
+    mut commands: Commands,
+    tex_pro: Res<Arc<TextureProcessor>>,
+) {
+    commands.insert_resource(tex_pro.new_live_graph().expect("Unable to create graph"));
+}
+
 #[allow(clippy::too_many_arguments)]
 fn sync_graph(
     mut commands: Commands,
@@ -86,19 +87,19 @@ fn sync_graph(
     q_slot: Query<(&Slot, &GlobalTransform)>,
     q_selected: Query<Entity, With<Selected>>,
     workspace: Res<Workspace>,
-    tex_pro: Res<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    let changed_node_ids = tex_pro.engine().write().unwrap().changed_consume();
+    let changed_node_ids = live_graph.write().unwrap().changed_consume();
 
     for node_id in changed_node_ids {
         if let Some((node_gui_e, _, mut node_state, mut thumbnail_state)) = q_node
             .iter_mut()
             .find(|(_, node_id_query, _, _)| **node_id_query == node_id)
         {
-            if tex_pro.engine().read().unwrap().has_node(node_id).is_err() {
+            if live_graph.read().unwrap().has_node(node_id).is_err() {
                 info!("Removing node: {}", node_id);
                 commands.entity(node_gui_e).despawn_recursive();
-            } else if let Ok(node_state_actual) = tex_pro.node_state(node_id) {
+            } else if let Ok(node_state_actual) = live_graph.read().unwrap().node_state(node_id) {
                 trace!(
                     "Updating node state of {} from {:?} to {:?}",
                     node_id,
@@ -130,7 +131,7 @@ fn sync_graph(
                 commands.entity(entity).remove::<Selected>();
             }
 
-            let node = tex_pro.engine().read().unwrap().node(node_id).unwrap();
+            let node = live_graph.read().unwrap().node(node_id).unwrap();
             spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
         }
 
@@ -143,8 +144,7 @@ fn sync_graph(
         }
 
         // Adding the current edges
-        for edge in tex_pro
-            .engine()
+        for edge in live_graph
             .read()
             .unwrap()
             .edges()

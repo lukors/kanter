@@ -3,14 +3,8 @@ use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
-use kanter_core::{
-    error::TexProError,
-    node::{embed::EmbeddedSlotDataId, node_type::NodeType, Node, ResizeFilter, ResizePolicy},
-    node_graph::{NodeId, SlotId},
-    slot_data::Size as TPSize,
-    texture_processor::TextureProcessor,
-};
-use std::sync::Arc;
+use kanter_core::{error::TexProError, live_graph::{LiveGraph, NodeState}, node::{embed::EmbeddedSlotDataId, node_type::NodeType, Node, ResizeFilter, ResizePolicy}, node_graph::{NodeId, SlotId}, slot_data::Size as TPSize, texture_processor::TextureProcessor};
+use std::sync::{Arc, RwLock};
 
 type TexProThumb = (NodeId, TextureProcessor);
 
@@ -54,18 +48,22 @@ impl Plugin for ThumbnailPlugin {
 fn generate_thumbnail_loop(
     mut commands: Commands,
     mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState)>,
-    tex_pro: Res<TextureProcessor>,
+    tex_pro: Res<Arc<TextureProcessor>>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     for (entity, node_id, mut thumb_state) in q_node
         .iter_mut()
         .filter(|(_, _, state)| **state == ThumbnailState::Missing)
     {
-        if let Some(thumb_processor) = thumbnail_processor(
+        if let Some(thumb_live_graph) = thumbnail_processor(
             &tex_pro,
+            &live_graph,
             *node_id,
             Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
         ) {
-            commands.entity(entity).insert(thumb_processor);
+            let thumb_live_graph = Arc::new(RwLock::new(thumb_live_graph));
+            tex_pro.add_live_graph(Arc::clone(&thumb_live_graph)).unwrap();
+            commands.entity(entity).insert(thumb_live_graph);
             *thumb_state = ThumbnailState::Processing;
         } else {
             *thumb_state = ThumbnailState::Present;
@@ -78,10 +76,10 @@ fn get_thumbnail_loop(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
     q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
-    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState, &TextureProcessor)>,
+    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState, &Arc<RwLock<LiveGraph>>)>,
 ) {
-    for (node_e, node_id, mut thumb_state, tex_pro) in q_node.iter_mut() {
-        let material = match try_get_output(&*tex_pro) {
+    for (node_e, node_id, mut thumb_state, live_graph) in q_node.iter_mut() {
+        let material = match try_get_output(&*live_graph) {
             Ok(texture) => {
                 let texture_handle = textures.add(texture);
                 Some(materials.add(texture_handle.into()))
@@ -113,27 +111,25 @@ fn get_thumbnail_loop(
     }
 }
 
-/// Creates a `TextureProcessor` which creates a thumbnail image from the data of a node
-/// in a graph. It adds the `TextureProcessor` to the list of thumbnail processors
+/// Creates a `LiveGraph` which creates a thumbnail image from the data of a node
+/// in a graph. It adds the `LiveGraph` to the list of thumbnail processors
 /// so the result can be retrieved and used in the future.
 fn thumbnail_processor(
-    tex_pro: &Res<TextureProcessor>,
+    tex_pro: &Res<Arc<TextureProcessor>>,
+    live_graph: &Res<Arc<RwLock<LiveGraph>>>,
     node_id: NodeId,
     size: Size,
-) -> Option<TextureProcessor> {
-    if let Ok(slot_data) = tex_pro.slot_data_new(node_id, SlotId(0)) {
-        let tex_pro_thumb = TextureProcessor::new();
-        let embedded_slot_data_id = tex_pro_thumb
-            .engine()
-            .write()
-            .unwrap()
+) -> Option<LiveGraph> {
+    if let Ok(slot_data) = live_graph.read().unwrap().slot_data_new(node_id, SlotId(0)) {
+        let mut live_graph_thumb = LiveGraph::new(Arc::clone(&tex_pro.add_buffer_queue));
+        let embedded_slot_data_id = live_graph_thumb
             .embed_slot_data_with_id(Arc::new(slot_data), EmbeddedSlotDataId(0))
             .unwrap();
 
-        let n_embedded = tex_pro_thumb
+        let n_embedded = live_graph_thumb
             .add_node(Node::new(NodeType::Embed(embedded_slot_data_id)))
             .unwrap();
-        let n_out = tex_pro_thumb
+        let n_out = live_graph_thumb
             .add_node(
                 Node::new(NodeType::OutputRgba("out".into()))
                     .resize_policy(ResizePolicy::SpecificSize(TPSize::new(
@@ -144,15 +140,15 @@ fn thumbnail_processor(
             )
             .unwrap();
 
-        tex_pro_thumb
+        live_graph_thumb
             .connect(n_embedded, n_out, SlotId(0), SlotId(0))
             .unwrap();
 
-        tex_pro_thumb.process_then_destroy();
+        live_graph_thumb.auto_update = true;
 
         info!("Created thumbnail processor for {}", node_id);
 
-        Some(tex_pro_thumb)
+        Some(live_graph_thumb)
     } else {
         info!("Failed to create thumbnail processor for {}", node_id);
 
@@ -161,14 +157,25 @@ fn thumbnail_processor(
 }
 
 /// Tries to get the first output of a given graph.
-fn try_get_output(tex_pro: &TextureProcessor) -> Result<Texture, TexProError> {
-    let output_id = tex_pro.engine().read()?.output_ids()[0];
-    let size = tex_pro.try_get_slot_data_size(output_id, SlotId(0))?;
+fn try_get_output(live_graph: &Arc<RwLock<LiveGraph>>) -> Result<Texture, TexProError> {
+    let (output_id, size) = {
+        let live_graph = live_graph.read()?;
+        let output_id = live_graph.output_ids()[0];
+        let size = {
+            if live_graph.node_state(output_id)? == NodeState::Clean {
+                live_graph.slot_data_size(output_id, SlotId(0))?
+            } else {
+                return Err(TexProError::NodeDirty);
+            }
+        };
+
+        (output_id, size)
+    };
 
     Ok(Texture::new(
         Extent3d::new(size.width as u32, size.height as u32, 1),
         TextureDimension::D2,
-        tex_pro.try_buffer_srgba(output_id, SlotId(0))?,
+        LiveGraph::try_buffer_srgba(&live_graph, output_id, SlotId(0))?,
         TextureFormat::Rgba8Unorm,
     ))
 }

@@ -1,10 +1,12 @@
+use std::sync::{Arc, RwLock};
+
 /// Dragging and dropping nodes and edges.
 use crate::{
     control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput,
     stretch_between, AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{node::Side, node_graph::NodeId, texture_processor::TextureProcessor};
+use kanter_core::{live_graph::LiveGraph, node::Side, node_graph::NodeId};
 
 #[derive(Default)]
 pub(crate) struct Draggable;
@@ -114,7 +116,7 @@ impl Plugin for WorkspaceDragDropPlugin {
 fn dropped_edge_update(
     mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
-    tex_pro: ResMut<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
     i_mouse_button: Res<Input<MouseButton>>,
     q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
@@ -131,7 +133,7 @@ fn dropped_edge_update(
                     slot_sprite.size,
                     cursor_t.translation.truncate(),
                 ) {
-                    if let Ok(edge) = tex_pro.connect_arbitrary(
+                    if let Ok(edge) = live_graph.write().unwrap().connect_arbitrary(
                         slot.node_id,
                         slot.side,
                         slot.slot_id,
@@ -145,7 +147,7 @@ fn dropped_edge_update(
                         );
                         if let Some(source_slot) = source_slot {
                             if source_slot.0 != *slot {
-                                if let Ok(edges) = tex_pro.disconnect_slot(
+                                if let Ok(edges) = live_graph.write().unwrap().disconnect_slot(
                                     source_slot.0.node_id,
                                     source_slot.0.side,
                                     source_slot.0.slot_id,
@@ -170,7 +172,7 @@ fn dropped_edge_update(
                 }
             }
             if let Some(source_slot) = source_slot {
-                match tex_pro.disconnect_slot(
+                match live_graph.write().unwrap().disconnect_slot(
                     source_slot.0.node_id,
                     source_slot.0.side,
                     source_slot.0.slot_id,

@@ -1,13 +1,8 @@
 use crate::{instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState};
 use bevy::prelude::*;
-use kanter_core::{
-    error::TexProError,
-    node_graph::{NodeId, SlotId},
-    slot_data::Size as TPSize,
-    texture_processor::TextureProcessor,
-};
+use kanter_core::{error::TexProError, live_graph::LiveGraph, node_graph::{NodeId, SlotId}, slot_data::Size as TPSize};
 use native_dialog::FileDialog;
-use std::path::Path;
+use std::{path::Path, sync::{Arc, RwLock}};
 
 pub(crate) struct ExportPlugin;
 
@@ -34,12 +29,12 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 }
 
 fn export(
-    tex_pro: Res<TextureProcessor>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
     q_selected: Query<&NodeId, With<Selected>>,
     mut tool_state: ResMut<State<ToolState>>,
 ) {
     for node_id in q_selected.iter() {
-        let size: TPSize = match tex_pro.await_slot_data_size(*node_id, SlotId(0)) {
+        let size: TPSize = match LiveGraph::await_clean_read(&live_graph, *node_id).unwrap().slot_data_size(*node_id, SlotId(0)) {
             Ok(s) => s,
             Err(TexProError::InvalidBufferCount) => {
                 warn!("Seems the node doesn't have any outputs");
@@ -71,9 +66,8 @@ fn export(
             }
         };
 
-        let texels = match tex_pro
-            .engine()
-            .write()
+        let texels = match live_graph
+            .read()
             .unwrap()
             .buffer_rgba(*node_id, SlotId(0))
         {
