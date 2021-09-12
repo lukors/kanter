@@ -1,7 +1,12 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::{live_graph::LiveGraph, node::{mix::MixType, node_type::NodeType, Node, ResizeFilter, ResizePolicy}, node_graph::NodeId, slot_data::Size as TPSize};
+use kanter_core::{
+    live_graph::LiveGraph,
+    node::{mix::MixType, node_type::NodeType, Node, ResizeFilter, ResizePolicy},
+    node_graph::NodeId,
+    slot_data::Size as TPSize,
+};
 
 use crate::{
     instruction::*, listable::*, mouse_interaction::Active, scan_code_input::*, AmbiguitySet,

@@ -6,7 +6,12 @@ use crate::{
     AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
 };
 use bevy::prelude::*;
-use kanter_core::{live_graph::{LiveGraph, NodeState}, node::{Node, Side, SlotType}, node_graph::{NodeId, SlotId}, texture_processor::TextureProcessor};
+use kanter_core::{
+    live_graph::{LiveGraph, NodeState},
+    node::{Node, Side, SlotType},
+    node_graph::{NodeId, SlotId},
+    texture_processor::TextureProcessor,
+};
 use rand::Rng;
 
 pub const SLOT_SIZE: f32 = 30.;
@@ -71,15 +76,14 @@ impl Plugin for SyncGraphPlugin {
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    tex_pro: Res<Arc<TextureProcessor>>,
-) {
+fn setup(mut commands: Commands, tex_pro: Res<Arc<TextureProcessor>>) {
     let mut live_graph = LiveGraph::new(Arc::clone(&tex_pro.add_buffer_queue));
     live_graph.auto_update = true;
     let live_graph = Arc::new(RwLock::new(live_graph));
-    
-    tex_pro.add_live_graph(Arc::clone(&live_graph)).expect("Unable to add graph");
+
+    tex_pro
+        .add_live_graph(Arc::clone(&live_graph))
+        .expect("Unable to add graph");
 
     commands.insert_resource(live_graph);
 }

@@ -7,7 +7,12 @@ use crate::{
     AmbiguitySet, GrabToolType, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{error::TexProError, live_graph::LiveGraph, node::{mix::MixType, node_type::NodeType, Node}, node_graph::NodeId};
+use kanter_core::{
+    error::TexProError,
+    live_graph::LiveGraph,
+    node::{mix::MixType, node_type::NodeType, Node},
+    node_graph::NodeId,
+};
 use native_dialog::FileDialog;
 
 pub(crate) struct AddToolPlugin;

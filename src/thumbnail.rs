@@ -3,7 +3,14 @@ use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
 };
-use kanter_core::{error::TexProError, live_graph::{LiveGraph, NodeState}, node::{embed::EmbeddedSlotDataId, node_type::NodeType, Node, ResizeFilter, ResizePolicy}, node_graph::{NodeId, SlotId}, slot_data::Size as TPSize, texture_processor::TextureProcessor};
+use kanter_core::{
+    error::TexProError,
+    live_graph::{LiveGraph, NodeState},
+    node::{embed::EmbeddedSlotDataId, node_type::NodeType, Node, ResizeFilter, ResizePolicy},
+    node_graph::{NodeId, SlotId},
+    slot_data::Size as TPSize,
+    texture_processor::TextureProcessor,
+};
 use std::sync::{Arc, RwLock};
 
 type TexProThumb = (NodeId, TextureProcessor);
@@ -62,7 +69,9 @@ fn generate_thumbnail_loop(
             Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
         ) {
             let thumb_live_graph = Arc::new(RwLock::new(thumb_live_graph));
-            tex_pro.add_live_graph(Arc::clone(&thumb_live_graph)).unwrap();
+            tex_pro
+                .add_live_graph(Arc::clone(&thumb_live_graph))
+                .unwrap();
             commands.entity(entity).insert(thumb_live_graph);
             *thumb_state = ThumbnailState::Processing;
         } else {
@@ -76,7 +85,12 @@ fn get_thumbnail_loop(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
     q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
-    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState, &Arc<RwLock<LiveGraph>>)>,
+    mut q_node: Query<(
+        Entity,
+        &NodeId,
+        &mut ThumbnailState,
+        &Arc<RwLock<LiveGraph>>,
+    )>,
 ) {
     for (node_e, node_id, mut thumb_state, live_graph) in q_node.iter_mut() {
         let material = match try_get_output(&*live_graph) {
