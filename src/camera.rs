@@ -144,7 +144,7 @@ fn first_person_off_update(
 }
 
 fn first_person_instruct(on: bool) -> String {
-    const TEXT: &str = &"`: First person - ";
+    const TEXT: &str = "`: First person - ";
     let setting = if on { &"On" } else { &"Off" };
 
     format!("{}{}\n\n", TEXT, setting)

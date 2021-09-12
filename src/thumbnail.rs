@@ -106,12 +106,12 @@ fn get_thumbnail_loop(
             }
 
             *thumb_state = ThumbnailState::Present;
-            commands.entity(node_e).remove::<TextureProcessor>();
+            commands.entity(node_e).remove::<Arc<RwLock<LiveGraph>>>();
         }
     }
 }
 
-/// Creates a `LiveGraph` which creates a thumbnail image from the data of a node
+/// Creates a `LiveGraph` that creates a thumbnail image from the data of a node
 /// in a graph. It adds the `LiveGraph` to the list of thumbnail processors
 /// so the result can be retrieved and used in the future.
 fn thumbnail_processor(
@@ -175,7 +175,7 @@ fn try_get_output(live_graph: &Arc<RwLock<LiveGraph>>) -> Result<Texture, TexPro
     Ok(Texture::new(
         Extent3d::new(size.width as u32, size.height as u32, 1),
         TextureDimension::D2,
-        LiveGraph::try_buffer_srgba(&live_graph, output_id, SlotId(0))?,
+        LiveGraph::try_buffer_srgba(live_graph, output_id, SlotId(0))?,
         TextureFormat::Rgba8Unorm,
     ))
 }

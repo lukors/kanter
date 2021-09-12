@@ -75,7 +75,13 @@ fn setup(
     mut commands: Commands,
     tex_pro: Res<Arc<TextureProcessor>>,
 ) {
-    commands.insert_resource(tex_pro.new_live_graph().expect("Unable to create graph"));
+    let mut live_graph = LiveGraph::new(Arc::clone(&tex_pro.add_buffer_queue));
+    live_graph.auto_update = true;
+    let live_graph = Arc::new(RwLock::new(live_graph));
+    
+    tex_pro.add_live_graph(Arc::clone(&live_graph)).expect("Unable to add graph");
+
+    commands.insert_resource(live_graph);
 }
 
 #[allow(clippy::too_many_arguments)]

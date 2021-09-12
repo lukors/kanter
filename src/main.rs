@@ -22,7 +22,6 @@ pub mod sync_graph;
 pub mod thumbnail;
 pub mod thumbnail_state;
 pub mod workspace;
-pub mod startup;
 
 use bevy::prelude::*;
 use camera::*;
