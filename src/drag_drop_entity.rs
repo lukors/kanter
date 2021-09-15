@@ -133,42 +133,46 @@ fn dropped_edge_update(
                     slot_sprite.size,
                     cursor_t.translation.truncate(),
                 ) {
-                    if let Ok(edge) = live_graph.write().unwrap().connect_arbitrary(
-                        slot.node_id,
-                        slot.side,
-                        slot.slot_id,
-                        grabbed_edge.slot.node_id,
-                        grabbed_edge.slot.side,
-                        grabbed_edge.slot.slot_id,
-                    ) {
-                        info!(
-                            "Creating edge from {:?} {:?} to {:?} {:?}",
-                            edge.output_id, edge.output_slot, edge.input_id, edge.input_slot
-                        );
-                        if let Some(source_slot) = source_slot {
-                            if source_slot.0 != *slot {
-                                if let Ok(edges) = live_graph.write().unwrap().disconnect_slot(
-                                    source_slot.0.node_id,
-                                    source_slot.0.side,
-                                    source_slot.0.slot_id,
-                                ) {
-                                    for edge in edges {
-                                        info!(
-                                            "Removing edge from {:?} {:?} to {:?} {:?}",
-                                            edge.output_id,
-                                            edge.output_slot,
-                                            edge.input_id,
-                                            edge.input_slot
-                                        );
-                                    }
+                    let edge = {
+                        if let Ok(edge) = live_graph.write().unwrap().connect_arbitrary(
+                            slot.node_id,
+                            slot.side,
+                            slot.slot_id,
+                            grabbed_edge.slot.node_id,
+                            grabbed_edge.slot.side,
+                            grabbed_edge.slot.slot_id,
+                        ) {
+                            edge.clone()
+                        } else {
+                            info!("Failed to connect nodes");
+                            continue 'outer;
+                        }
+                    };
+
+                    info!(
+                        "Creating edge from {:?} {:?} to {:?} {:?}",
+                        edge.output_id, edge.output_slot, edge.input_id, edge.input_slot
+                    );
+                    if let Some(source_slot) = source_slot {
+                        if source_slot.0 != *slot {
+                            if let Ok(edges) = live_graph.write().unwrap().disconnect_slot(
+                                source_slot.0.node_id,
+                                source_slot.0.side,
+                                source_slot.0.slot_id,
+                            ) {
+                                for edge in edges {
+                                    info!(
+                                        "Removing edge from {:?} {:?} to {:?} {:?}",
+                                        edge.output_id,
+                                        edge.output_slot,
+                                        edge.input_id,
+                                        edge.input_slot
+                                    );
                                 }
                             }
                         }
-                        continue 'outer;
-                    } else {
-                        info!("Failed to connect nodes");
-                        continue 'outer;
                     }
+                    continue 'outer;
                 }
             }
             if let Some(source_slot) = source_slot {
