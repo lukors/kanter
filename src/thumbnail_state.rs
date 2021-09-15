@@ -75,7 +75,7 @@ fn add_state_image(
     materials: Res<StateMaterials>,
 ) {
     for (node_e, thumb_state) in q_thumbnail.iter() {
-        trace!("Adding state image");
+        info!("Adding state image");
         commands.entity(node_e).with_children(|parent| {
             parent
                 .spawn_bundle(SpriteBundle {

@@ -84,20 +84,16 @@ fn mouse_interaction(
         } else if workspace.drag == Drag::Starting {
             // Drag on node
             let some_hovered_selected_node = q_hovered_selected_node.iter().count() > 0;
-            if some_hovered_selected_node {
-                tool_state
-                    .overwrite_replace(ToolState::Grab(GrabToolType::Node))
-                    .unwrap();
-            } else {
+            if !some_hovered_selected_node {
                 for entity in q_selected_node.iter() {
                     commands.entity(entity).remove::<Selected>();
                 }
 
                 commands.entity(entity).insert(Selected);
-                tool_state
-                    .overwrite_replace(ToolState::Grab(GrabToolType::Node))
-                    .unwrap();
             }
+            tool_state
+                .overwrite_replace(ToolState::Grab(GrabToolType::Node))
+                .unwrap();
         }
     } else if workspace.drag == Drag::Starting {
         // Drag on empty space

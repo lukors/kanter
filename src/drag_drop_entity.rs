@@ -166,7 +166,7 @@ fn dropped_edge_update(
                         }
                         continue 'outer;
                     } else {
-                        trace!("Failed to connect nodes");
+                        info!("Failed to connect nodes");
                         continue 'outer;
                     }
                 }
@@ -187,7 +187,7 @@ fn dropped_edge_update(
                     }
                     Err(e) => {
                         error!(
-                            "Failed to disconnect slot: {}, {:?}, {}: {}",
+                            "Failed to disconnect slot: NodeId({}), Side({:?}), SlotId({}): {}",
                             source_slot.0.node_id, source_slot.0.side, source_slot.0.slot_id, e
                         );
                     }

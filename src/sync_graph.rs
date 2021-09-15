@@ -82,7 +82,7 @@ fn setup(mut commands: Commands, tex_pro: Res<Arc<TextureProcessor>>) {
     let live_graph = Arc::new(RwLock::new(live_graph));
 
     tex_pro
-        .add_live_graph(Arc::clone(&live_graph))
+        .push_live_graph(Arc::clone(&live_graph))
         .expect("Unable to add graph");
 
     commands.insert_resource(live_graph);
@@ -110,11 +110,9 @@ fn sync_graph(
                 info!("Removing node: {}", node_id);
                 commands.entity(node_gui_e).despawn_recursive();
             } else if let Ok(node_state_actual) = live_graph.read().unwrap().node_state(node_id) {
-                trace!(
+                info!(
                     "Updating node state of {} from {:?} to {:?}",
-                    node_id,
-                    *node_state,
-                    node_state_actual
+                    node_id, *node_state, node_state_actual
                 );
 
                 if *node_state == NodeState::Clean {
@@ -145,15 +143,20 @@ fn sync_graph(
             spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
         }
 
-        // Removing edges for the node
-        for (entity, _) in q_edge
-            .iter()
-            .filter(|(_, edge)| edge.input_slot.node_id == node_id)
-        {
+        // Removing edges for the node so they can be re-created in the next step.
+        for (entity, _) in q_edge.iter().filter(|(_, edge)| {
+            edge.input_slot.node_id == node_id || edge.output_slot.node_id == node_id
+        }) {
+            // info!(
+            //     "Removing edge from NodeId({}) SlotId({}) to NodeId({}) SlotId({})",
+            //     edge.output_slot.node_id, edge.output_slot.slot_id, edge.input_slot.node_id, edge.input_slot.slot_id
+            // );
+            dbg!("=========================== removing visual edges");
+
             commands.entity(entity).despawn_recursive();
         }
 
-        // Adding the current edges
+        // Adding the current edges.
         for edge in live_graph
             .read()
             .unwrap()

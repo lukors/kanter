@@ -1847,11 +1847,12 @@ dependencies = [
 
 [[package]]
 name = "kanter_core"
-version = "0.8.0"
-source = "git+https://github.com/lukors/kanter_core?tag=v0.8.0#6ca451519328f8dae4c5a1a8aaf649bb618df547"
+version = "0.9.0"
+source = "git+https://github.com/lukors/kanter_core?tag=v0.9.0#4d4cf901af4d36f578700c9da3ced929de598a24"
 dependencies = [
  "image 0.23.14",
  "nalgebra",
+ "num_cpus",
  "rand",
  "serde",
  "serde_json",

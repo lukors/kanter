@@ -72,7 +72,8 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
     instructions.insert(
         InstructId::Tool,
-        "C: Combine\nI: Input\nM: Mix\nO: Output\nV: Value\nS: Separate\n".to_string(),
+        "C: Combine\nI: Input\nM: Mix\nN: Height to Normal\nO: Output\nV: Value\nS: Separate\n"
+            .to_string(),
     );
 }
 
@@ -108,6 +109,7 @@ fn add_update(
                 }
             }
             'm' => Some(NodeType::Mix(MixType::Add)),
+            'n' => Some(NodeType::HeightToNormal),
             'o' => {
                 // let path = FileDialog::new()
                 //     // .set_location("~/Desktop")

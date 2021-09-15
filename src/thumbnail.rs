@@ -70,7 +70,7 @@ fn generate_thumbnail_loop(
         ) {
             let thumb_live_graph = Arc::new(RwLock::new(thumb_live_graph));
             tex_pro
-                .add_live_graph(Arc::clone(&thumb_live_graph))
+                .push_live_graph(Arc::clone(&thumb_live_graph))
                 .unwrap();
             commands.entity(entity).insert(thumb_live_graph);
             *thumb_state = ThumbnailState::Processing;

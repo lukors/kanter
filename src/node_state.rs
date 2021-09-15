@@ -9,6 +9,7 @@ struct StateMaterials {
     requested: Handle<ColorMaterial>,
     prioritised: Handle<ColorMaterial>,
     processing: Handle<ColorMaterial>,
+    processing_dirty: Handle<ColorMaterial>,
 }
 
 impl StateMaterials {
@@ -19,6 +20,7 @@ impl StateMaterials {
             NodeState::Requested => &self.requested,
             NodeState::Prioritised => &self.prioritised,
             NodeState::Processing => &self.processing,
+            NodeState::ProcessingDirty => &self.processing_dirty,
         }
         .clone()
     }
@@ -55,6 +57,11 @@ fn setup(
                 .into(),
         ),
         processing: materials.add(asset_server.load("image/node_states/processing.png").into()),
+        processing_dirty: materials.add(
+            asset_server
+                .load("image/node_states/processing_dirty.png")
+                .into(),
+        ),
     });
 }
 
