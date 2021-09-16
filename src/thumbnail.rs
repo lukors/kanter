@@ -45,18 +45,20 @@ impl Plugin for ThumbnailPlugin {
                     .with_system(
                         get_thumbnail_loop
                             .system()
-                            .chain(generate_thumbnail_loop.system())
+                            .chain(thumbnail_state_changed.system())
                             .in_ambiguity_set(AmbiguitySet),
                     ),
             );
     }
 }
 
-fn generate_thumbnail_loop(
+fn thumbnail_state_changed(
     mut commands: Commands,
-    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState)>,
+    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState), Changed<ThumbnailState>>,
+    q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
     tex_pro: Res<Arc<TextureProcessor>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for (entity, node_id, mut thumb_state) in q_node
         .iter_mut()
@@ -74,7 +76,12 @@ fn generate_thumbnail_loop(
                 .unwrap();
             commands.entity(entity).insert(thumb_live_graph);
             *thumb_state = ThumbnailState::Processing;
-        } else {
+        } else if let Some((thumbnail_e, _)) = q_thumbnail
+            .iter()
+            .find(|(_, parent_e)| parent_e.0 == entity)
+        {
+            let material = materials.add(Color::rgb(0.0, 0.0, 0.0).into());
+            commands.entity(thumbnail_e).insert(material);
             *thumb_state = ThumbnailState::Present;
         }
     }
@@ -99,7 +106,6 @@ fn get_thumbnail_loop(
                 Some(materials.add(texture_handle.into()))
             }
             Err(TexProError::InvalidBufferCount) => {
-                dbg!("OK");
                 Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into()))
             }
             _ => None,

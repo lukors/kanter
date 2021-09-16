@@ -102,17 +102,19 @@ fn sync_graph(
     let changed_node_ids = live_graph.write().unwrap().changed_consume();
 
     for node_id in changed_node_ids {
+        info!("{:?} changed {{", node_id);
+
         if let Some((node_gui_e, _, mut node_state, mut thumbnail_state)) = q_node
             .iter_mut()
             .find(|(_, node_id_query, _, _)| **node_id_query == node_id)
         {
             if live_graph.read().unwrap().has_node(node_id).is_err() {
-                info!("Removing node: {}", node_id);
+                info!("Removing the node");
                 commands.entity(node_gui_e).despawn_recursive();
             } else if let Ok(node_state_actual) = live_graph.read().unwrap().node_state(node_id) {
                 info!(
-                    "Updating node state of {} from {:?} to {:?}",
-                    node_id, *node_state, node_state_actual
+                    "State changed from {:?} to {:?}",
+                    *node_state, node_state_actual
                 );
 
                 if *node_state == NodeState::Clean {
@@ -131,8 +133,72 @@ fn sync_graph(
                     node_id
                 );
             }
+
+            info!("Updating visual edges");
+
+            // Removing edges for the node so they can be re-created in the next step.
+            for (entity, _) in q_edge.iter().filter(|(_, edge)| {
+                edge.input_slot.node_id == node_id || edge.output_slot.node_id == node_id
+            }) {
+                commands.entity(entity).despawn_recursive();
+            }
+
+            // Adding the current edges.
+            for edge in live_graph
+                .read()
+                .unwrap()
+                .edges()
+                .iter()
+                .filter(|edge| edge.input_id == node_id)
+            {
+                let output_slot = Slot {
+                    node_id: edge.output_id,
+                    side: Side::Output,
+                    slot_id: edge.output_slot,
+                };
+                let input_slot = Slot {
+                    node_id: edge.input_id,
+                    side: Side::Input,
+                    slot_id: edge.input_slot,
+                };
+                let mut start = Vec2::ZERO;
+                let mut end = Vec2::ZERO;
+
+                for (slot, slot_t) in q_slot.iter() {
+                    if slot.node_id == output_slot.node_id
+                        && slot.slot_id == output_slot.slot_id
+                        && slot.side == output_slot.side
+                    {
+                        start = slot_t.translation.truncate();
+                    } else if slot.node_id == input_slot.node_id
+                        && slot.slot_id == input_slot.slot_id
+                        && slot.side == input_slot.side
+                    {
+                        end = slot_t.translation.truncate();
+                    }
+                }
+
+                let mut sprite = Sprite::new(Vec2::new(5., 5.));
+                let mut transform = Transform::default();
+
+                stretch_between(&mut sprite, &mut transform, start, end);
+
+                commands
+                    .spawn_bundle(SpriteBundle {
+                        material: materials.add(Color::rgb(0., 0., 0.).into()),
+                        sprite,
+                        transform,
+                        ..Default::default()
+                    })
+                    .insert(Edge {
+                        start,
+                        end,
+                        output_slot,
+                        input_slot,
+                    });
+            }
         } else {
-            info!("Adding node: {}", node_id);
+            info!("Adding the node");
 
             // Deselect everything so the new node(s) can be selected instead.
             for entity in q_selected.iter() {
@@ -143,73 +209,7 @@ fn sync_graph(
             spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
         }
 
-        // Removing edges for the node so they can be re-created in the next step.
-        for (entity, _) in q_edge.iter().filter(|(_, edge)| {
-            edge.input_slot.node_id == node_id || edge.output_slot.node_id == node_id
-        }) {
-            // info!(
-            //     "Removing edge from NodeId({}) SlotId({}) to NodeId({}) SlotId({})",
-            //     edge.output_slot.node_id, edge.output_slot.slot_id, edge.input_slot.node_id, edge.input_slot.slot_id
-            // );
-            dbg!("=========================== removing visual edges");
-
-            commands.entity(entity).despawn_recursive();
-        }
-
-        // Adding the current edges.
-        for edge in live_graph
-            .read()
-            .unwrap()
-            .edges()
-            .iter()
-            .filter(|edge| edge.input_id == node_id)
-        {
-            let output_slot = Slot {
-                node_id: edge.output_id,
-                side: Side::Output,
-                slot_id: edge.output_slot,
-            };
-            let input_slot = Slot {
-                node_id: edge.input_id,
-                side: Side::Input,
-                slot_id: edge.input_slot,
-            };
-            let mut start = Vec2::ZERO;
-            let mut end = Vec2::ZERO;
-
-            for (slot, slot_t) in q_slot.iter() {
-                if slot.node_id == output_slot.node_id
-                    && slot.slot_id == output_slot.slot_id
-                    && slot.side == output_slot.side
-                {
-                    start = slot_t.translation.truncate();
-                } else if slot.node_id == input_slot.node_id
-                    && slot.slot_id == input_slot.slot_id
-                    && slot.side == input_slot.side
-                {
-                    end = slot_t.translation.truncate();
-                }
-            }
-
-            let mut sprite = Sprite::new(Vec2::new(5., 5.));
-            let mut transform = Transform::default();
-
-            stretch_between(&mut sprite, &mut transform, start, end);
-
-            commands
-                .spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(0., 0., 0.).into()),
-                    sprite,
-                    transform,
-                    ..Default::default()
-                })
-                .insert(Edge {
-                    start,
-                    end,
-                    output_slot,
-                    input_slot,
-                });
-        }
+        info!("}}");
     }
 }
 

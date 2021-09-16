@@ -3,7 +3,8 @@ use std::sync::{Arc, RwLock};
 /// Dragging and dropping nodes and edges.
 use crate::{
     control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput,
-    stretch_between, AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
+    stretch_between, thumbnail::ThumbnailState, AmbiguitySet, Cursor, Edge, GrabToolType, Selected,
+    Slot, Stage, ToolState,
 };
 use bevy::prelude::*;
 use kanter_core::{live_graph::LiveGraph, node::Side, node_graph::NodeId};
@@ -122,6 +123,7 @@ fn dropped_edge_update(
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
     q_grabbed_edge: Query<(Entity, &GrabbedEdge, Option<&SourceSlot>)>,
     mut q_edge: Query<&mut Visible, With<Edge>>,
+    mut q_thumbnail_state: Query<(&NodeId, &mut ThumbnailState), Without<GrabbedEdge>>,
 ) {
     if i_mouse_button.just_released(MouseButton::Left) {
         let cursor_t = q_cursor.iter().next().unwrap();
@@ -142,7 +144,7 @@ fn dropped_edge_update(
                             grabbed_edge.slot.side,
                             grabbed_edge.slot.slot_id,
                         ) {
-                            edge.clone()
+                            edge
                         } else {
                             info!("Failed to connect nodes");
                             continue 'outer;
@@ -168,6 +170,13 @@ fn dropped_edge_update(
                                         edge.input_id,
                                         edge.input_slot
                                     );
+
+                                    for (_, mut thumbnail_state) in q_thumbnail_state
+                                        .iter_mut()
+                                        .filter(|(node_id, _)| **node_id == edge.input_id)
+                                    {
+                                        *thumbnail_state = ThumbnailState::Missing;
+                                    }
                                 }
                             }
                         }
