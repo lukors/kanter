@@ -76,14 +76,15 @@ fn thumbnail_state_changed(
                 .unwrap();
             commands.entity(entity).insert(thumb_live_graph);
             *thumb_state = ThumbnailState::Processing;
-        } else if let Some((thumbnail_e, _)) = q_thumbnail
-            .iter()
-            .find(|(_, parent_e)| parent_e.0 == entity)
-        {
-            let material = materials.add(Color::rgb(0.0, 0.0, 0.0).into());
-            commands.entity(thumbnail_e).insert(material);
-            *thumb_state = ThumbnailState::Present;
         }
+        // else if let Some((thumbnail_e, _)) = q_thumbnail
+            // .iter()
+            // .find(|(_, parent_e)| parent_e.0 == entity)
+        // {
+            // let material = materials.add(Color::rgb(0.0, 0.0, 0.0).into());
+            // commands.entity(thumbnail_e).insert(material);
+            // *thumb_state = ThumbnailState::Present;
+        // }
     }
 }
 
@@ -140,10 +141,15 @@ fn thumbnail_processor(
     node_id: NodeId,
     size: Size,
 ) -> Option<LiveGraph> {
-    if let Ok(slot_data) = live_graph.read().unwrap().slot_data_new(node_id, SlotId(0)) {
+    dbg!(node_id);
+    if let Ok(size) = live_graph.read().unwrap().slot_data_size(node_id, SlotId(0)) {
+        dbg!(size);
+    }
+
+    if let Ok(slot_data) = live_graph.read().unwrap().slot_data(node_id, SlotId(0)) {
         let mut live_graph_thumb = LiveGraph::new(Arc::clone(&tex_pro.add_buffer_queue));
         let embedded_slot_data_id = live_graph_thumb
-            .embed_slot_data_with_id(Arc::new(slot_data), EmbeddedSlotDataId(0))
+            .embed_slot_data_with_id(Arc::clone(slot_data), EmbeddedSlotDataId(0))
             .unwrap();
 
         let n_embedded = live_graph_thumb
@@ -171,7 +177,6 @@ fn thumbnail_processor(
         Some(live_graph_thumb)
     } else {
         info!("Failed to create thumbnail processor for {}", node_id);
-
         None
     }
 }
