@@ -79,6 +79,7 @@ impl Plugin for SyncGraphPlugin {
 fn setup(mut commands: Commands, tex_pro: Res<Arc<TextureProcessor>>) {
     let mut live_graph = LiveGraph::new(Arc::clone(&tex_pro.add_buffer_queue));
     live_graph.auto_update = true;
+    live_graph.use_cache = true;
     let live_graph = Arc::new(RwLock::new(live_graph));
 
     tex_pro
