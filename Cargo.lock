@@ -1835,7 +1835,7 @@ dependencies = [
 
 [[package]]
 name = "kanter"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "bevy",
  "image 0.20.1",
