@@ -55,10 +55,8 @@ impl Plugin for ThumbnailPlugin {
 fn thumbnail_state_changed(
     mut commands: Commands,
     mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState), Changed<ThumbnailState>>,
-    q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
     tex_pro: Res<Arc<TextureProcessor>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for (entity, node_id, mut thumb_state) in q_node
         .iter_mut()
@@ -77,14 +75,6 @@ fn thumbnail_state_changed(
             commands.entity(entity).insert(thumb_live_graph);
             *thumb_state = ThumbnailState::Processing;
         }
-        // else if let Some((thumbnail_e, _)) = q_thumbnail
-            // .iter()
-            // .find(|(_, parent_e)| parent_e.0 == entity)
-        // {
-            // let material = materials.add(Color::rgb(0.0, 0.0, 0.0).into());
-            // commands.entity(thumbnail_e).insert(material);
-            // *thumb_state = ThumbnailState::Present;
-        // }
     }
 }
 
@@ -141,8 +131,11 @@ fn thumbnail_processor(
     node_id: NodeId,
     size: Size,
 ) -> Option<LiveGraph> {
-    dbg!(node_id);
-    if let Ok(size) = live_graph.read().unwrap().slot_data_size(node_id, SlotId(0)) {
+    if let Ok(size) = live_graph
+        .read()
+        .unwrap()
+        .slot_data_size(node_id, SlotId(0))
+    {
         dbg!(size);
     }
 

@@ -102,6 +102,17 @@ fn hotkeys(
                     }
                 }
                 ScanCode::Tab => Some(tool_state.set(ToolState::EditNode)),
+                ScanCode::KeyZ => {
+                    if control_pressed(&sc_input) {
+                        if shift_pressed(&sc_input) {
+                            Some(tool_state.set(ToolState::Redo))
+                        } else {
+                            Some(tool_state.set(ToolState::Undo))
+                        }
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             };
 

@@ -2,9 +2,13 @@ use std::sync::{Arc, RwLock};
 
 /// Dragging and dropping nodes and edges.
 use crate::{
-    control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput,
-    stretch_between, thumbnail::ThumbnailState, AmbiguitySet, Cursor, Edge, GrabToolType, Selected,
-    Slot, Stage, ToolState,
+    control_pressed,
+    hoverable::box_contains_point,
+    scan_code_input::ScanCodeInput,
+    stretch_between,
+    thumbnail::ThumbnailState,
+    undo_command_manager::{UndoCommand, UndoCommandManager},
+    AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
 };
 use bevy::prelude::*;
 use kanter_core::{live_graph::LiveGraph, node::Side, node_graph::NodeId};
@@ -12,9 +16,14 @@ use kanter_core::{live_graph::LiveGraph, node::Side, node_graph::NodeId};
 #[derive(Default)]
 pub(crate) struct Draggable;
 #[derive(Default)]
-pub(crate) struct Dragged;
+pub(crate) struct Dragged {
+    start: Vec2,
+}
 #[derive(Default)]
-pub(crate) struct Dropped;
+pub(crate) struct Dropped {
+    start: Vec2,
+    end: Vec2,
+}
 struct SourceSlot(Slot);
 
 struct GrabbedEdge {
@@ -241,14 +250,16 @@ fn grabbed_edge_update(
 fn grab_tool_slot_setup(
     mut tool_state: ResMut<State<ToolState>>,
     mut commands: Commands,
-    q_selected_slots: Query<Entity, (With<Slot>, With<Selected>)>,
+    q_selected_slots: Query<(Entity, &GlobalTransform), (With<Slot>, With<Selected>)>,
 ) {
     if q_selected_slots.iter().count() == 0 {
         tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 
-    for entity in q_selected_slots.iter() {
-        commands.entity(entity).insert(Dragged);
+    for (entity, gtransform) in q_selected_slots.iter() {
+        commands.entity(entity).insert(Dragged {
+            start: gtransform.translation.truncate(),
+        });
     }
 }
 
@@ -256,14 +267,16 @@ fn grab_tool_slot_setup(
 pub(crate) fn grab_tool_node_setup(
     mut tool_state: ResMut<State<ToolState>>,
     mut commands: Commands,
-    q_selected_nodes: Query<Entity, (With<NodeId>, With<Selected>)>,
+    q_selected_nodes: Query<(Entity, &GlobalTransform), (With<NodeId>, With<Selected>)>,
 ) {
     if q_selected_nodes.iter().count() == 0 {
         tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 
-    for entity in q_selected_nodes.iter() {
-        commands.entity(entity).insert(Dragged);
+    for (entity, gtransform) in q_selected_nodes.iter() {
+        commands.entity(entity).insert(Dragged {
+            start: gtransform.translation.truncate(),
+        });
     }
 }
 
@@ -278,10 +291,16 @@ fn grab_tool_update(
 }
 
 /// Drops all grabbed entities.
-pub(crate) fn grab_tool_cleanup(mut commands: Commands, q_dragged: Query<Entity, With<Dragged>>) {
-    for entity in q_dragged.iter() {
+pub(crate) fn grab_tool_cleanup(
+    mut commands: Commands,
+    q_dragged: Query<(Entity, &Dragged, &GlobalTransform)>,
+) {
+    for (entity, dragged, gtransform) in q_dragged.iter() {
         commands.entity(entity).remove::<Dragged>();
-        commands.entity(entity).insert(Dropped);
+        commands.entity(entity).insert(Dropped {
+            start: dragged.start,
+            end: gtransform.translation.truncate(),
+        });
     }
 }
 
@@ -391,14 +410,54 @@ fn spawn_grabbed_edges(
 
 /// When an entity gets the `Dropped` component, this system returns it to its un-dragged state.
 fn dropped_update(
+    mut undo_command_manager: ResMut<UndoCommandManager>,
     mut commands: Commands,
-    mut q_dropped: Query<(Entity, Option<&Slot>), Added<Dropped>>,
+    mut q_dropped: Query<(Entity, Option<&Slot>, Option<&NodeId>, &Dropped), Added<Dropped>>,
 ) {
-    for (entity, slot_id) in q_dropped.iter_mut() {
+    for (entity, slot_id, node_id, transform) in q_dropped.iter_mut() {
         if slot_id.is_none() {
             commands.entity(entity).remove::<Parent>();
+
+            if let (Some(node_id), dropped) = (node_id, transform) {
+                undo_command_manager.push(Box::new(MoveNode {
+                    node_id: *node_id,
+                    from: dropped.start,
+                    to: dropped.end,
+                }));
+            }
         }
         commands.entity(entity).remove::<Dropped>();
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct MoveNode {
+    node_id: NodeId,
+    from: Vec2,
+    to: Vec2,
+}
+
+impl UndoCommand for MoveNode {
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query = world.query::<(&NodeId, &mut Transform)>();
+        if let Some((_, mut transform)) = query
+            .iter_mut(world)
+            .find(|(node_id, _)| **node_id == self.node_id)
+        {
+            transform.translation.x = self.to.x;
+            transform.translation.y = self.to.y;
+        }
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query = world.query::<(&NodeId, &mut Transform)>();
+        if let Some((_, mut transform)) = query
+            .iter_mut(world)
+            .find(|(node_id, _)| **node_id == self.node_id)
+        {
+            transform.translation.x = self.from.x;
+            transform.translation.y = self.from.y;
+        }
     }
 }
 
