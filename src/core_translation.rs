@@ -18,6 +18,17 @@ pub trait Translator<DataType>: Debug {
     fn set(&self, live_graph: &mut LiveGraph, value: DataType) -> Result<()>;
 }
 
+impl Translator<NodeType> for NodeId {
+    fn get(&self, live_graph: &LiveGraph) -> Result<NodeType> {
+        Ok(live_graph.node(*self)?.node_type)
+    }
+
+    fn set(&self, live_graph: &mut LiveGraph, value: NodeType) -> Result<()> {
+        live_graph.node_mut(*self)?.node_type = value;
+        Ok(())
+    }
+}
+
 impl Translator<ResizePolicy> for NodeId {
     fn get(&self, live_graph: &LiveGraph) -> Result<ResizePolicy> {
         Ok(live_graph.node(*self)?.resize_policy)

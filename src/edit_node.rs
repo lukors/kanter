@@ -400,7 +400,7 @@ fn edit(
     let mut done = false;
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
-        if let Ok(mut live_graph) = live_graph.write() {
+        if let Ok(live_graph) = live_graph.read() {
             let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
             let mut parameter_set = false;
 
@@ -436,11 +436,15 @@ fn edit(
                         }
                         EditTarget::MixType => {
                             if let Some(mix_type) = MixType::choose(i) {
-                                if let Ok(node) = live_graph.node_mut(*node_id) {
-                                    node.node_type = NodeType::Mix(mix_type);
+                                if let Ok(from) = node_id.get(&*live_graph) {
+                                    undo_command_manager.push(Box::new(GuiTranslator::new(
+                                        *node_id,
+                                        from,
+                                        NodeType::Mix(mix_type),
+                                    )));
                                     parameter_set = true;
                                 } else {
-                                    error!("Unable to get node with id: {}", node_id);
+                                    error!("unable to get node with id: {}", node_id);
                                 }
                             }
                         }
