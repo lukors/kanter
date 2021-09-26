@@ -198,6 +198,7 @@ fn edit_specific_slot_update(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     mut started: Local<bool>,
+    mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
     // This guard drops any input the first time the system is entered, so you do not get the
     // input from the button that was pressed to start this sytem, in this sytem.
@@ -216,11 +217,18 @@ fn edit_specific_slot_update(
             } else if event.char == '\r' {
                 // Enter
                 if let Ok(index) = instructions.sections[1].value.parse::<u32>() {
-                    if let Ok(mut node) = live_graph.write().unwrap().node_mut(*node_id) {
-                        if let Some(slot) = node.input_slots().get(index as usize) {
+                    if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
+                        if let (Ok(from), Some(slot)) = (
+                            node_id.get(&*live_graph.read().unwrap()),
+                            node.input_slots().get(index as usize),
+                        ) {
                             let slot_id = (*slot).slot_id;
                             if node.input_slot_with_id(slot_id).is_ok() {
-                                node.resize_policy = ResizePolicy::SpecificSlot(slot_id);
+                                undo_command_manager.push(Box::new(GuiTranslator::new(
+                                    *node_id,
+                                    from,
+                                    ResizePolicy::SpecificSlot(slot_id),
+                                )));
                             } else {
                                 warn!("Node does not have a slot with the given ID: {}", slot_id);
                             }
@@ -268,6 +276,7 @@ fn edit_specific_size_update(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     mut started: Local<bool>,
+    mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
     // This guard drops any input the first time the system is entered, so you do not get the
     // input from the button that was pressed to start this sytem, in this sytem.
@@ -285,11 +294,15 @@ fn edit_specific_size_update(
                 instructions.sections[1].value.pop();
             } else if event.char == '\r' {
                 // Enter
-                if let (Some(size), Ok(mut node)) = (
+                if let (Ok(from), Some(size)) = (
+                    node_id.get(&*live_graph.read().unwrap()),
                     string_to_size(&instructions.sections[1].value),
-                    live_graph.write().unwrap().node_mut(*node_id),
                 ) {
-                    node.resize_policy = ResizePolicy::SpecificSize(size);
+                    undo_command_manager.push(Box::new(GuiTranslator::new(
+                        *node_id,
+                        from,
+                        ResizePolicy::SpecificSize(size),
+                    )));
                 } else {
                     warn!("Invalid size format, should be for instance 256x256");
                 }
@@ -324,9 +337,11 @@ fn edit_value_enter(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        let value: Result<ChannelPixel> = node_id.get(&*live_graph);
-        if let Ok(value) = value {
-            edit_value_display(&mut instructions, value);
+        if let Ok(live_graph) = live_graph.read() {
+            let value: Result<ChannelPixel> = node_id.get(&*live_graph);
+            if let Ok(value) = value {
+                edit_value_display(&mut instructions, value);
+            }
         }
     }
 }
@@ -356,14 +371,16 @@ fn edit_value_update(
                 instructions.sections[1].value.pop();
             } else if event.char == '\r' {
                 // Enter
-                if let (Ok(number), Ok(previous)) = (
-                    instructions.sections[1].value.parse::<f32>(),
-                    node_id.get(&*live_graph),
-                ) {
-                    let gui_translator = GuiTranslator::new(*node_id, previous, number);
-                    undo_command_manager.push(Box::new(gui_translator));
-                } else {
-                    warn!("Invalid number format, should be for instance 0.3");
+                if let Ok(live_graph) = live_graph.read() {
+                    if let (Ok(number), Ok(previous)) = (
+                        instructions.sections[1].value.parse::<f32>(),
+                        node_id.get(&*live_graph),
+                    ) {
+                        let gui_translator = GuiTranslator::new(*node_id, previous, number);
+                        undo_command_manager.push(Box::new(gui_translator));
+                    } else {
+                        warn!("Invalid number format, should be for instance 0.3");
+                    }
                 }
                 edit_state.overwrite_replace(EditState::Outer).unwrap();
                 *started = false;
@@ -378,11 +395,12 @@ fn edit(
     mut edit_target: ResMut<OptionEditTarget>,
     q_active: Query<&NodeId, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
+    mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
     let mut done = false;
 
     if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
-        if let Ok(mut engine) = live_graph.write() {
+        if let Ok(mut live_graph) = live_graph.write() {
             let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
             let mut parameter_set = false;
 
@@ -398,29 +416,27 @@ fn edit(
                                 edit_state.overwrite_replace(EditState::Slot).unwrap();
                                 return;
                             }
-                            Some(resize_policy) => {
-                                if let Ok(node) = engine.node_mut(*node_id) {
-                                    node.resize_policy = resize_policy;
+                            Some(to) => {
+                                if let Ok(from) = node_id.get(&*live_graph) {
+                                    undo_command_manager
+                                        .push(Box::new(GuiTranslator::new(*node_id, from, to)));
                                     parameter_set = true;
-                                } else {
-                                    error!("Unable to get node with id: {}", node_id);
                                 }
                             }
                             None => (),
                         },
                         EditTarget::ResizeFilter => {
-                            if let Some(resize_filter) = ResizeFilter::choose(i) {
-                                if let Ok(node) = engine.node_mut(*node_id) {
-                                    node.resize_filter = resize_filter;
-                                    parameter_set = true;
-                                } else {
-                                    error!("Unable to get node with id: {}", node_id);
-                                }
+                            if let (Ok(from), Some(to)) =
+                                (node_id.get(&*live_graph), ResizeFilter::choose(i))
+                            {
+                                undo_command_manager
+                                    .push(Box::new(GuiTranslator::new(*node_id, from, to)));
+                                parameter_set = true;
                             }
                         }
                         EditTarget::MixType => {
                             if let Some(mix_type) = MixType::choose(i) {
-                                if let Ok(node) = engine.node_mut(*node_id) {
+                                if let Ok(node) = live_graph.node_mut(*node_id) {
                                     node.node_type = NodeType::Mix(mix_type);
                                     parameter_set = true;
                                 } else {

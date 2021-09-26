@@ -3,10 +3,10 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use kanter_core::{
     live_graph::LiveGraph,
-    node::{node_type::NodeType, ResizeFilter},
+    node::{node_type::NodeType, ResizeFilter, ResizePolicy},
     node_graph::NodeId,
     slot_data::ChannelPixel,
 };
@@ -14,32 +14,34 @@ use kanter_core::{
 use crate::undo_command_manager::{UndoCommand, UndoCommandManager};
 
 pub trait Translator<DataType>: Debug {
-    fn get(&self, live_graph: &Arc<RwLock<LiveGraph>>) -> Result<DataType>;
-    fn set(&self, live_graph: &Arc<RwLock<LiveGraph>>, value: DataType) -> Result<()>;
+    fn get(&self, live_graph: &LiveGraph) -> Result<DataType>;
+    fn set(&self, live_graph: &mut LiveGraph, value: DataType) -> Result<()>;
+}
+
+impl Translator<ResizePolicy> for NodeId {
+    fn get(&self, live_graph: &LiveGraph) -> Result<ResizePolicy> {
+        Ok(live_graph.node(*self)?.resize_policy)
+    }
+
+    fn set(&self, live_graph: &mut LiveGraph, value: ResizePolicy) -> Result<()> {
+        live_graph.node_mut(*self)?.resize_policy = value;
+        Ok(())
+    }
 }
 
 impl Translator<ResizeFilter> for NodeId {
-    fn get(&self, live_graph: &Arc<RwLock<LiveGraph>>) -> Result<ResizeFilter> {
-        let live_graph = live_graph
-            .read()
-            .map_err(|_| anyhow!("unable to get read lock on LiveGraph"))?;
+    fn get(&self, live_graph: &LiveGraph) -> Result<ResizeFilter> {
         Ok(live_graph.node(*self)?.resize_filter)
     }
 
-    fn set(&self, live_graph: &Arc<RwLock<LiveGraph>>, value: ResizeFilter) -> Result<()> {
-        let mut live_graph = live_graph
-            .write()
-            .map_err(|_| anyhow!("unable to get write lock on LiveGraph"))?;
+    fn set(&self, live_graph: &mut LiveGraph, value: ResizeFilter) -> Result<()> {
         live_graph.node_mut(*self)?.resize_filter = value;
         Ok(())
     }
 }
 
 impl Translator<ChannelPixel> for NodeId {
-    fn get(&self, live_graph: &Arc<RwLock<LiveGraph>>) -> Result<ChannelPixel> {
-        let live_graph = live_graph
-            .read()
-            .map_err(|_| anyhow!("unable to get read lock on LiveGraph"))?;
+    fn get(&self, live_graph: &LiveGraph) -> Result<ChannelPixel> {
         let node = live_graph.node(*self)?;
 
         if let NodeType::Value(val) = node.node_type {
@@ -49,10 +51,7 @@ impl Translator<ChannelPixel> for NodeId {
         }
     }
 
-    fn set(&self, live_graph: &Arc<RwLock<LiveGraph>>, value: ChannelPixel) -> Result<()> {
-        let mut live_graph = live_graph
-            .write()
-            .map_err(|_| anyhow!("unable to get write lock on LiveGraph"))?;
+    fn set(&self, live_graph: &mut LiveGraph, value: ChannelPixel) -> Result<()> {
         let mut node = live_graph.node_mut(*self)?;
 
         if node.node_type == NodeType::Value(0.0) {
@@ -79,13 +78,17 @@ where
 impl<T: Debug + Clone, U: Translator<T>> UndoCommand for GuiTranslator<T, U> {
     fn forward(&self, world: &mut bevy::prelude::World, _: &mut UndoCommandManager) {
         if let Some(live_graph) = world.get_resource::<Arc<RwLock<LiveGraph>>>() {
-            let _ = self.contact_info.set(live_graph, self.to.clone());
+            if let Ok(mut live_graph) = live_graph.write() {
+                let _ = self.contact_info.set(&mut live_graph, self.to.clone());
+            }
         }
     }
 
     fn backward(&self, world: &mut bevy::prelude::World, _: &mut UndoCommandManager) {
         if let Some(live_graph) = world.get_resource::<Arc<RwLock<LiveGraph>>>() {
-            let _ = self.contact_info.set(live_graph, self.from.clone());
+            if let Ok(mut live_graph) = live_graph.write() {
+                let _ = self.contact_info.set(&mut live_graph, self.from.clone());
+            }
         }
     }
 }
