@@ -76,7 +76,7 @@ impl Translator<ChannelPixel> for NodeId {
 }
 
 #[derive(Debug)]
-pub struct GuiTranslator<T, U>
+pub struct GuiUndoCommand<T, U>
 where
     T: Debug + Clone,
     U: Translator<T>,
@@ -86,7 +86,7 @@ where
     to: T,
 }
 
-impl<T: Debug + Clone, U: Translator<T>> UndoCommand for GuiTranslator<T, U> {
+impl<T: Debug + Clone, U: Translator<T>> UndoCommand for GuiUndoCommand<T, U> {
     fn forward(&self, world: &mut bevy::prelude::World, _: &mut UndoCommandManager) {
         if let Some(live_graph) = world.get_resource::<Arc<RwLock<LiveGraph>>>() {
             if let Ok(mut live_graph) = live_graph.write() {
@@ -104,16 +104,18 @@ impl<T: Debug + Clone, U: Translator<T>> UndoCommand for GuiTranslator<T, U> {
     }
 }
 
-impl<T, U> GuiTranslator<T, U>
+impl<T, U> GuiUndoCommand<T, U>
 where
     T: Debug + Clone,
     U: Translator<T>,
 {
-    pub fn new(contact_info: U, from: T, to: T) -> Self {
+    pub fn new(live_graph: &LiveGraph, contact_info: U, value: T) -> Self {
+        let from = contact_info.get(live_graph).unwrap();
+
         Self {
             contact_info,
             from,
-            to,
+            to: value,
         }
     }
 }
