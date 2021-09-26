@@ -2,6 +2,7 @@
 pub mod add_tool;
 pub mod box_select;
 pub mod camera;
+pub mod core_translation;
 pub mod delete_tool;
 pub mod deselect_tool;
 pub mod drag_drop_entity;

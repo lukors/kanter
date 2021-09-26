@@ -1,4 +1,5 @@
 use crate::{AmbiguitySet, Stage};
+use anyhow::{anyhow, Result};
 use bevy::{
     prelude::*,
     render::texture::{Extent3d, TextureDimension, TextureFormat},
@@ -96,10 +97,13 @@ fn get_thumbnail_loop(
                 let texture_handle = textures.add(texture);
                 Some(materials.add(texture_handle.into()))
             }
-            Err(TexProError::InvalidBufferCount) => {
-                Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into()))
+            Err(error) => {
+                if let Ok(TexProError::InvalidBufferCount) = error.downcast::<TexProError>() {
+                    Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into()))
+                } else {
+                    None
+                }
             }
-            _ => None,
         };
 
         if let Some(material) = material {
@@ -131,14 +135,6 @@ fn thumbnail_processor(
     node_id: NodeId,
     size: Size,
 ) -> Option<LiveGraph> {
-    if let Ok(size) = live_graph
-        .read()
-        .unwrap()
-        .slot_data_size(node_id, SlotId(0))
-    {
-        dbg!(size);
-    }
-
     if let Ok(slot_data) = live_graph.read().unwrap().slot_data(node_id, SlotId(0)) {
         let mut live_graph_thumb = LiveGraph::new(Arc::clone(&tex_pro.add_buffer_queue));
         let embedded_slot_data_id = live_graph_thumb
@@ -175,15 +171,15 @@ fn thumbnail_processor(
 }
 
 /// Tries to get the first output of a given graph.
-fn try_get_output(live_graph: &Arc<RwLock<LiveGraph>>) -> Result<Texture, TexProError> {
+fn try_get_output(live_graph: &Arc<RwLock<LiveGraph>>) -> Result<Texture> {
     let (output_id, size) = {
-        let live_graph = live_graph.read()?;
+        let live_graph = live_graph.read().map_err(|e| anyhow!("{}", e))?;
         let output_id = live_graph.output_ids()[0];
         let size = {
             if live_graph.node_state(output_id)? == NodeState::Clean {
                 live_graph.slot_data_size(output_id, SlotId(0))?
             } else {
-                return Err(TexProError::NodeDirty);
+                return Err(TexProError::NodeDirty.into());
             }
         };
 

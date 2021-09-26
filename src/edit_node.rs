@@ -1,16 +1,22 @@
 use std::sync::{Arc, RwLock};
 
+use anyhow::Result;
 use bevy::prelude::*;
 use kanter_core::{
     live_graph::LiveGraph,
     node::{mix::MixType, node_type::NodeType, Node, ResizeFilter, ResizePolicy},
     node_graph::NodeId,
-    slot_data::Size as TPSize,
+    slot_data::{ChannelPixel, Size as TPSize},
 };
 
 use crate::{
-    instruction::*, listable::*, mouse_interaction::Active, scan_code_input::*, AmbiguitySet,
-    Stage, ToolState,
+    core_translation::{GuiTranslator, Translator},
+    instruction::*,
+    listable::*,
+    mouse_interaction::Active,
+    scan_code_input::*,
+    undo_command_manager::UndoCommandManager,
+    AmbiguitySet, Stage, ToolState,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -113,7 +119,15 @@ fn tool_update(
     mut scan_code_input: ResMut<ScanCodeInput>,
     mut instructions: ResMut<Instructions>,
     mut edit_target: ResMut<OptionEditTarget>,
+    q_active: Query<&NodeId, With<Active>>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
+    if let Ok(node_id) = q_active.single() {
+        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
+            show_instructions(&node, &mut instructions);
+        }
+    }
+
     let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
 
     for scan_code in scan_codes {
@@ -299,18 +313,20 @@ fn string_to_size(input: &str) -> Option<TPSize> {
     }
 }
 
+fn edit_value_display(instructions: &mut Text, value: f32) {
+    instructions.sections[0].value = format!("Current value: {}\nNew: ", value.to_string());
+    instructions.sections[1].value.clear();
+}
+
 fn edit_value_enter(
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     q_active: Query<&NodeId, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
-        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
-            if let NodeType::Value(value) = node.node_type {
-                instructions.sections[0].value =
-                    format!("Current value: {}\nNew: ", value.to_string());
-            }
-            instructions.sections[1].value.clear();
+        let value: Result<ChannelPixel> = node_id.get(&*live_graph);
+        if let Ok(value) = value {
+            edit_value_display(&mut instructions, value);
         }
     }
 }
@@ -322,6 +338,7 @@ fn edit_value_update(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     mut started: Local<bool>,
+    mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
     // This guard drops any input the first time the system is entered, so you do not get the
     // input from the button that was pressed to start this sytem, in this sytem.
@@ -339,11 +356,12 @@ fn edit_value_update(
                 instructions.sections[1].value.pop();
             } else if event.char == '\r' {
                 // Enter
-                if let (Ok(number), Ok(mut node)) = (
+                if let (Ok(number), Ok(previous)) = (
                     instructions.sections[1].value.parse::<f32>(),
-                    live_graph.write().unwrap().node_mut(*node_id),
+                    node_id.get(&*live_graph),
                 ) {
-                    node.node_type = NodeType::Value(number);
+                    let gui_translator = GuiTranslator::new(*node_id, previous, number);
+                    undo_command_manager.push(Box::new(gui_translator));
                 } else {
                     warn!("Invalid number format, should be for instance 0.3");
                 }
@@ -498,7 +516,7 @@ fn tool_enter(
 }
 
 fn tool_exit(mut edit_state: ResMut<State<EditState>>) {
-    edit_state.overwrite_replace(EditState::None).unwrap();
+    let _ = edit_state.overwrite_replace(EditState::None);
 }
 
 fn node_type_name(node_type: &NodeType) -> &'static str {
