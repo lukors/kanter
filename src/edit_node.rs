@@ -217,30 +217,26 @@ fn edit_specific_slot_update(
             } else if event.char == '\r' {
                 // Enter
                 if let Ok(index) = instructions.sections[1].value.parse::<u32>() {
-                    if let Ok(live_graph) = live_graph.read() {
-                        if let Ok(node) = live_graph.node(*node_id) {
-                            if let Some(slot) = node.input_slots().get(index as usize) {
-                                let slot_id = (*slot).slot_id;
-                                if node.input_slot_with_id(slot_id).is_ok() {
-                                    undo_command_manager.push(Box::new(GuiUndoCommand::new(
-                                        &*live_graph,
-                                        *node_id,
-                                        ResizePolicy::SpecificSlot(slot_id),
-                                    )));
-                                } else {
-                                    warn!(
-                                        "Node does not have a slot with the given ID: {}",
-                                        slot_id
-                                    );
-                                }
+                    if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
+                        if let (Ok(from), Some(slot)) = (
+                            node_id.get(&*live_graph.read().unwrap()),
+                            node.input_slots().get(index as usize),
+                        ) {
+                            let slot_id = (*slot).slot_id;
+                            if node.input_slot_with_id(slot_id).is_ok() {
+                                undo_command_manager.push(Box::new(GuiUndoCommand::new(
+                                    *node_id,
+                                    from,
+                                    ResizePolicy::SpecificSlot(slot_id),
+                                )));
                             } else {
-                                warn!("That slot does not exist: {}", index);
+                                warn!("Node does not have a slot with the given ID: {}", slot_id);
                             }
                         } else {
-                            error!("The node you're trying to edit does not exist: {}", node_id);
+                            warn!("That slot does not exist: {}", index);
                         }
                     } else {
-                        error!("unable to get read lock on `LiveGraph`")
+                        error!("The node you're trying to edit does not exist: {}", node_id);
                     }
                 } else {
                     error!(
@@ -298,17 +294,17 @@ fn edit_specific_size_update(
                 instructions.sections[1].value.pop();
             } else if event.char == '\r' {
                 // Enter
-                if let (Ok(live_graph), Some(size)) = (
-                    live_graph.read(),
+                if let (Ok(from), Some(size)) = (
+                    node_id.get(&*live_graph.read().unwrap()),
                     string_to_size(&instructions.sections[1].value),
                 ) {
                     undo_command_manager.push(Box::new(GuiUndoCommand::new(
-                        &*live_graph,
                         *node_id,
+                        from,
                         ResizePolicy::SpecificSize(size),
                     )));
                 } else {
-                    warn!("invalid size format, should be for instance 256x256");
+                    warn!("Invalid size format, should be for instance 256x256");
                 }
                 edit_state.overwrite_replace(EditState::Outer).unwrap();
                 *started = false;
@@ -375,14 +371,16 @@ fn edit_value_update(
                 instructions.sections[1].value.pop();
             } else if event.char == '\r' {
                 // Enter
-                if let (Ok(number), Ok(live_graph)) = (
-                    instructions.sections[1].value.parse::<f32>(),
-                    live_graph.read(),
-                ) {
-                    let gui_translator = GuiUndoCommand::new(&*live_graph, *node_id, number);
-                    undo_command_manager.push(Box::new(gui_translator));
-                } else {
-                    warn!("Invalid number format, should be for instance 0.3");
+                if let Ok(live_graph) = live_graph.read() {
+                    if let (Ok(number), Ok(previous)) = (
+                        instructions.sections[1].value.parse::<f32>(),
+                        node_id.get(&*live_graph),
+                    ) {
+                        let gui_translator = GuiUndoCommand::new(*node_id, previous, number);
+                        undo_command_manager.push(Box::new(gui_translator));
+                    } else {
+                        warn!("Invalid number format, should be for instance 0.3");
+                    }
                 }
                 edit_state.overwrite_replace(EditState::Outer).unwrap();
                 *started = false;
@@ -419,33 +417,35 @@ fn edit(
                                 return;
                             }
                             Some(to) => {
-                                undo_command_manager.push(Box::new(GuiUndoCommand::new(
-                                    &*live_graph,
-                                    *node_id,
-                                    to,
-                                )));
-                                parameter_set = true;
+                                if let Ok(from) = node_id.get(&*live_graph) {
+                                    undo_command_manager
+                                        .push(Box::new(GuiUndoCommand::new(*node_id, from, to)));
+                                    parameter_set = true;
+                                }
                             }
                             None => (),
                         },
                         EditTarget::ResizeFilter => {
-                            if let Some(to) = ResizeFilter::choose(i) {
-                                undo_command_manager.push(Box::new(GuiUndoCommand::new(
-                                    &*live_graph,
-                                    *node_id,
-                                    to,
-                                )));
+                            if let (Ok(from), Some(to)) =
+                                (node_id.get(&*live_graph), ResizeFilter::choose(i))
+                            {
+                                undo_command_manager
+                                    .push(Box::new(GuiUndoCommand::new(*node_id, from, to)));
                                 parameter_set = true;
                             }
                         }
                         EditTarget::MixType => {
                             if let Some(mix_type) = MixType::choose(i) {
-                                undo_command_manager.push(Box::new(GuiUndoCommand::new(
-                                    &*live_graph,
-                                    *node_id,
-                                    NodeType::Mix(mix_type),
-                                )));
-                                parameter_set = true;
+                                if let Ok(from) = node_id.get(&*live_graph) {
+                                    undo_command_manager.push(Box::new(GuiUndoCommand::new(
+                                        *node_id,
+                                        from,
+                                        NodeType::Mix(mix_type),
+                                    )));
+                                    parameter_set = true;
+                                } else {
+                                    error!("unable to get node with id: {}", node_id);
+                                }
                             }
                         }
                     }

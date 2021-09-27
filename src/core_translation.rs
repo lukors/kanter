@@ -109,13 +109,11 @@ where
     T: Debug + Clone,
     U: Translator<T>,
 {
-    pub fn new(live_graph: &LiveGraph, contact_info: U, value: T) -> Self {
-        let from = contact_info.get(live_graph).unwrap();
-
+    pub fn new(contact_info: U, from: T, to: T) -> Self {
         Self {
             contact_info,
             from,
-            to: value,
+            to,
         }
     }
 }
