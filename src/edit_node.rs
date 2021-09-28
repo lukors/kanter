@@ -10,12 +10,12 @@ use kanter_core::{
 };
 
 use crate::{
-    core_translation::{GuiUndoCommand, Translator},
+    core_translation::Translator,
     instruction::*,
     listable::*,
     mouse_interaction::Active,
     scan_code_input::*,
-    undo_command_manager::UndoCommandManager,
+    undo::{gui::GuiUndoCommand, undo_command_manager::UndoCommandManager},
     AmbiguitySet, Stage, ToolState,
 };
 

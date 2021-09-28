@@ -32,8 +32,8 @@ impl Plugin for KanterPlugin {
             .add_plugin(crate::none_tool::NoneToolPlugin)
             .add_plugin(crate::node_state::NodeStatePlugin)
             .add_plugin(crate::thumbnail_state::ThumbnailStatePlugin)
-            .add_plugin(crate::undo_command_manager::UndoCommandManagerPlugin)
-            .add_plugin(crate::undo_redo_tool::UndoPlugin)
+            .add_plugin(crate::undo::undo_command_manager::UndoCommandManagerPlugin)
+            .add_plugin(crate::undo::undo_redo_tool::UndoPlugin)
             .add_plugin(crate::drag_drop_import::DragDropImport);
     }
 }

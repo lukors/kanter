@@ -3,6 +3,14 @@ use std::{collections::VecDeque, fmt::Debug};
 use crate::Stage;
 use bevy::prelude::*;
 
+pub trait UndoCommand: Debug {
+    fn custom(&self) -> bool {
+        false
+    }
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager);
+    fn backward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager);
+}
+
 #[derive(Debug, Default)]
 pub struct UndoCommandManager {
     commands: VecDeque<Box<dyn UndoCommand + Send + Sync + 'static>>,
@@ -37,14 +45,6 @@ impl UndoCommandManager {
     pub fn redo_stack(&self) -> &Vec<Box<dyn UndoCommand + Send + Sync>> {
         &self.redo_stack
     }
-}
-
-pub trait UndoCommand: Debug {
-    fn custom(&self) -> bool {
-        false
-    }
-    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager);
-    fn backward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager);
 }
 
 pub struct UndoCommandManagerPlugin;

@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    fmt::Debug,
+    sync::{Arc, RwLock},
+};
 
 /// Dragging and dropping nodes and edges.
 use crate::{
@@ -7,11 +10,16 @@ use crate::{
     scan_code_input::ScanCodeInput,
     stretch_between,
     thumbnail::ThumbnailState,
-    undo_command_manager::{UndoCommand, UndoCommandManager},
+    undo::undo_command_manager::{UndoCommand, UndoCommandManager},
     AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{live_graph::LiveGraph, node::Side, node_graph::NodeId};
+use kanter_core::{
+    edge::Edge as TPEdge,
+    live_graph::LiveGraph,
+    node::{Node, Side},
+    node_graph::NodeId,
+};
 
 #[derive(Default)]
 pub(crate) struct Draggable;
@@ -133,6 +141,7 @@ fn dropped_edge_update(
     q_grabbed_edge: Query<(Entity, &GrabbedEdge, Option<&SourceSlot>)>,
     mut q_edge: Query<&mut Visible, With<Edge>>,
     mut q_thumbnail_state: Query<(&NodeId, &mut ThumbnailState), Without<GrabbedEdge>>,
+    mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
     if i_mouse_button.just_released(MouseButton::Left) {
         let cursor_t = q_cursor.iter().next().unwrap();
@@ -419,7 +428,7 @@ fn dropped_update(
             commands.entity(entity).remove::<Parent>();
 
             if let (Some(node_id), dropped) = (node_id, transform) {
-                undo_command_manager.push(Box::new(MoveNode {
+                undo_command_manager.push(Box::new(MoveNodeUndo {
                     node_id: *node_id,
                     from: dropped.start,
                     to: dropped.end,
@@ -431,13 +440,13 @@ fn dropped_update(
 }
 
 #[derive(Clone, Debug)]
-pub struct MoveNode {
+pub struct MoveNodeUndo {
     node_id: NodeId,
     from: Vec2,
     to: Vec2,
 }
 
-impl UndoCommand for MoveNode {
+impl UndoCommand for MoveNodeUndo {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         let mut query = world.query::<(&NodeId, &mut Transform)>();
         if let Some((_, mut transform)) = query

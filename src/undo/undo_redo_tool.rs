@@ -1,9 +1,7 @@
 use std::fmt::Debug;
 
-use crate::{
-    undo_command_manager::{UndoCommand, UndoCommandManager},
-    AmbiguitySet, Stage, ToolState,
-};
+use super::undo_command_manager::{UndoCommand, UndoCommandManager};
+use crate::{AmbiguitySet, Stage, ToolState};
 use bevy::prelude::*;
 
 #[derive(Debug)]

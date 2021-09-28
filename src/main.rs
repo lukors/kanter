@@ -22,8 +22,7 @@ pub mod scan_code_input;
 pub mod sync_graph;
 pub mod thumbnail;
 pub mod thumbnail_state;
-pub mod undo_command_manager;
-pub mod undo_redo_tool;
+pub mod undo;
 pub mod workspace;
 
 use bevy::prelude::*;
