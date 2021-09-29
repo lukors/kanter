@@ -147,7 +147,7 @@ fn add_update(
     }
 }
 
-fn create_default_node(
+pub fn create_default_node(
     live_graph: &Arc<RwLock<LiveGraph>>,
     node_type: NodeType,
 ) -> Result<NodeId, TexProError> {

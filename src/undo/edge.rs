@@ -35,7 +35,7 @@ impl AddRemove for Edge {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct RemoveEdge(Edge);
+pub struct RemoveEdge(pub Edge);
 impl UndoCommand for RemoveEdge {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         self.0.remove(world);
