@@ -1,13 +1,9 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::{live_graph::LiveGraph, node::Node, node_graph::NodeId};
+use kanter_core::{live_graph::LiveGraph, node_graph::NodeId};
 
-use crate::{
-    instruction::ToolList,
-    undo::undo_command_manager::{UndoCommand, UndoCommandManager},
-    AmbiguitySet, Selected, Stage, ToolState,
-};
+use crate::{instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState};
 
 pub(crate) struct DeleteToolPlugin;
 

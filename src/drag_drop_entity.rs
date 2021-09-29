@@ -5,21 +5,12 @@ use std::{
 
 /// Dragging and dropping nodes and edges.
 use crate::{
-    control_pressed,
-    hoverable::box_contains_point,
-    scan_code_input::ScanCodeInput,
-    stretch_between,
-    thumbnail::ThumbnailState,
-    undo::undo_command_manager::{UndoCommand, UndoCommandManager},
-    AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
+    control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput,
+    stretch_between, thumbnail::ThumbnailState, undo::prelude::*, AmbiguitySet, Cursor, Edge,
+    GrabToolType, Selected, Slot, Stage, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{
-    edge::Edge as TPEdge,
-    live_graph::LiveGraph,
-    node::{Node, Side},
-    node_graph::NodeId,
-};
+use kanter_core::{live_graph::LiveGraph, node::Side, node_graph::NodeId};
 
 #[derive(Default)]
 pub(crate) struct Draggable;

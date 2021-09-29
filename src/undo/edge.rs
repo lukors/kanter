@@ -1,9 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use super::{
-    undo_command_manager::{UndoCommand, UndoCommandManager},
-    AddRemove,
-};
+use super::{prelude::*, AddRemove};
 use bevy::prelude::{error, World};
 use kanter_core::{edge::Edge, live_graph::LiveGraph};
 

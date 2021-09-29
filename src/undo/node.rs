@@ -3,10 +3,7 @@ use std::sync::{Arc, RwLock};
 use bevy::prelude::{error, World};
 use kanter_core::{live_graph::LiveGraph, node::Node};
 
-use super::{
-    undo_command_manager::{UndoCommand, UndoCommandManager},
-    AddRemove,
-};
+use super::{prelude::*, AddRemove};
 
 impl AddRemove for Node {
     fn add(&self, world: &mut World) {

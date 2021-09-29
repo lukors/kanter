@@ -3,13 +3,7 @@ use std::{collections::VecDeque, fmt::Debug};
 use crate::Stage;
 use bevy::prelude::*;
 
-pub trait UndoCommand: Debug {
-    fn custom(&self) -> bool {
-        false
-    }
-    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager);
-    fn backward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager);
-}
+use super::UndoCommand;
 
 #[derive(Debug, Default)]
 pub struct UndoCommandManager {
