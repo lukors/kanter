@@ -1,5 +1,5 @@
 use std::{collections::VecDeque, fmt::Debug};
-
+use anyhow::{Result, bail};
 use crate::Stage;
 use bevy::prelude::*;
 
@@ -39,6 +39,10 @@ impl UndoCommandManager {
     pub fn redo_stack(&self) -> &Vec<Box<dyn UndoCommand + Send + Sync>> {
         &self.redo_stack
     }
+
+    // pub fn checkpoint(&mut self) -> Result<()> {
+        
+    // }
 }
 
 pub struct UndoCommandManagerPlugin;

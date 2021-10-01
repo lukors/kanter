@@ -52,7 +52,7 @@ pub fn remove_node(live_graph: &Arc<RwLock<LiveGraph>>, node: Node) -> Vec<Box<d
 }
 
 #[derive(Clone, Debug)]
-pub struct AddNode(Node);
+pub struct AddNode(pub Node);
 impl UndoCommand for AddNode {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         self.0.add(world);
