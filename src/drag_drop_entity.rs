@@ -5,9 +5,13 @@ use std::{
 
 /// Dragging and dropping nodes and edges.
 use crate::{
-    control_pressed, hoverable::box_contains_point, scan_code_input::ScanCodeInput,
-    stretch_between, thumbnail::ThumbnailState, undo::prelude::*, AmbiguitySet, Cursor, Edge,
-    GrabToolType, Selected, Slot, Stage, ToolState,
+    control_pressed,
+    hoverable::box_contains_point,
+    scan_code_input::ScanCodeInput,
+    stretch_between,
+    thumbnail::ThumbnailState,
+    undo::{prelude::*, undo_command_manager::Checkpoint},
+    AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
 };
 use bevy::prelude::*;
 use kanter_core::{live_graph::LiveGraph, node::Side, node_graph::NodeId};
@@ -424,6 +428,7 @@ fn dropped_update(
                     from: dropped.start,
                     to: dropped.end,
                 }));
+                undo_command_manager.push(Box::new(Checkpoint));
             }
         }
         commands.entity(entity).remove::<Dropped>();

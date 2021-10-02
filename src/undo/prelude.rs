@@ -1,1 +1,4 @@
-pub use super::{undo_command_manager::UndoCommandManager, UndoCommand};
+pub use super::{
+    undo_command_manager::{Checkpoint, UndoCommandManager},
+    UndoCommand,
+};

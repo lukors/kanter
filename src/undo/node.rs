@@ -1,10 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::{error, World};
-use kanter_core::{
-    live_graph::{self, LiveGraph},
-    node::Node,
-};
+use kanter_core::{live_graph::LiveGraph, node::Node};
 
 use super::{
     edge::{AddEdge, RemoveEdge},

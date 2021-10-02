@@ -2,7 +2,6 @@ pub mod edge;
 pub mod gui;
 pub mod node;
 pub mod prelude;
-pub mod undo_batch;
 pub mod undo_command_manager;
 pub mod undo_redo_tool;
 
@@ -15,9 +14,16 @@ trait AddRemove: Debug {
     fn remove(&self, world: &mut World);
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum UndoCommandType {
+    Command,
+    UndoRedo,
+    Checkpoint,
+}
+
 pub trait UndoCommand: Debug {
-    fn custom(&self) -> bool {
-        false
+    fn undo_command_type(&self) -> UndoCommandType {
+        UndoCommandType::Command
     }
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager);
     fn backward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager);

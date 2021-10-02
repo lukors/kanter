@@ -1,15 +1,19 @@
 use std::sync::{Arc, RwLock};
 
 /// Adding new nodes
-use crate::{AmbiguitySet, GrabToolType, Stage, ToolState, drag_drop_entity::{grab_tool_cleanup, grab_tool_node_setup}, instruction::*, undo::{node::AddNode, prelude::UndoCommandManager}};
+use crate::{
+    drag_drop_entity::{grab_tool_cleanup, grab_tool_node_setup},
+    instruction::*,
+    undo::{node::AddNode, prelude::*},
+    AmbiguitySet, GrabToolType, Stage, ToolState,
+};
+use anyhow::{anyhow, Result};
 use bevy::prelude::*;
 use kanter_core::{
     live_graph::LiveGraph,
     node::{mix::MixType, node_type::NodeType, Node},
-    node_graph::NodeId,
 };
 use native_dialog::FileDialog;
-use anyhow::{anyhow, Result};
 
 pub(crate) struct AddToolPlugin;
 
@@ -132,6 +136,7 @@ fn add_update(
         if let Some(node_type) = node_type {
             if let Ok(node) = create_default_node(&live_graph, node_type.clone()) {
                 undo_command_manager.push(Box::new(AddNode(node)));
+                undo_command_manager.push(Box::new(Checkpoint));
                 info!("Added node: {:?}", node_type);
             }
             tool_state
@@ -150,8 +155,9 @@ pub fn create_default_node(
     node_type: NodeType,
 ) -> Result<Node> {
     let node_id = live_graph.write().map_err(|e| anyhow!("{}", e))?.new_id();
-    Ok(Node::with_id(node_type, node_id).resize_policy(kanter_core::node::ResizePolicy::MostPixels)
-    .resize_filter(kanter_core::node::ResizeFilter::Triangle))
+    Ok(Node::with_id(node_type, node_id)
+        .resize_policy(kanter_core::node::ResizePolicy::MostPixels)
+        .resize_filter(kanter_core::node::ResizeFilter::Triangle))
     // live_graph.write().unwrap().add_node(
     //     Node::new(node_type)
     //         .resize_policy(kanter_core::node::ResizePolicy::MostPixels)

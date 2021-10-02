@@ -15,7 +15,7 @@ use crate::{
     listable::*,
     mouse_interaction::Active,
     scan_code_input::*,
-    undo::{gui::GuiUndoCommand, undo_command_manager::UndoCommandManager},
+    undo::{gui::GuiUndoCommand, prelude::*},
     AmbiguitySet, Stage, ToolState,
 };
 
@@ -229,6 +229,7 @@ fn edit_specific_slot_update(
                                     from,
                                     ResizePolicy::SpecificSlot(slot_id),
                                 )));
+                                undo_command_manager.push(Box::new(Checkpoint));
                             } else {
                                 warn!("Node does not have a slot with the given ID: {}", slot_id);
                             }
@@ -303,6 +304,7 @@ fn edit_specific_size_update(
                         from,
                         ResizePolicy::SpecificSize(size),
                     )));
+                    undo_command_manager.push(Box::new(Checkpoint));
                 } else {
                     warn!("Invalid size format, should be for instance 256x256");
                 }
@@ -378,6 +380,7 @@ fn edit_value_update(
                     ) {
                         let gui_translator = GuiUndoCommand::new(*node_id, previous, number);
                         undo_command_manager.push(Box::new(gui_translator));
+                        undo_command_manager.push(Box::new(Checkpoint));
                     } else {
                         warn!("Invalid number format, should be for instance 0.3");
                     }
@@ -420,6 +423,7 @@ fn edit(
                                 if let Ok(from) = node_id.get(&*live_graph) {
                                     undo_command_manager
                                         .push(Box::new(GuiUndoCommand::new(*node_id, from, to)));
+                                    undo_command_manager.push(Box::new(Checkpoint));
                                     parameter_set = true;
                                 }
                             }
@@ -431,6 +435,7 @@ fn edit(
                             {
                                 undo_command_manager
                                     .push(Box::new(GuiUndoCommand::new(*node_id, from, to)));
+                                undo_command_manager.push(Box::new(Checkpoint));
                                 parameter_set = true;
                             }
                         }
@@ -442,6 +447,7 @@ fn edit(
                                         from,
                                         NodeType::Mix(mix_type),
                                     )));
+                                    undo_command_manager.push(Box::new(Checkpoint));
                                     parameter_set = true;
                                 } else {
                                     error!("unable to get node with id: {}", node_id);

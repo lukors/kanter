@@ -1,17 +1,22 @@
 use std::fmt::Debug;
 
-use super::prelude::*;
+use super::{prelude::*, UndoCommandType};
 use crate::{AmbiguitySet, Stage, ToolState};
 use bevy::prelude::*;
 
 #[derive(Debug)]
 pub struct Undo;
 impl UndoCommand for Undo {
-    fn custom(&self) -> bool {
-        true
+    fn undo_command_type(&self) -> super::UndoCommandType {
+        UndoCommandType::UndoRedo
     }
 
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        while let Some(command) = undo_command_manager.command_batch.pop_back() {
+            error!("executed undo while there were unsaved commands");
+            command.backward(world, undo_command_manager);
+        }
+
         if let Some(command) = undo_command_manager.undo_stack.pop() {
             command.backward(world, undo_command_manager);
             undo_command_manager.redo_stack.push(command);
@@ -26,11 +31,16 @@ impl UndoCommand for Undo {
 #[derive(Debug)]
 pub struct Redo;
 impl UndoCommand for Redo {
-    fn custom(&self) -> bool {
-        true
+    fn undo_command_type(&self) -> super::UndoCommandType {
+        UndoCommandType::UndoRedo
     }
 
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        while let Some(command) = undo_command_manager.command_batch.pop_back() {
+            error!("executed redo while there were unsaved commands");
+            command.backward(world, undo_command_manager);
+        }
+
         if let Some(command) = undo_command_manager.redo_stack.pop() {
             command.forward(world, undo_command_manager);
             undo_command_manager.undo_stack.push(command);
