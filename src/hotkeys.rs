@@ -2,7 +2,9 @@ use bevy::{app::AppExit, prelude::*, window::WindowFocused};
 
 use crate::{
     camera::FirstPersonState,
+    delete_tool::DeleteSelected,
     scan_code_input::{ScanCode, ScanCodeInput},
+    undo::prelude::{Checkpoint, UndoCommandManager},
     GrabToolType, Stage, ToolState,
 };
 
@@ -69,6 +71,7 @@ fn hotkeys(
     mut tool_state: ResMut<State<ToolState>>,
     i_mouse_button: Res<Input<MouseButton>>,
     mut sc_input: ResMut<ScanCodeInput>,
+    mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
     if sc_input.just_pressed(ScanCode::Backquote) {
         if *first_person_state.current() == FirstPersonState::Off {
@@ -84,7 +87,12 @@ fn hotkeys(
     if tool_current == ToolState::None {
         for scan_code in sc_input.get_just_pressed() {
             let new_tool = match scan_code {
-                ScanCode::Delete | ScanCode::KeyX => Some(tool_state.set(ToolState::Delete)),
+                // ScanCode::Delete | ScanCode::KeyX => Some(tool_state.set(ToolState::Delete)),
+                ScanCode::Delete | ScanCode::KeyX => {
+                    undo_command_manager.push(Box::new(DeleteSelected));
+                    undo_command_manager.push(Box::new(Checkpoint));
+                    None
+                }
                 ScanCode::F12 => Some(tool_state.set(ToolState::Process)),
                 ScanCode::KeyA => {
                     if shift_pressed(&sc_input) {

@@ -6,7 +6,7 @@ pub mod undo_command_manager;
 pub mod undo_redo_tool;
 
 use self::undo_command_manager::UndoCommandManager;
-use bevy::prelude::World;
+use bevy::prelude::*;
 use std::fmt::Debug;
 
 trait AddRemove: Debug {
@@ -17,12 +17,12 @@ trait AddRemove: Debug {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UndoCommandType {
     Command,
-    UndoRedo,
+    Custom,
     Checkpoint,
 }
 
 pub trait UndoCommand: Debug {
-    fn undo_command_type(&self) -> UndoCommandType {
+    fn command_type(&self) -> UndoCommandType {
         UndoCommandType::Command
     }
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager);

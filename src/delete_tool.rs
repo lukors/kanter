@@ -1,9 +1,16 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::{live_graph::LiveGraph, node_graph::NodeId};
+use kanter_core::{
+    live_graph::{self, LiveGraph},
+    node_graph::NodeId,
+};
 
-use crate::{instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState};
+use crate::{
+    instruction::ToolList,
+    undo::{node::RemoveNode, prelude::Checkpoint, UndoCommand},
+    AmbiguitySet, Selected, Stage, ToolState,
+};
 
 pub(crate) struct DeleteToolPlugin;
 
@@ -39,4 +46,43 @@ fn delete(
     }
 
     tool_state.overwrite_replace(ToolState::None).unwrap();
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct DeleteSelected;
+impl UndoCommand for DeleteSelected {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(
+        &self,
+        world: &mut World,
+        undo_command_manager: &mut crate::undo::prelude::UndoCommandManager,
+    ) {
+        let mut query =
+            world.query_filtered::<(&NodeId, &Transform), (With<Selected>, With<NodeId>)>();
+        let live_graph = world
+            .get_resource::<Arc<RwLock<LiveGraph>>>()
+            .unwrap()
+            .read()
+            .unwrap();
+
+        for (node_id, transform) in query.iter(world) {
+            let node = live_graph.node(*node_id).unwrap();
+            let translation = transform.translation.truncate();
+
+            undo_command_manager
+                .commands
+                .push_front(Box::new(RemoveNode::new(node.clone(), translation)));
+        }
+    }
+
+    fn backward(
+        &self,
+        _: &mut World,
+        undo_command_manager: &mut crate::undo::prelude::UndoCommandManager,
+    ) {
+        unreachable!("this command is never stored in the undo stack");
+    }
 }

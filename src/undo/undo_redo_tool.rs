@@ -7,8 +7,8 @@ use bevy::prelude::*;
 #[derive(Debug)]
 pub struct Undo;
 impl UndoCommand for Undo {
-    fn undo_command_type(&self) -> super::UndoCommandType {
-        UndoCommandType::UndoRedo
+    fn command_type(&self) -> super::UndoCommandType {
+        UndoCommandType::Custom
     }
 
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
@@ -31,8 +31,8 @@ impl UndoCommand for Undo {
 #[derive(Debug)]
 pub struct Redo;
 impl UndoCommand for Redo {
-    fn undo_command_type(&self) -> super::UndoCommandType {
-        UndoCommandType::UndoRedo
+    fn command_type(&self) -> super::UndoCommandType {
+        UndoCommandType::Custom
     }
 
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {

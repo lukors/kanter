@@ -9,7 +9,7 @@ type BoxUndoCommand = Box<dyn UndoCommand + Send + Sync + 'static>;
 
 #[derive(Debug, Default)]
 pub struct UndoCommandManager {
-    commands: VecDeque<BoxUndoCommand>,
+    pub(crate) commands: VecDeque<BoxUndoCommand>,
     pub(crate) undo_stack: Vec<BoxUndoCommand>,
     pub(crate) redo_stack: Vec<BoxUndoCommand>,
     pub(crate) command_batch: VecDeque<BoxUndoCommand>, // Maybe this and also the undo/redo stacks should be made private with some refactoring?
@@ -25,10 +25,16 @@ impl UndoCommandManager {
     }
 
     fn apply_commands(&mut self, world: &mut World) {
+        // if !self.commands.is_empty() {
+        //     dbg!(&self.commands);
+        //     dbg!(&self.undo_stack);
+        //     dbg!(&self.redo_stack);
+        // }
+
         while let Some(command) = self.commands.pop_front() {
             command.forward(world, self);
 
-            if command.undo_command_type() == UndoCommandType::Command {
+            if command.command_type() == UndoCommandType::Command {
                 self.command_batch.push_back(command);
                 self.redo_stack.clear();
             }
@@ -68,7 +74,7 @@ fn apply_commands(world: &mut World) {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Checkpoint;
 impl UndoCommand for Checkpoint {
-    fn undo_command_type(&self) -> UndoCommandType {
+    fn command_type(&self) -> UndoCommandType {
         UndoCommandType::Checkpoint
     }
 
@@ -76,7 +82,7 @@ impl UndoCommand for Checkpoint {
         let mut command_vec: Vec<BoxUndoCommand> = Vec::new();
 
         while let Some(command) = undo_command_manager.command_batch.pop_front() {
-            if command.undo_command_type() != UndoCommandType::Command {
+            if command.command_type() != UndoCommandType::Command {
                 undo_command_manager.command_batch.push_front(command);
                 break;
             }

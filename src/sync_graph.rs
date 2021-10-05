@@ -5,7 +5,10 @@ use crate::{
     workspace::Workspace,
     AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
 };
-use bevy::prelude::*;
+use bevy::{
+    ecs::system::{Command, CommandQueue},
+    prelude::*,
+};
 use kanter_core::{
     live_graph::{LiveGraph, NodeState},
     node::{Node, Side, SlotType},
@@ -37,14 +40,14 @@ pub(crate) struct Slot {
 }
 
 #[derive(Bundle, Default)]
-pub(crate) struct NodeBundle {
+pub(crate) struct GuiNodeBundle {
     #[bundle]
     sprite_bundle: SpriteBundle,
     hoverable: Hoverable,
     hovered: Hovered,
-    selected: Selected,
+    // selected: Selected,
     draggable: Draggable,
-    dragged: Dragged,
+    // dragged: Dragged,
     node_id: NodeId,
     node_state: NodeState,
     needs_thumbnail: ThumbnailState,
@@ -202,26 +205,26 @@ fn sync_graph(
             info!("Adding the node");
 
             // Deselect everything so the new node(s) can be selected instead.
-            for entity in q_selected.iter() {
-                commands.entity(entity).remove::<Selected>();
-            }
+            // for entity in q_selected.iter() {
+            //     commands.entity(entity).remove::<Selected>();
+            // }
 
-            let node = live_graph.read().unwrap().node(node_id).unwrap();
-            spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
+            // let node = live_graph.read().unwrap().node(node_id).unwrap();
+            // spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
         }
 
         info!("}}");
     }
 }
 
-fn spawn_gui_node(
+pub fn spawn_gui_node(
     commands: &mut Commands,
     materials: &mut ResMut<Assets<ColorMaterial>>,
     node: &Node,
     position: Vec2,
 ) {
     commands
-        .spawn_bundle(NodeBundle {
+        .spawn_bundle(GuiNodeBundle {
             sprite_bundle: SpriteBundle {
                 material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
                 sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
@@ -304,4 +307,113 @@ pub(crate) fn stretch_between(
     transform.translation = midpoint.extend(9.0);
     transform.rotation = Quat::from_rotation_z(rotation);
     sprite.size = Vec2::new(distance, 5.);
+}
+
+pub fn remove_gui_node(world: &mut World, node_id: NodeId) {
+    world
+        .get_resource::<Arc<RwLock<LiveGraph>>>()
+        .unwrap()
+        .write()
+        .unwrap()
+        .remove_node(node_id)
+        .unwrap();
+    let (entity, _) = world
+        .query::<(Entity, &NodeId)>()
+        .iter(world)
+        .find(|(_, node_id_cmp)| node_id == **node_id_cmp)
+        .unwrap();
+    despawn_with_children_recursive(world, entity);
+    // Box::new(DespawnRecursive { entity }).write(world);
+    // let despawn_command = Box::new(DespawnRecursive { entity });
+    // despawn_command.write(world);
+
+    // let commands = Commands::new(&mut CommandQueue{commands: Vec::new()}, world);
+    // commands.add(despawn_command);
+    // commands.
+}
+
+pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Entity {
+    world
+        .get_resource::<Arc<RwLock<LiveGraph>>>()
+        .unwrap()
+        .write()
+        .unwrap()
+        .add_node_with_id(node.clone())
+        .unwrap();
+
+    let mut materials = world.remove_resource::<Assets<ColorMaterial>>().unwrap();
+    let entity = world
+        .spawn()
+        .insert_bundle(GuiNodeBundle {
+            sprite_bundle: SpriteBundle {
+                material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
+                sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
+                transform: Transform::from_translation(Vec3::new(
+                    translation.x,
+                    translation.y,
+                    rand::thread_rng().gen_range(0.0..9.0),
+                )),
+                ..Default::default()
+            },
+            node_id: node.node_id,
+            ..Default::default()
+        })
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(SpriteBundle {
+                    material: materials.add(Color::rgb(0.0, 0.0, 0.0).into()),
+                    sprite: Sprite::new(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
+                    transform: Transform::from_translation(Vec3::new(0., 0., SMALLEST_DEPTH_UNIT)),
+                    ..Default::default()
+                })
+                .insert(Thumbnail);
+
+            for (i, slot) in node.input_slots().into_iter().enumerate() {
+                parent.spawn_bundle(SlotBundle {
+                    sprite_bundle: SpriteBundle {
+                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        transform: Transform::from_translation(Vec3::new(
+                            -SLOT_DISTANCE_X,
+                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
+                            SMALLEST_DEPTH_UNIT,
+                        )),
+                        ..Default::default()
+                    },
+                    slot: Slot {
+                        node_id: node.node_id,
+                        side: Side::Input,
+                        slot_id: slot.slot_id,
+                    },
+                    slot_type: slot.slot_type,
+                    ..Default::default()
+                });
+            }
+
+            for (i, slot) in node.output_slots().into_iter().enumerate() {
+                parent.spawn_bundle(SlotBundle {
+                    sprite_bundle: SpriteBundle {
+                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        transform: Transform::from_translation(Vec3::new(
+                            SLOT_DISTANCE_X,
+                            THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
+                            SMALLEST_DEPTH_UNIT,
+                        )),
+                        ..Default::default()
+                    },
+                    slot: Slot {
+                        node_id: node.node_id,
+                        side: Side::Output,
+                        slot_id: slot.slot_id,
+                    },
+                    slot_type: slot.slot_type,
+                    ..Default::default()
+                });
+            }
+        })
+        .id();
+
+    world.insert_resource(materials);
+    entity
 }

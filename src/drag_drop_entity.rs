@@ -418,6 +418,8 @@ fn dropped_update(
     mut commands: Commands,
     mut q_dropped: Query<(Entity, Option<&Slot>, Option<&NodeId>, &Dropped), Added<Dropped>>,
 ) {
+    let mut changed = false;
+
     for (entity, slot_id, node_id, transform) in q_dropped.iter_mut() {
         if slot_id.is_none() {
             commands.entity(entity).remove::<Parent>();
@@ -428,41 +430,14 @@ fn dropped_update(
                     from: dropped.start,
                     to: dropped.end,
                 }));
-                undo_command_manager.push(Box::new(Checkpoint));
+                changed = true;
             }
         }
         commands.entity(entity).remove::<Dropped>();
     }
-}
 
-#[derive(Clone, Debug)]
-pub struct MoveNodeUndo {
-    node_id: NodeId,
-    from: Vec2,
-    to: Vec2,
-}
-
-impl UndoCommand for MoveNodeUndo {
-    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        let mut query = world.query::<(&NodeId, &mut Transform)>();
-        if let Some((_, mut transform)) = query
-            .iter_mut(world)
-            .find(|(node_id, _)| **node_id == self.node_id)
-        {
-            transform.translation.x = self.to.x;
-            transform.translation.y = self.to.y;
-        }
-    }
-
-    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        let mut query = world.query::<(&NodeId, &mut Transform)>();
-        if let Some((_, mut transform)) = query
-            .iter_mut(world)
-            .find(|(node_id, _)| **node_id == self.node_id)
-        {
-            transform.translation.x = self.from.x;
-            transform.translation.y = self.from.y;
-        }
+    if changed {
+        undo_command_manager.push(Box::new(Checkpoint));
     }
 }
 
@@ -497,5 +472,118 @@ fn drag_edge_update(
 
             stretch_between(&mut sprite, &mut edge_t, edge.start, edge.end);
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct MoveNodeUndo {
+    node_id: NodeId,
+    from: Vec2,
+    to: Vec2,
+}
+
+impl UndoCommand for MoveNodeUndo {
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query = world.query::<(&NodeId, &mut Transform)>();
+        if let Some((_, mut transform)) = query
+            .iter_mut(world)
+            .find(|(node_id, _)| **node_id == self.node_id)
+        {
+            transform.translation.x = self.to.x;
+            transform.translation.y = self.to.y;
+        }
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query = world.query::<(&NodeId, &mut Transform)>();
+        if let Some((_, mut transform)) = query
+            .iter_mut(world)
+            .find(|(node_id, _)| **node_id == self.node_id)
+        {
+            transform.translation.x = self.from.x;
+            transform.translation.y = self.from.y;
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct DragToolUndo;
+impl UndoCommand for DragToolUndo {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut tool_state = world.get_resource_mut::<State<ToolState>>().unwrap();
+        let _ = tool_state.overwrite_replace(ToolState::Grab(GrabToolType::Node));
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is not saved on the undo stack");
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct SelectNew;
+impl UndoCommand for SelectNew {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query = world.query_filtered::<Entity, (With<Draggable>, Added<NodeId>)>();
+        for entity in query.iter(world).collect::<Vec<Entity>>() {
+            world.entity_mut(entity).insert(Selected);
+        }
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is not saved on the undo stack");
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct SelectedToCursorSneaky;
+impl UndoCommand for SelectedToCursorSneaky {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query = world.query_filtered::<&mut Transform, (With<Selected>, With<NodeId>)>();
+        let cursor = *world
+            .query_filtered::<&GlobalTransform, With<Cursor>>()
+            .iter(world)
+            .next()
+            .unwrap();
+
+        for mut transform in query.iter_mut(world) {
+            transform.translation.x = cursor.translation.x;
+            transform.translation.y = cursor.translation.y;
+        }
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is not saved on the undo stack");
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct DeselectSneaky;
+impl UndoCommand for DeselectSneaky {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query = world.query_filtered::<Entity, With<Selected>>();
+
+        for entity in query.iter(world).collect::<Vec<Entity>>() {
+            world.entity_mut(entity).remove::<Selected>();
+        }
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is not saved on the undo stack");
     }
 }

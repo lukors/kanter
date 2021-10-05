@@ -2,7 +2,10 @@ use std::sync::{Arc, RwLock};
 
 /// Adding new nodes
 use crate::{
-    drag_drop_entity::{grab_tool_cleanup, grab_tool_node_setup},
+    drag_drop_entity::{
+        grab_tool_cleanup, grab_tool_node_setup, DeselectSneaky, DragToolUndo, SelectNew,
+        SelectedToCursorSneaky,
+    },
     instruction::*,
     undo::{node::AddNode, prelude::*},
     AmbiguitySet, GrabToolType, Stage, ToolState,
@@ -12,6 +15,7 @@ use bevy::prelude::*;
 use kanter_core::{
     live_graph::LiveGraph,
     node::{mix::MixType, node_type::NodeType, Node},
+    node_graph::NodeId,
 };
 use native_dialog::FileDialog;
 
@@ -79,6 +83,7 @@ fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
 
 /// When you press the button for a node it creates that node for you.
 fn add_update(
+    mut commands: Commands,
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut tool_state: ResMut<State<ToolState>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
@@ -134,14 +139,16 @@ fn add_update(
         };
 
         if let Some(node_type) = node_type {
-            if let Ok(node) = create_default_node(&live_graph, node_type.clone()) {
-                undo_command_manager.push(Box::new(AddNode(node)));
-                undo_command_manager.push(Box::new(Checkpoint));
+            if let Ok(node) = create_default_node(commands, &live_graph, node_type.clone()) {
+                undo_command_manager.push(Box::new(AddNode::new(node, Vec2::ZERO)));
+                undo_command_manager.push(Box::new(DeselectSneaky));
+                undo_command_manager.push(Box::new(SelectNew));
+                undo_command_manager.push(Box::new(SelectedToCursorSneaky));
+                undo_command_manager.push(Box::new(DragToolUndo));
+                // Not adding an undo checkpoint because it should be added after the `Node` has
+                // been placed.
                 info!("Added node: {:?}", node_type);
             }
-            tool_state
-                .overwrite_replace(ToolState::Grab(GrabToolType::Add))
-                .unwrap();
             break;
         } else if done {
             tool_state.overwrite_replace(ToolState::None).unwrap();
@@ -150,14 +157,22 @@ fn add_update(
     }
 }
 
+pub struct NewNode(pub NodeId);
+
 pub fn create_default_node(
+    mut commands: Commands,
     live_graph: &Arc<RwLock<LiveGraph>>,
     node_type: NodeType,
 ) -> Result<Node> {
     let node_id = live_graph.write().map_err(|e| anyhow!("{}", e))?.new_id();
-    Ok(Node::with_id(node_type, node_id)
+    let output = Ok(Node::with_id(node_type, node_id)
         .resize_policy(kanter_core::node::ResizePolicy::MostPixels)
-        .resize_filter(kanter_core::node::ResizeFilter::Triangle))
+        .resize_filter(kanter_core::node::ResizeFilter::Triangle));
+
+    commands.spawn().insert(NewNode(node_id));
+
+    output
+
     // live_graph.write().unwrap().add_node(
     //     Node::new(node_type)
     //         .resize_policy(kanter_core::node::ResizePolicy::MostPixels)
