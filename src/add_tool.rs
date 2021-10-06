@@ -172,12 +172,6 @@ pub fn create_default_node(
     commands.spawn().insert(NewNode(node_id));
 
     output
-
-    // live_graph.write().unwrap().add_node(
-    //     Node::new(node_type)
-    //         .resize_policy(kanter_core::node::ResizePolicy::MostPixels)
-    //         .resize_filter(kanter_core::node::ResizeFilter::Triangle),
-    // )
 }
 
 fn grab_tool_add_instructions(mut instructions: ResMut<Instructions>) {
