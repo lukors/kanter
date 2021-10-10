@@ -83,7 +83,7 @@ fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
 
 /// When you press the button for a node it creates that node for you.
 fn add_update(
-    mut commands: Commands,
+    commands: Commands,
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut tool_state: ResMut<State<ToolState>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,

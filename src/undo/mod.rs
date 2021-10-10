@@ -2,6 +2,7 @@ pub mod edge;
 pub mod gui;
 pub mod node;
 pub mod prelude;
+pub mod slot;
 pub mod undo_command_manager;
 pub mod undo_redo_tool;
 

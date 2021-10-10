@@ -1,14 +1,11 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::{
-    live_graph::{self, LiveGraph},
-    node_graph::NodeId,
-};
+use kanter_core::{live_graph::LiveGraph, node_graph::NodeId};
 
 use crate::{
     instruction::ToolList,
-    undo::{node::RemoveNode, prelude::Checkpoint, UndoCommand},
+    undo::{node::RemoveNode, prelude::*},
     AmbiguitySet, Selected, Stage, ToolState,
 };
 
@@ -78,11 +75,7 @@ impl UndoCommand for DeleteSelected {
         }
     }
 
-    fn backward(
-        &self,
-        _: &mut World,
-        undo_command_manager: &mut crate::undo::prelude::UndoCommandManager,
-    ) {
+    fn backward(&self, _: &mut World, _: &mut crate::undo::prelude::UndoCommandManager) {
         unreachable!("this command is never stored in the undo stack");
     }
 }

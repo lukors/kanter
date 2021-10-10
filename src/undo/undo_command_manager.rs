@@ -1,5 +1,4 @@
 use crate::Stage;
-use anyhow::{bail, Result};
 use bevy::prelude::*;
 use std::{collections::VecDeque, fmt::Debug};
 
@@ -89,7 +88,13 @@ impl UndoCommand for Checkpoint {
             command_vec.push(command);
         }
 
-        undo_command_manager.undo_stack.push(Box::new(command_vec));
+        match command_vec.len() {
+            1 => undo_command_manager
+                .undo_stack
+                .push(command_vec.pop().unwrap()),
+            2.. => undo_command_manager.undo_stack.push(Box::new(command_vec)),
+            _ => (),
+        }
     }
 
     fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {

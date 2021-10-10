@@ -2,18 +2,10 @@ use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
 use kanter_core::{live_graph::LiveGraph, node::Node};
-use rand::Rng;
 
-use crate::{
-    sync_graph::{self, GuiNodeBundle, SlotBundle},
-    thumbnail::{Thumbnail, THUMBNAIL_SIZE},
-};
+use crate::sync_graph;
 
-use super::{
-    edge::{AddEdge, RemoveEdge},
-    prelude::*,
-    undo_command_manager, AddRemove, UndoCommandType,
-};
+use super::{edge::RemoveEdge, prelude::*};
 
 // impl AddRemove for Node {
 //     fn add(&self, world: &mut World) -> Entity {

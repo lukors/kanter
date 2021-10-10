@@ -1,7 +1,5 @@
-use std::{
-    fmt::Debug,
-    sync::{Arc, RwLock},
-};
+use anyhow::{anyhow, Result};
+use std::fmt::Debug;
 
 /// Dragging and dropping nodes and edges.
 use crate::{
@@ -9,12 +7,23 @@ use crate::{
     hoverable::box_contains_point,
     scan_code_input::ScanCodeInput,
     stretch_between,
-    thumbnail::ThumbnailState,
-    undo::{edge::ConnectArbitrary, prelude::*, undo_command_manager::Checkpoint},
-    AmbiguitySet, Cursor, Edge, GrabToolType, Selected, Slot, Stage, ToolState,
+    // thumbnail::ThumbnailState,
+    undo::{
+        edge::{AddEdge, RemoveEdge},
+        prelude::*,
+        undo_command_manager::Checkpoint,
+    },
+    AmbiguitySet,
+    Cursor,
+    Edge as GuiEdge,
+    GrabToolType,
+    Selected,
+    Slot,
+    Stage,
+    ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{live_graph::LiveGraph, node::Side, node_graph::NodeId};
+use kanter_core::{edge::Edge, node::Side, node_graph::NodeId};
 
 #[derive(Default)]
 pub(crate) struct Draggable;
@@ -27,6 +36,8 @@ pub(crate) struct Dropped {
     start: Vec2,
     end: Vec2,
 }
+
+#[derive(Copy, Clone, Debug)]
 struct SourceSlot(Slot);
 
 struct GrabbedEdge {
@@ -38,7 +49,7 @@ struct GrabbedEdge {
 enum DragDropStage {
     Setup,
     Node,
-    Edge,
+    GuiEdge,
 }
 
 pub(crate) struct WorkspaceDragDropPlugin;
@@ -93,7 +104,7 @@ impl Plugin for WorkspaceDragDropPlugin {
         .add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(DragDropStage::Edge)
+                .label(DragDropStage::GuiEdge)
                 .after(DragDropStage::Node)
                 .with_system(
                     spawn_grabbed_edges
@@ -118,7 +129,7 @@ impl Plugin for WorkspaceDragDropPlugin {
                                                          // .add_system_set_to_stage(
                                                          //     CoreStage::Update,
                                                          //     SystemSet::new()
-                                                         //         .after(DragDropStage::Edge)
+                                                         //         .after(DragDropStage::GuiEdge)
         );
     }
 }
@@ -129,17 +140,17 @@ impl Plugin for WorkspaceDragDropPlugin {
 fn dropped_edge_update(
     mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
-    live_graph: Res<Arc<RwLock<LiveGraph>>>,
     i_mouse_button: Res<Input<MouseButton>>,
     q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
     q_grabbed_edge: Query<(Entity, &GrabbedEdge, Option<&SourceSlot>)>,
-    mut q_edge: Query<&mut Visible, With<Edge>>,
-    mut q_thumbnail_state: Query<(&NodeId, &mut ThumbnailState), Without<GrabbedEdge>>,
+    mut q_edge: Query<&mut Visible, With<GuiEdge>>,
+    // mut q_thumbnail_state: Query<(&NodeId, &mut ThumbnailState), Without<GrabbedEdge>>,
     mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
     if i_mouse_button.just_released(MouseButton::Left) {
         let cursor_t = q_cursor.iter().next().unwrap();
+        let mut new_edges = Vec::new();
 
         'outer: for (_, grabbed_edge, source_slot) in q_grabbed_edge.iter() {
             for (slot_t, slot_sprite, slot) in q_slot.iter() {
@@ -148,86 +159,35 @@ fn dropped_edge_update(
                     slot_sprite.size,
                     cursor_t.translation.truncate(),
                 ) {
-                    undo_command_manager.push(Box::new(ConnectArbitrary {
-                        a_node: slot.node_id,
-                        a_side: slot.side,
-                        a_slot: slot.slot_id,
-                        b_node: grabbed_edge.slot.node_id,
-                        b_side: grabbed_edge.slot.side,
-                        b_slot: grabbed_edge.slot.slot_id,
-                    }));
-                    // let edge = {
-                    //     if let Ok(edge) = live_graph.write().unwrap().connect_arbitrary(
-                    //         slot.node_id,
-                    //         slot.side,
-                    //         slot.slot_id,
-                    //         grabbed_edge.slot.node_id,
-                    //         grabbed_edge.slot.side,
-                    //         grabbed_edge.slot.slot_id,
-                    //     ) {
-                    //         edge
-                    //     } else {
-                    //         info!("Failed to connect nodes");
-                    //         continue 'outer;
-                    //     }
-                    // };
+                    if let Some(source_slot) = source_slot {
+                        if source_slot.0 != *slot {
+                            if let Ok(add_edge) = connect_arbitrary(*slot, grabbed_edge.slot) {
+                                new_edges.push(Box::new(add_edge));
+                            }
+                            if let Ok(remove_edge) =
+                                disconnect_arbitrary(source_slot.0, grabbed_edge.slot)
+                            {
+                                undo_command_manager.push(Box::new(remove_edge));
+                            }
+                        }
+                    } else if let Ok(add_edge) = connect_arbitrary(*slot, grabbed_edge.slot) {
+                        new_edges.push(Box::new(add_edge));
+                    }
 
-                    // info!(
-                    //     "Creating edge from {:?} {:?} to {:?} {:?}",
-                    //     edge.output_id, edge.output_slot, edge.input_id, edge.input_slot
-                    // );
-                    // if let Some(source_slot) = source_slot {
-                    //     if source_slot.0 != *slot {
-                    //         if let Ok(edges) = live_graph.write().unwrap().disconnect_slot(
-                    //             source_slot.0.node_id,
-                    //             source_slot.0.side,
-                    //             source_slot.0.slot_id,
-                    //         ) {
-                    //             for edge in edges {
-                    //                 info!(
-                    //                     "Removing edge from {:?} {:?} to {:?} {:?}",
-                    //                     edge.output_id,
-                    //                     edge.output_slot,
-                    //                     edge.input_id,
-                    //                     edge.input_slot
-                    //                 );
-
-                    //                 for (_, mut thumbnail_state) in q_thumbnail_state
-                    //                     .iter_mut()
-                    //                     .filter(|(node_id, _)| **node_id == edge.input_id)
-                    //                 {
-                    //                     *thumbnail_state = ThumbnailState::Missing;
-                    //                 }
-                    //             }
-                    //         }
-                    //     }
-                    // }
                     continue 'outer;
                 }
             }
             if let Some(source_slot) = source_slot {
-                match live_graph.write().unwrap().disconnect_slot(
-                    source_slot.0.node_id,
-                    source_slot.0.side,
-                    source_slot.0.slot_id,
-                ) {
-                    Ok(edges) => {
-                        for edge in edges {
-                            info!(
-                                "Removing edge from {:?} {:?} to {:?} {:?}",
-                                edge.output_id, edge.output_slot, edge.input_id, edge.input_slot
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        error!(
-                            "Failed to disconnect slot: NodeId({}), Side({:?}), SlotId({}): {}",
-                            source_slot.0.node_id, source_slot.0.side, source_slot.0.slot_id, e
-                        );
-                    }
+                if let Ok(remove_edge) = disconnect_arbitrary(source_slot.0, grabbed_edge.slot) {
+                    undo_command_manager.push(Box::new(remove_edge));
                 }
             }
         }
+
+        for new_edge in new_edges {
+            undo_command_manager.push(new_edge);
+        }
+        undo_command_manager.push(Box::new(Checkpoint));
 
         for (edge_e, _, _) in q_grabbed_edge.iter() {
             commands.entity(edge_e).despawn_recursive();
@@ -238,6 +198,36 @@ fn dropped_edge_update(
         }
 
         tool_state.overwrite_replace(ToolState::None).unwrap();
+    }
+}
+
+fn disconnect_arbitrary(slot_a: Slot, slot_b: Slot) -> Result<RemoveEdge> {
+    if let Ok(edge) = Edge::from_arbitrary(
+        slot_a.node_id,
+        slot_a.side,
+        slot_a.slot_id,
+        slot_b.node_id,
+        slot_b.side,
+        slot_b.slot_id,
+    ) {
+        Ok(RemoveEdge(edge))
+    } else {
+        Err(anyhow!("could not disconnect slot"))
+    }
+}
+
+fn connect_arbitrary(slot_a: Slot, slot_b: Slot) -> Result<AddEdge> {
+    if let Ok(edge) = Edge::from_arbitrary(
+        slot_a.node_id,
+        slot_a.side,
+        slot_a.slot_id,
+        slot_b.node_id,
+        slot_b.side,
+        slot_b.slot_id,
+    ) {
+        Ok(AddEdge(edge))
+    } else {
+        Err(anyhow!("could not connect slot"))
     }
 }
 
@@ -342,7 +332,7 @@ fn spawn_grabbed_edges(
     mut commands: Commands,
     q_dragged_slot: Query<(&GlobalTransform, &Slot), Added<Dragged>>,
     q_slot: Query<(&GlobalTransform, &Slot)>,
-    mut q_edge: Query<(&mut Visible, &Edge)>,
+    mut q_edge: Query<(&mut Visible, &GuiEdge)>,
     scan_code_input: Res<ScanCodeInput>,
 ) {
     for (dragged_slot_gtransform, dragged_slot) in q_dragged_slot.iter() {
@@ -370,9 +360,9 @@ fn spawn_grabbed_edges(
                                 })
                                 .insert(GrabbedEdge {
                                     start: input_slot_gtransform.translation.truncate(),
-                                    slot: input_slot.clone(),
+                                    slot: *input_slot,
                                 })
-                                .insert(SourceSlot(dragged_slot.clone()));
+                                .insert(SourceSlot(*dragged_slot));
                         }
                     }
                 }
@@ -398,9 +388,9 @@ fn spawn_grabbed_edges(
                                 })
                                 .insert(GrabbedEdge {
                                     start: output_slot_gtransform.translation.truncate(),
-                                    slot: output_slot.clone(),
+                                    slot: *output_slot,
                                 })
-                                .insert(SourceSlot(dragged_slot.clone()));
+                                .insert(SourceSlot(*dragged_slot));
                         }
                     }
                 }
@@ -414,7 +404,7 @@ fn spawn_grabbed_edges(
                 })
                 .insert(GrabbedEdge {
                     start: dragged_slot_gtransform.translation.truncate(),
-                    slot: dragged_slot.clone(),
+                    slot: *dragged_slot,
                 });
         }
     }
@@ -453,7 +443,7 @@ fn drag_edge_update(
     q_node: Query<(&NodeId, &Transform), With<Dragged>>,
     q_slot: Query<(&Slot, &Transform)>,
     mut q_edge: Query<
-        (&mut Sprite, &mut Transform, &mut Edge),
+        (&mut Sprite, &mut Transform, &mut GuiEdge),
         (Without<NodeId>, Without<Slot>, Without<Cursor>),
     >,
     q_cursor: Query<&Transform, With<Cursor>>,
@@ -526,7 +516,7 @@ impl UndoCommand for DragToolUndo {
         let _ = tool_state.overwrite_replace(ToolState::Grab(GrabToolType::Node));
     }
 
-    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
         unreachable!("this command is not saved on the undo stack");
     }
 }
@@ -545,7 +535,7 @@ impl UndoCommand for SelectNew {
         }
     }
 
-    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
         unreachable!("this command is not saved on the undo stack");
     }
 }
@@ -571,7 +561,7 @@ impl UndoCommand for SelectedToCursorSneaky {
         }
     }
 
-    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
         unreachable!("this command is not saved on the undo stack");
     }
 }
@@ -591,7 +581,7 @@ impl UndoCommand for DeselectSneaky {
         }
     }
 
-    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
         unreachable!("this command is not saved on the undo stack");
     }
 }

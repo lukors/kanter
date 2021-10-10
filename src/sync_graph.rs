@@ -2,13 +2,9 @@ use std::sync::{Arc, RwLock};
 
 use crate::{
     thumbnail::{Thumbnail, ThumbnailState, THUMBNAIL_SIZE},
-    workspace::Workspace,
-    AmbiguitySet, Draggable, Dragged, Hoverable, Hovered, Selected, Stage,
+    AmbiguitySet, Draggable, Hoverable, Hovered, Stage,
 };
-use bevy::{
-    ecs::system::{Command, CommandQueue},
-    prelude::*,
-};
+use bevy::prelude::*;
 use kanter_core::{
     live_graph::{LiveGraph, NodeState},
     node::{Node, Side, SlotType},
@@ -25,14 +21,14 @@ const SLOT_DISTANCE_Y: f32 = 32. + SLOT_MARGIN;
 const SMALLEST_DEPTH_UNIT: f32 = f32::EPSILON * 500.;
 
 // I'm saving the start and end variables for when I want to select the edges themselves.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct Edge {
     pub start: Vec2,
     pub end: Vec2,
     pub output_slot: Slot,
     pub input_slot: Slot,
 }
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Slot {
     pub node_id: NodeId,
     pub side: Side,
@@ -95,12 +91,12 @@ fn setup(mut commands: Commands, tex_pro: Res<Arc<TextureProcessor>>) {
 #[allow(clippy::too_many_arguments)]
 fn sync_graph(
     mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    // mut materials: ResMut<Assets<ColorMaterial>>,
     mut q_node: Query<(Entity, &NodeId, &mut NodeState, &mut ThumbnailState)>,
-    q_edge: Query<(Entity, &Edge)>,
-    q_slot: Query<(&Slot, &GlobalTransform)>,
-    q_selected: Query<Entity, With<Selected>>,
-    workspace: Res<Workspace>,
+    // q_edge: Query<(Entity, &Edge)>,
+    // q_slot: Query<(&Slot, &GlobalTransform)>,
+    // q_selected: Query<Entity, With<Selected>>,
+    // workspace: Res<Workspace>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     let changed_node_ids = live_graph.write().unwrap().changed_consume();
@@ -138,71 +134,71 @@ fn sync_graph(
                 );
             }
 
-            info!("Updating visual edges");
+            // info!("Updating visual edges");
 
             // Removing edges for the node so they can be re-created in the next step.
-            for (entity, _) in q_edge.iter().filter(|(_, edge)| {
-                edge.input_slot.node_id == node_id || edge.output_slot.node_id == node_id
-            }) {
-                commands.entity(entity).despawn_recursive();
-            }
+            // for (entity, _) in q_edge.iter().filter(|(_, edge)| {
+            //     edge.input_slot.node_id == node_id || edge.output_slot.node_id == node_id
+            // }) {
+            //     commands.entity(entity).despawn_recursive();
+            // }
 
-            // Adding the current edges.
-            for edge in live_graph
-                .read()
-                .unwrap()
-                .edges()
-                .iter()
-                .filter(|edge| edge.input_id == node_id)
-            {
-                let output_slot = Slot {
-                    node_id: edge.output_id,
-                    side: Side::Output,
-                    slot_id: edge.output_slot,
-                };
-                let input_slot = Slot {
-                    node_id: edge.input_id,
-                    side: Side::Input,
-                    slot_id: edge.input_slot,
-                };
-                let mut start = Vec2::ZERO;
-                let mut end = Vec2::ZERO;
+            // // Adding the current edges.
+            // for edge in live_graph
+            //     .read()
+            //     .unwrap()
+            //     .edges()
+            //     .iter()
+            //     .filter(|edge| edge.input_id == node_id)
+            // {
+            //     let output_slot = Slot {
+            //         node_id: edge.output_id,
+            //         side: Side::Output,
+            //         slot_id: edge.output_slot,
+            //     };
+            //     let input_slot = Slot {
+            //         node_id: edge.input_id,
+            //         side: Side::Input,
+            //         slot_id: edge.input_slot,
+            //     };
+            //     let mut start = Vec2::ZERO;
+            //     let mut end = Vec2::ZERO;
 
-                for (slot, slot_t) in q_slot.iter() {
-                    if slot.node_id == output_slot.node_id
-                        && slot.slot_id == output_slot.slot_id
-                        && slot.side == output_slot.side
-                    {
-                        start = slot_t.translation.truncate();
-                    } else if slot.node_id == input_slot.node_id
-                        && slot.slot_id == input_slot.slot_id
-                        && slot.side == input_slot.side
-                    {
-                        end = slot_t.translation.truncate();
-                    }
-                }
+            //     for (slot, slot_t) in q_slot.iter() {
+            //         if slot.node_id == output_slot.node_id
+            //             && slot.slot_id == output_slot.slot_id
+            //             && slot.side == output_slot.side
+            //         {
+            //             start = slot_t.translation.truncate();
+            //         } else if slot.node_id == input_slot.node_id
+            //             && slot.slot_id == input_slot.slot_id
+            //             && slot.side == input_slot.side
+            //         {
+            //             end = slot_t.translation.truncate();
+            //         }
+            //     }
 
-                let mut sprite = Sprite::new(Vec2::new(5., 5.));
-                let mut transform = Transform::default();
+            //     let mut sprite = Sprite::new(Vec2::new(5., 5.));
+            //     let mut transform = Transform::default();
 
-                stretch_between(&mut sprite, &mut transform, start, end);
+            //     stretch_between(&mut sprite, &mut transform, start, end);
 
-                commands
-                    .spawn_bundle(SpriteBundle {
-                        material: materials.add(Color::rgb(0., 0., 0.).into()),
-                        sprite,
-                        transform,
-                        ..Default::default()
-                    })
-                    .insert(Edge {
-                        start,
-                        end,
-                        output_slot,
-                        input_slot,
-                    });
-            }
+            //     commands
+            //         .spawn_bundle(SpriteBundle {
+            //             material: materials.add(Color::rgb(0., 0., 0.).into()),
+            //             sprite,
+            //             transform,
+            //             ..Default::default()
+            //         })
+            //         .insert(Edge {
+            //             start,
+            //             end,
+            //             output_slot,
+            //             input_slot,
+            //         });
+            // }
         } else {
-            info!("Adding the node");
+            // info!("Adding the node");
 
             // Deselect everything so the new node(s) can be selected instead.
             // for entity in q_selected.iter() {
@@ -323,13 +319,6 @@ pub fn remove_gui_node(world: &mut World, node_id: NodeId) {
         .find(|(_, node_id_cmp)| node_id == **node_id_cmp)
         .unwrap();
     despawn_with_children_recursive(world, entity);
-    // Box::new(DespawnRecursive { entity }).write(world);
-    // let despawn_command = Box::new(DespawnRecursive { entity });
-    // despawn_command.write(world);
-
-    // let commands = Commands::new(&mut CommandQueue{commands: Vec::new()}, world);
-    // commands.add(despawn_command);
-    // commands.
 }
 
 pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Entity {
