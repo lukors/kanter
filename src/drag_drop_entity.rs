@@ -489,6 +489,7 @@ impl UndoCommand for MoveNodeUndo {
         {
             transform.translation.x = self.to.x;
             transform.translation.y = self.to.y;
+            update_node_gui_edges(world, self.node_id);
         }
     }
 
@@ -500,6 +501,7 @@ impl UndoCommand for MoveNodeUndo {
         {
             transform.translation.x = self.from.x;
             transform.translation.y = self.from.y;
+            update_node_gui_edges(world, self.node_id);
         }
     }
 }
@@ -583,5 +585,42 @@ impl UndoCommand for DeselectSneaky {
 
     fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
         unreachable!("this command is not saved on the undo stack");
+    }
+}
+
+fn update_node_gui_edges(world: &mut World, node_id: NodeId) {
+    let node_transform = *world
+        .query::<(&NodeId, &Transform)>()
+        .iter(world)
+        .find(|(node_id_iter, _)| **node_id_iter == node_id)
+        .map(|(_, transform)| transform)
+        .unwrap();
+    let slots = world
+        .query::<(&Slot, &Transform)>()
+        .iter(world)
+        .filter(|(slot, _)| slot.node_id == node_id)
+        .map(|(slot, transform)| (*slot, *transform))
+        .collect::<Vec<(Slot, Transform)>>();
+
+    let mut q_edge = world.query::<(&mut Sprite, &mut Transform, &mut GuiEdge)>();
+
+    for (mut sprite, mut edge_t, mut edge) in q_edge.iter_mut(world).filter(|(_, _, edge)| {
+        edge.input_slot.node_id == node_id || edge.output_slot.node_id == node_id
+    }) {
+        for (slot, slot_t) in slots.iter() {
+            if slot.node_id == edge.output_slot.node_id
+                && slot.slot_id == edge.output_slot.slot_id
+                && slot.side == edge.output_slot.side
+            {
+                edge.start = (node_transform.translation + slot_t.translation).truncate();
+            } else if slot.node_id == edge.input_slot.node_id
+                && slot.slot_id == edge.input_slot.slot_id
+                && slot.side == edge.input_slot.side
+            {
+                edge.end = (node_transform.translation + slot_t.translation).truncate();
+            }
+        }
+
+        stretch_between(&mut sprite, &mut edge_t, edge.start, edge.end);
     }
 }
