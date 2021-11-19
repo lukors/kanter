@@ -1,10 +1,13 @@
 use std::sync::{Arc, RwLock};
 
-use crate::sync_graph::{stretch_between, Edge as GuiEdge, Slot};
+use crate::{
+    sync_graph::{stretch_between, Edge as GuiEdge, Slot},
+    thumbnail::ThumbnailState,
+};
 
 use super::{prelude::*, AddRemove};
 use bevy::prelude::*;
-use kanter_core::{edge::Edge, live_graph::LiveGraph, node::Side};
+use kanter_core::{edge::Edge, live_graph::LiveGraph, node::Side, node_graph::NodeId};
 
 impl AddRemove for Edge {
     fn add(&self, world: &mut World) {
@@ -40,10 +43,16 @@ impl AddRemove for Edge {
     }
 }
 
-// fn set_thumbnail_state(world: &mut World, thumbnail_state: ThumbnailState) {
-//     // mut q_thumbnail_state: Query<(&NodeId, &mut ThumbnailState), Without<GrabbedEdge>>,
-
-// }
+fn set_thumbnail_state(world: &mut World, node_id: NodeId, thumbnail_state: ThumbnailState) {
+    let mut q_thumbnail_state = world.query::<(&NodeId, &mut ThumbnailState)>();
+    if let Some(mut thumbnail_state_iter) = q_thumbnail_state
+        .iter_mut(world)
+        .find(|(node_id_iter, _)| **node_id_iter == node_id)
+        .map(|(_, thumbnail_state)| thumbnail_state)
+    {
+        *thumbnail_state_iter = thumbnail_state;
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct RemoveEdge(pub Edge);
@@ -134,11 +143,12 @@ fn remove_gui_edge(world: &mut World, edge: Edge) {
                 && output_slot.node_id == edge.output_id
                 && output_slot.slot_id == edge.output_slot
         })
-        .map(|(entity, _)| entity)
-        .collect::<Vec<Entity>>();
+        .map(|(entity, gui_edge)| (entity, *gui_edge))
+        .collect::<Vec<(Entity, GuiEdge)>>();
 
-    for entity in edges_to_remove {
+    for (entity, gui_edge) in edges_to_remove {
         despawn_with_children_recursive(world, entity);
+        set_thumbnail_state(world, gui_edge.input_slot.node_id, ThumbnailState::Missing);
         info!("removed gui edge: {:?}", entity);
     }
 }

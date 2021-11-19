@@ -42,6 +42,10 @@ fn export(
     mut tool_state: ResMut<State<ToolState>>,
 ) {
     for node_id in q_selected.iter() {
+        dbg!("BEFORE");
+        let _ = LiveGraph::await_clean_read(&live_graph, *node_id);
+        dbg!("AFTER");
+        
         let size: TPSize = match LiveGraph::await_clean_read(&live_graph, *node_id)
             .unwrap()
             .slot_data_size(*node_id, SlotId(0))

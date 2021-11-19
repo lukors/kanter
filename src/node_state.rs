@@ -32,13 +32,13 @@ pub(crate) struct NodeStatePlugin;
 
 impl Plugin for NodeStatePlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system())
-            .add_system_set_to_stage(
-                CoreStage::Update,
-                SystemSet::new()
-                    .after(Stage::Apply)
-                    .with_system(add_state_image.system().chain(state_materials.system())),
-            );
+        app.add_startup_system(setup.system());
+            // .add_system_set_to_stage(
+            //     CoreStage::Update,
+            //     SystemSet::new()
+            //         .after(Stage::Apply)
+            //         .with_system(add_state_image.system().chain(state_materials.system())),
+            // );
     }
 }
 
