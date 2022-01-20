@@ -341,7 +341,7 @@ fn string_to_size(input: &str) -> Option<TPSize> {
 }
 
 fn edit_value_display(instructions: &mut Text, value: f32) {
-    instructions.sections[0].value = format!("Current value: {}\nNew: ", value.to_string());
+    instructions.sections[0].value = format!("Current value: {}\nNew: ", value);
     instructions.sections[1].value.clear();
 }
 
