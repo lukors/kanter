@@ -1,4 +1,4 @@
-use crate::{instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState};
+use crate::{instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState, shared::NodeIdComponent};
 use bevy::prelude::*;
 use kanter_core::{
     error::TexProError,
@@ -38,7 +38,7 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 
 fn export(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
-    q_selected: Query<&NodeId, With<Selected>>,
+    q_selected: Query<&NodeIdComponent, With<Selected>>,
     mut tool_state: ResMut<State<ToolState>>,
 ) {
     for node_id in q_selected.iter() {
