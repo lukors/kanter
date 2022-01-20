@@ -88,9 +88,9 @@ fn thumbnail_state_changed(
 
 fn get_thumbnail_loop(
     mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    // mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
-    q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
+    mut q_thumbnail: Query<(Entity, &Parent, &mut Handle<Image>), With<Thumbnail>>,
     mut q_node: Query<(
         Entity,
         &NodeIdComponent,
@@ -99,30 +99,33 @@ fn get_thumbnail_loop(
     )>,
 ) {
     for (node_e, node_id, mut thumb_state, live_graph) in q_node.iter_mut() {
-        let material = match try_get_output(&live_graph.0) {
+        let image = match try_get_output(&live_graph.0) {
             Ok(image) => {
                 let image_handle = images.add(image);
-                Some(materials.add(image_handle.into()))
+                Some(image_handle)
+
+                // Some(materials.add(image_handle.into()))
             }
-            Err(error) => {
-                if let Ok(TexProError::InvalidBufferCount) = error.downcast::<TexProError>() {
-                    Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into()))
-                } else {
-                    None
-                }
+            Err(_) => {
+                None
+                // if let Ok(TexProError::InvalidBufferCount) = error.downcast::<TexProError>() {
+                //     Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into()))
+                // } else {
+                //     None
+                // }
             }
         };
 
-        if let Some(material) = material {
-            if let Some((thumbnail_e, _)) = q_thumbnail
-                .iter()
-                .find(|(_, parent_e)| parent_e.0 == node_e)
+        if let Some(image) = image {
+            if let Some((thumbnail_e, _, mut thumb_image)) = q_thumbnail
+                .iter_mut()
+                .find(|(_, parent_e, _)| parent_e.0 == node_e)
             {
                 info!("Got new thumbnail for {}", node_id.0);
-                commands
-                    .entity(thumbnail_e)
-                    .remove::<Handle<ColorMaterial>>();
-                commands.entity(thumbnail_e).insert(material);
+                *thumb_image = image;
+
+                // commands.entity(thumbnail_e).remove::<Handle<Image>>();
+                // commands.entity(thumbnail_e).insert(image);
             } else {
                 error!("Couldn't find a thumbnail entity for the GUI node");
             }

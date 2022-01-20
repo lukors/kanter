@@ -247,7 +247,6 @@ pub fn spawn_gui_node(
             parent
                 .spawn_bundle(SpriteBundle {
                     sprite: Sprite {
-                        color: Color::BLACK,
                         custom_size: Some(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
                         ..Default::default()
                     },
@@ -372,7 +371,6 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
             parent
                 .spawn_bundle(SpriteBundle {
                     sprite: Sprite {
-                        color: Color::BLACK,
                         custom_size: Some(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
                         ..Default::default()
                     },
