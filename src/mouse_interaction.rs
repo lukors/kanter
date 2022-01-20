@@ -5,7 +5,7 @@ use crate::{
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
 
-#[derive(Default)]
+#[derive(Component, Default)]
 pub(crate) struct Active;
 
 #[derive(Component, Default)]

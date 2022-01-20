@@ -16,7 +16,7 @@ use crate::{
     mouse_interaction::Active,
     scan_code_input::*,
     undo::{gui::GuiUndoCommand, prelude::*},
-    AmbiguitySet, Stage, ToolState,
+    AmbiguitySet, Stage, ToolState, shared::NodeIdComponent,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -119,7 +119,7 @@ fn tool_update(
     mut scan_code_input: ResMut<ScanCodeInput>,
     mut instructions: ResMut<Instructions>,
     mut edit_target: ResMut<OptionEditTarget>,
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let Ok(node_id) = q_active.single() {
@@ -169,7 +169,7 @@ fn tool_update(
 fn edit_specific_slot_enter(
     mut edit_state: ResMut<State<EditState>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
@@ -194,7 +194,7 @@ fn edit_specific_slot_enter(
 fn edit_specific_slot_update(
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut edit_state: ResMut<State<EditState>>,
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     mut started: Local<bool>,
@@ -254,7 +254,7 @@ fn edit_specific_slot_update(
 
 fn edit_specific_size_enter(
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
@@ -273,7 +273,7 @@ fn edit_specific_size_enter(
 fn edit_specific_size_update(
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut edit_state: ResMut<State<EditState>>,
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     mut started: Local<bool>,
@@ -335,7 +335,7 @@ fn edit_value_display(instructions: &mut Text, value: f32) {
 
 fn edit_value_enter(
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
@@ -351,7 +351,7 @@ fn edit_value_enter(
 fn edit_value_update(
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut edit_state: ResMut<State<EditState>>,
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut q_instructions: Query<&mut Text, With<InstructionMarker>>,
     mut started: Local<bool>,
@@ -396,7 +396,7 @@ fn edit(
     mut edit_state: ResMut<State<EditState>>,
     mut scan_code_input: ResMut<ScanCodeInput>,
     mut edit_target: ResMut<OptionEditTarget>,
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
@@ -477,7 +477,7 @@ fn edit(
 }
 
 fn edit_exit(
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     mut instructions: ResMut<Instructions>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
@@ -523,7 +523,7 @@ fn show_instructions(node: &Node, instructions: &mut Instructions) {
 fn tool_enter(
     mut edit_state: ResMut<State<EditState>>,
     mut tool_state: ResMut<State<ToolState>>,
-    q_active: Query<&NodeId, With<Active>>,
+    q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut instructions: ResMut<Instructions>,
 ) {

@@ -26,7 +26,9 @@ impl std::ops::DerefMut for ToolList {
     }
 }
 
+#[derive(Component)]
 pub(crate) struct InstructionMarker;
+
 #[derive(Default)]
 pub(crate) struct Instructions(pub HashMap<InstructId, String>);
 
