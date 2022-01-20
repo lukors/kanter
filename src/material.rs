@@ -55,7 +55,7 @@ fn material(
                 0.7
             };
 
-            let mut color = match slot_type {
+            let mut color = match slot_type.0 {
                 SlotType::Gray => {
                     let gray_slot = 0.9;
                     Color::rgb(gray_slot, gray_slot, gray_slot)
