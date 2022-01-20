@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use kanter_core::{node::SlotType, node_graph::NodeId};
 
-use crate::{Hovered, Selected};
+use crate::{Hovered, Selected, shared::{NodeIdComponent, SlotTypeComponent}};
 
 pub(crate) struct MaterialPlugin;
 
@@ -14,11 +14,13 @@ impl Plugin for MaterialPlugin {
     }
 }
 
+// Todo: This function should probably return a color and not a material, if it is needed at all.
+// This is due to Bevy 0.6.0, which allows for setting the color of a sprite without a material.
 fn material(
     mut materials: ResMut<Assets<ColorMaterial>>,
-    q_node: Query<(&Handle<ColorMaterial>, Option<&Hovered>, Option<&Selected>), With<NodeId>>,
+    q_node: Query<(&Handle<ColorMaterial>, Option<&Hovered>, Option<&Selected>), With<NodeIdComponent>>,
     q_slot: Query<(
-        &SlotType,
+        &SlotTypeComponent,
         &Handle<ColorMaterial>,
         Option<&Hovered>,
         Option<&Selected>,
