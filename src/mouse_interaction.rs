@@ -1,6 +1,6 @@
 /// All workspace mouse interaction.
 use crate::{
-    AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Slot, Stage, ToolState, Workspace,
+    AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Slot, Stage, ToolState, Workspace, shared::NodeIdComponent,
 };
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
@@ -35,9 +35,9 @@ fn mouse_interaction(
     mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
     i_mouse_button: Res<Input<MouseButton>>,
-    q_hovered_node: Query<Entity, (With<NodeId>, With<Hovered>)>,
-    q_selected_node: Query<Entity, (With<NodeId>, With<Selected>)>,
-    q_hovered_selected_node: Query<Entity, (With<NodeId>, With<Selected>, With<Hovered>)>,
+    q_hovered_node: Query<Entity, (With<NodeIdComponent>, With<Hovered>)>,
+    q_selected_node: Query<Entity, (With<NodeIdComponent>, With<Selected>)>,
+    q_hovered_selected_node: Query<Entity, (With<NodeIdComponent>, With<Selected>, With<Hovered>)>,
     q_hovered_slot: Query<Entity, (With<Slot>, With<Hovered>)>,
     q_selected_slot: Query<Entity, (With<Slot>, With<Selected>)>,
     q_selected: Query<Entity, With<Selected>>,
