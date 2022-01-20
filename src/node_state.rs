@@ -85,7 +85,7 @@ fn add_state_image(
 
 fn state_materials(
     q_node: Query<(Entity, &NodeStateComponent), Changed<NodeStateComponent>>,
-    mut q_state_image: Query<(&Parent, &mut Handle<ColorMaterial>), With<StateImage>>,
+    mut q_state_image: Query<(&Parent, &mut Handle<Image>), With<StateImage>>,
     images: Res<StateImages>,
 ) {
     for (node_e, node_state) in q_node.iter() {
@@ -93,7 +93,7 @@ fn state_materials(
             .iter_mut()
             .find(|(parent, _)| parent.0 == node_e)
         {
-            *color_material = images.from_node_state(*node_state);
+            *color_material = images.from_node_state(node_state.0);
         }
     }
 }
