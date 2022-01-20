@@ -1,8 +1,8 @@
-use crate::{AmbiguitySet, Stage};
+use crate::{AmbiguitySet, Stage, shared::{NodeIdComponent, LiveGraphComponent}};
 use anyhow::{anyhow, Result};
 use bevy::{
     prelude::*,
-    render::texture::{Extent3d, TextureDimension, TextureFormat},
+    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
 use kanter_core::{
     error::TexProError,
@@ -17,6 +17,8 @@ use std::sync::{Arc, RwLock};
 type TexProThumb = (NodeId, TextureProcessor);
 
 pub(crate) const THUMBNAIL_SIZE: f32 = 128.;
+
+#[derive(Component)]
 pub(crate) struct Thumbnail;
 
 pub(crate) struct ThumbnailPlugin;
@@ -55,7 +57,7 @@ impl Plugin for ThumbnailPlugin {
 
 fn thumbnail_state_changed(
     mut commands: Commands,
-    mut q_node: Query<(Entity, &NodeId, &mut ThumbnailState), Changed<ThumbnailState>>,
+    mut q_node: Query<(Entity, &NodeIdComponent, &mut ThumbnailState), Changed<ThumbnailState>>,
     tex_pro: Res<Arc<TextureProcessor>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
@@ -80,22 +82,22 @@ fn thumbnail_state_changed(
 }
 
 fn get_thumbnail_loop(
-    mut textures: ResMut<Assets<Texture>>,
+    mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
     q_thumbnail: Query<(Entity, &Parent), With<Thumbnail>>,
     mut q_node: Query<(
         Entity,
-        &NodeId,
+        &NodeIdComponent,
         &mut ThumbnailState,
-        &Arc<RwLock<LiveGraph>>,
+        &LiveGraphComponent,
     )>,
 ) {
     for (node_e, node_id, mut thumb_state, live_graph) in q_node.iter_mut() {
         let material = match try_get_output(&*live_graph) {
-            Ok(texture) => {
-                let texture_handle = textures.add(texture);
-                Some(materials.add(texture_handle.into()))
+            Ok(image) => {
+                let image_handle = images.add(image);
+                Some(materials.add(image_handle.into()))
             }
             Err(error) => {
                 if let Ok(TexProError::InvalidBufferCount) = error.downcast::<TexProError>() {
@@ -171,7 +173,7 @@ fn thumbnail_processor(
 }
 
 /// Tries to get the first output of a given graph.
-fn try_get_output(live_graph: &Arc<RwLock<LiveGraph>>) -> Result<Texture> {
+fn try_get_output(live_graph: &Arc<RwLock<LiveGraph>>) -> Result<Image> {
     let (output_id, size) = {
         let live_graph = live_graph.read().map_err(|e| anyhow!("{}", e))?;
         let output_id = live_graph.output_ids()[0];
@@ -186,7 +188,7 @@ fn try_get_output(live_graph: &Arc<RwLock<LiveGraph>>) -> Result<Texture> {
         (output_id, size)
     };
 
-    Ok(Texture::new(
+    Ok(Image::new(
         Extent3d::new(size.width as u32, size.height as u32, 1),
         TextureDimension::D2,
         LiveGraph::try_buffer_srgba(live_graph, output_id, SlotId(0))?,
