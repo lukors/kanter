@@ -35,14 +35,16 @@ fn hoverable(
 ) {
     if workspace.cursor_moved {
         for (entity, global_transform, sprite) in q_hoverable.iter() {
-            if box_contains_point(
-                global_transform.translation.truncate(),
-                sprite.size,
-                workspace.cursor_world,
-            ) {
-                commands.entity(entity).insert(Hovered);
-            } else {
-                commands.entity(entity).remove::<Hovered>();
+            if let Some(size) = sprite.custom_size {
+                if box_contains_point(
+                    global_transform.translation.truncate(),
+                    size,
+                    workspace.cursor_world,
+                ) {
+                    commands.entity(entity).insert(Hovered);
+                } else {
+                    commands.entity(entity).remove::<Hovered>();
+                }
             }
         }
     }
