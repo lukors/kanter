@@ -113,7 +113,7 @@ fn update_instructions(
     mut q_instruction_text: Query<&mut Text, With<InstructionMarker>>,
 ) {
     if instructions.is_changed() && !instructions.is_added() {
-        if let Ok(mut text) = q_instruction_text.single_mut() {
+        if let Ok(mut text) = q_instruction_text.get_single_mut() {
             for text_section in text.sections.iter_mut() {
                 text_section.value.clear();
             }

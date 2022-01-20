@@ -122,7 +122,7 @@ fn tool_update(
     q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    if let Ok(node_id) = q_active.single() {
+    if let Ok(node_id) = q_active.get_single() {
         if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             show_instructions(&node, &mut instructions);
         }
@@ -172,7 +172,7 @@ fn edit_specific_slot_enter(
     q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
+    if let (Ok(node_id), Ok(mut instructions)) = (q_active.get_single(), q_instructions.get_single_mut()) {
         if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             if node.input_slots().is_empty() {
                 warn!("The node doesn't have any input slots");
@@ -207,7 +207,7 @@ fn edit_specific_slot_update(
         return;
     }
 
-    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.single_mut(), q_active.single()) {
+    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.get_single_mut(), q_active.get_single()) {
         for event in char_input_events.iter() {
             if event.char.is_digit(10) {
                 instructions.sections[1].value.push(event.char);
@@ -257,7 +257,7 @@ fn edit_specific_size_enter(
     q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
+    if let (Ok(node_id), Ok(mut instructions)) = (q_active.get_single(), q_instructions.get_single_mut()) {
         if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             if let ResizePolicy::SpecificSize(size) = node.resize_policy {
                 instructions.sections[0].value =
@@ -286,7 +286,7 @@ fn edit_specific_size_update(
         return;
     }
 
-    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.single_mut(), q_active.single()) {
+    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.get_single_mut(), q_active.get_single()) {
         for event in char_input_events.iter() {
             if event.char.is_digit(10) || event.char == 'x' {
                 instructions.sections[1].value.push(event.char);
@@ -338,7 +338,7 @@ fn edit_value_enter(
     q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    if let (Ok(node_id), Ok(mut instructions)) = (q_active.single(), q_instructions.single_mut()) {
+    if let (Ok(node_id), Ok(mut instructions)) = (q_active.get_single(), q_instructions.get_single_mut()) {
         if let Ok(live_graph) = live_graph.read() {
             let value: Result<ChannelPixel> = node_id.get(&*live_graph);
             if let Ok(value) = value {
@@ -364,7 +364,7 @@ fn edit_value_update(
         return;
     }
 
-    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.single_mut(), q_active.single()) {
+    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.get_single_mut(), q_active.get_single()) {
         for event in char_input_events.iter() {
             if event.char.is_digit(10) || event.char == '.' {
                 instructions.sections[1].value.push(event.char);
@@ -402,7 +402,7 @@ fn edit(
 ) {
     let mut done = false;
 
-    if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.single()) {
+    if let (Some(edit_target), Ok(node_id)) = (&*edit_target, q_active.get_single()) {
         if let Ok(live_graph) = live_graph.read() {
             let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
             let mut parameter_set = false;
@@ -481,7 +481,7 @@ fn edit_exit(
     mut instructions: ResMut<Instructions>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    if let Ok(node_id) = q_active.single() {
+    if let Ok(node_id) = q_active.get_single() {
         if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             show_instructions(&node, &mut instructions);
         } else {
@@ -527,7 +527,7 @@ fn tool_enter(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut instructions: ResMut<Instructions>,
 ) {
-    if let Ok(node_id) = q_active.single() {
+    if let Ok(node_id) = q_active.get_single() {
         if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
             let _ = edit_state.overwrite_replace(EditState::Outer);
 

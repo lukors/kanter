@@ -237,7 +237,7 @@ fn grabbed_edge_update(
     mut q_edge: Query<(&mut Transform, &GrabbedEdge, &mut Sprite)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
 ) {
-    if let Ok(cursor_t) = q_cursor.single() {
+    if let Ok(cursor_t) = q_cursor.get_single() {
         for (mut edge_t, edge, mut sprite) in q_edge.iter_mut() {
             stretch_between(
                 &mut sprite,
@@ -316,7 +316,7 @@ fn drag_node_update(
     >,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
 ) {
-    if let Ok((cursor_e, cursor_transform)) = q_cursor.single() {
+    if let Ok((cursor_e, cursor_transform)) = q_cursor.get_single() {
         for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
             commands.entity(cursor_e).push_children(&[entity]);
 

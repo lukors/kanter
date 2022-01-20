@@ -76,11 +76,10 @@ fn setup(
     mut instructions: ResMut<Instructions>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     instructions.insert(InstructId::FirstPerson, first_person_instruct(false));
 
-    let crosshair_image = asset_server.load("crosshair.png");
+    // let crosshair_image = asset_server.load("crosshair.png");
 
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
@@ -98,7 +97,7 @@ fn setup(
                 .with_children(|parent| {
                     parent
                         .spawn_bundle(SpriteBundle {
-                            texture: Some(crosshair_image),
+                            texture: asset_server.load("crosshair.png"),
                             visibility: Visibility {
                                 is_visible: false,
                             },
@@ -168,12 +167,12 @@ fn first_person_on_setup(
     let window = windows.get_primary_mut().unwrap();
     window.set_cursor_visibility(false);
 
-    if let Ok(mut crosshair) = q_crosshair.single_mut() {
+    if let Ok(mut crosshair) = q_crosshair.get_single_mut() {
         crosshair.is_visible = true;
     }
 
-    if let Ok(camera_e) = q_camera.single_mut() {
-        if let Ok((cursor_e, mut transform)) = q_cursor.single_mut() {
+    if let Ok(camera_e) = q_camera.get_single_mut() {
+        if let Ok((cursor_e, mut transform)) = q_cursor.get_single_mut() {
             transform.translation.x = 0.;
             transform.translation.y = 0.;
             commands.entity(camera_e).push_children(&[cursor_e]);
@@ -209,7 +208,7 @@ fn mouse_pan(
     i_mouse_button: Res<Input<MouseButton>>,
 ) {
     if i_mouse_button.pressed(MouseButton::Middle) && workspace.cursor_moved {
-        if let Ok(mut camera_t) = camera.single_mut() {
+        if let Ok(mut camera_t) = camera.get_single_mut() {
             camera_t.translation.x -= workspace.cursor_delta.x;
             camera_t.translation.y += workspace.cursor_delta.y;
         }
