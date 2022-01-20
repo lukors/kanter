@@ -88,9 +88,8 @@ fn thumbnail_state_changed(
 
 fn get_thumbnail_loop(
     mut images: ResMut<Assets<Image>>,
-    // mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
-    mut q_thumbnail: Query<(Entity, &Parent, &mut Handle<Image>), With<Thumbnail>>,
+    mut q_thumbnail: Query<(&Parent, &mut Handle<Image>), With<Thumbnail>>,
     mut q_node: Query<(
         Entity,
         &NodeIdComponent,
@@ -103,29 +102,19 @@ fn get_thumbnail_loop(
             Ok(image) => {
                 let image_handle = images.add(image);
                 Some(image_handle)
-
-                // Some(materials.add(image_handle.into()))
             }
             Err(_) => {
                 None
-                // if let Ok(TexProError::InvalidBufferCount) = error.downcast::<TexProError>() {
-                //     Some(materials.add(Color::rgb(0.0, 0.0, 0.0).into()))
-                // } else {
-                //     None
-                // }
             }
         };
 
         if let Some(image) = image {
-            if let Some((thumbnail_e, _, mut thumb_image)) = q_thumbnail
+            if let Some((_, mut thumb_image)) = q_thumbnail
                 .iter_mut()
-                .find(|(_, parent_e, _)| parent_e.0 == node_e)
+                .find(|(parent_e, _)| parent_e.0 == node_e)
             {
                 info!("Got new thumbnail for {}", node_id.0);
                 *thumb_image = image;
-
-                // commands.entity(thumbnail_e).remove::<Handle<Image>>();
-                // commands.entity(thumbnail_e).insert(image);
             } else {
                 error!("Couldn't find a thumbnail entity for the GUI node");
             }
