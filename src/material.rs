@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use kanter_core::{node::SlotType, node_graph::NodeId};
+use kanter_core::node::SlotType;
 
 use crate::{
     shared::{NodeIdComponent, SlotTypeComponent},
@@ -20,61 +20,56 @@ impl Plugin for MaterialPlugin {
 // Todo: This function should probably return a color and not a material, if it is needed at all.
 // This is due to Bevy 0.6.0, which allows for setting the color of a sprite without a material.
 fn material(
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    q_node: Query<
-        (&Handle<ColorMaterial>, Option<&Hovered>, Option<&Selected>),
-        With<NodeIdComponent>,
+    mut q_node: Query<(&mut Sprite, Option<&Hovered>, Option<&Selected>), With<NodeIdComponent>>,
+    mut q_slot: Query<
+        (
+            &SlotTypeComponent,
+            &mut Sprite,
+            Option<&Hovered>,
+            Option<&Selected>,
+        ),
+        Without<NodeIdComponent>,
     >,
-    q_slot: Query<(
-        &SlotTypeComponent,
-        &Handle<ColorMaterial>,
-        Option<&Hovered>,
-        Option<&Selected>,
-    )>,
 ) {
-    for (material, hovered, selected) in q_node.iter() {
-        if let Some(material) = materials.get_mut(material) {
-            let value = if selected.is_some() {
-                0.25
-            } else if hovered.is_some() {
-                0.35
-            } else {
-                0.4
-            };
+    for (mut sprite, hovered, selected) in q_node.iter_mut() {
+        let value = if selected.is_some() {
+            0.25
+        } else if hovered.is_some() {
+            0.35
+        } else {
+            0.4
+        };
 
-            material.color = Color::Rgba {
-                red: value,
-                green: value,
-                blue: value,
-                alpha: 1.0,
-            };
-        }
+        sprite.color = Color::Rgba {
+            red: value,
+            green: value,
+            blue: value,
+            alpha: 1.0,
+        };
     }
 
-    for (slot_type, material, hovered, selected) in q_slot.iter() {
-        if let Some(material) = materials.get_mut(material) {
-            let value = if selected.is_some() {
-                1.0
-            } else if hovered.is_some() {
-                0.8
-            } else {
-                0.7
-            };
+    for (slot_type, mut sprite, hovered, selected) in q_slot.iter_mut() {
+        let value = if selected.is_some() {
+            1.0
+        } else if hovered.is_some() {
+            0.8
+        } else {
+            0.7
+        };
 
-            let mut color = match slot_type.0 {
-                SlotType::Gray => {
-                    let gray_slot = 0.9;
-                    Color::rgb(gray_slot, gray_slot, gray_slot)
-                }
-                SlotType::Rgba => Color::rgb(1.0, 0.8, 0.6),
-                SlotType::GrayOrRgba => Color::rgb(0.6, 1.0, 0.8),
-            };
+        let mut color = match slot_type.0 {
+            SlotType::Gray => {
+                let gray_slot = 0.9;
+                Color::rgb(gray_slot, gray_slot, gray_slot)
+            }
+            SlotType::Rgba => Color::rgb(1.0, 0.8, 0.6),
+            SlotType::GrayOrRgba => Color::rgb(0.6, 1.0, 0.8),
+        };
 
-            color.set_r(color.r() * value);
-            color.set_g(color.g() * value);
-            color.set_b(color.b() * value);
+        color.set_r(color.r() * value);
+        color.set_g(color.g() * value);
+        color.set_b(color.b() * value);
 
-            material.color = color;
-        }
+        sprite.color = color;
     }
 }
