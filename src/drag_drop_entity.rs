@@ -546,6 +546,8 @@ impl UndoCommand for SelectNew {
     }
 }
 
+/// The sneaky variant is not saved on the undo stack. Can probably be replaced with a command that
+/// removes the most recent command from the undo stack.
 #[derive(Copy, Clone, Debug)]
 pub struct SelectedToCursorSneaky;
 impl UndoCommand for SelectedToCursorSneaky {
@@ -573,6 +575,8 @@ impl UndoCommand for SelectedToCursorSneaky {
     }
 }
 
+/// The sneaky variant is not saved on the undo stack. Can probably be replaced with a command that
+/// removes the most recent command from the undo stack.
 #[derive(Copy, Clone, Debug)]
 pub struct DeselectSneaky;
 impl UndoCommand for DeselectSneaky {

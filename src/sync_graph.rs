@@ -64,15 +64,15 @@ pub(crate) struct SyncGraphPlugin;
 
 impl Plugin for SyncGraphPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup.system());
-        // .add_system_set_to_stage(
-        //     CoreStage::Update,
-        //     SystemSet::new()
-        //         .label(Stage::Apply)
-        //         .after(Stage::Update)
-        //         .with_system(sync_graph.system())
-        //         .in_ambiguity_set(AmbiguitySet),
-        // );
+        app.add_startup_system(setup.system())
+        .add_system_set_to_stage(
+            CoreStage::Update,
+            SystemSet::new()
+                .label(Stage::Apply)
+                .after(Stage::Update)
+                .with_system(sync_graph.system())
+                .in_ambiguity_set(AmbiguitySet),
+        );
     }
 }
 
