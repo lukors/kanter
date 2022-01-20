@@ -1,4 +1,6 @@
-use crate::{instruction::ToolList, AmbiguitySet, Selected, Stage, ToolState, shared::NodeIdComponent};
+use crate::{
+    instruction::ToolList, shared::NodeIdComponent, AmbiguitySet, Selected, Stage, ToolState,
+};
 use bevy::prelude::*;
 use kanter_core::{
     error::TexProError,
@@ -45,7 +47,7 @@ fn export(
         dbg!("BEFORE");
         let _result = LiveGraph::await_clean_read(&live_graph, node_id.0);
         dbg!("AFTER");
-        
+
         let size: TPSize = match LiveGraph::await_clean_read(&live_graph, node_id.0)
             .unwrap()
             .slot_data_size(node_id.0, SlotId(0))

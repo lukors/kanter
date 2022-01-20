@@ -1,6 +1,7 @@
 /// All workspace mouse interaction.
 use crate::{
-    AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Slot, Stage, ToolState, Workspace, shared::NodeIdComponent,
+    shared::NodeIdComponent, AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Slot, Stage,
+    ToolState, Workspace,
 };
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;

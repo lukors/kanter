@@ -1,7 +1,11 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::{node_graph::NodeId, node::SlotType, live_graph::{NodeState, LiveGraph}};
+use kanter_core::{
+    live_graph::{LiveGraph, NodeState},
+    node::SlotType,
+    node_graph::NodeId,
+};
 
 #[derive(Component)]
 pub struct LiveGraphComponent(pub Arc<RwLock<LiveGraph>>);

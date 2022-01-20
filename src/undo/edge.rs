@@ -1,8 +1,9 @@
 use std::sync::{Arc, RwLock};
 
 use crate::{
+    shared::NodeIdComponent,
     sync_graph::{stretch_between, Edge as GuiEdge, Slot},
-    thumbnail::ThumbnailState, shared::NodeIdComponent,
+    thumbnail::ThumbnailState,
 };
 
 use super::{prelude::*, AddRemove};

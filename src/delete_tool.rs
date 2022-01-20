@@ -5,8 +5,9 @@ use kanter_core::live_graph::LiveGraph;
 
 use crate::{
     instruction::ToolList,
+    shared::NodeIdComponent,
     undo::{node::RemoveNode, prelude::*},
-    AmbiguitySet, Selected, Stage, ToolState, shared::NodeIdComponent,
+    AmbiguitySet, Selected, Stage, ToolState,
 };
 
 pub(crate) struct DeleteToolPlugin;

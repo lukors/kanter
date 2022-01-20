@@ -98,9 +98,7 @@ fn setup(
                     parent
                         .spawn_bundle(SpriteBundle {
                             texture: asset_server.load("crosshair.png"),
-                            visibility: Visibility {
-                                is_visible: false,
-                            },
+                            visibility: Visibility { is_visible: false },
                             ..Default::default()
                         })
                         .insert(Transform::from_translation(Vec3::new(0., 0., 9.0)))

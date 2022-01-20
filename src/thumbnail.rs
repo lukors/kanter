@@ -1,4 +1,7 @@
-use crate::{AmbiguitySet, Stage, shared::{NodeIdComponent, LiveGraphComponent}};
+use crate::{
+    shared::{LiveGraphComponent, NodeIdComponent},
+    AmbiguitySet, Stage,
+};
 use anyhow::{anyhow, Result};
 use bevy::{
     prelude::*,
@@ -40,18 +43,18 @@ impl Default for ThumbnailState {
 impl Plugin for ThumbnailPlugin {
     fn build(&self, app: &mut App) {
         app.insert_non_send_resource(Vec::<TexProThumb>::new());
-            // .add_system_set_to_stage(
-            //     CoreStage::Update,
-            //     SystemSet::new()
-            //         .label(Stage::Apply)
-            //         .after(Stage::Update)
-            //         .with_system(
-            //             get_thumbnail_loop
-            //                 .system()
-            //                 .chain(thumbnail_state_changed.system())
-            //                 .in_ambiguity_set(AmbiguitySet),
-            //         ),
-            // );
+        // .add_system_set_to_stage(
+        //     CoreStage::Update,
+        //     SystemSet::new()
+        //         .label(Stage::Apply)
+        //         .after(Stage::Update)
+        //         .with_system(
+        //             get_thumbnail_loop
+        //                 .system()
+        //                 .chain(thumbnail_state_changed.system())
+        //                 .in_ambiguity_set(AmbiguitySet),
+        //         ),
+        // );
     }
 }
 
@@ -75,7 +78,9 @@ fn thumbnail_state_changed(
             tex_pro
                 .push_live_graph(Arc::clone(&thumb_live_graph))
                 .unwrap();
-            commands.entity(entity).insert(LiveGraphComponent(thumb_live_graph));
+            commands
+                .entity(entity)
+                .insert(LiveGraphComponent(thumb_live_graph));
             *thumb_state = ThumbnailState::Processing;
         }
     }
@@ -192,7 +197,7 @@ fn try_get_output(live_graph: &Arc<RwLock<LiveGraph>>) -> Result<Image> {
         Extent3d {
             width: size.width as u32,
             height: size.height as u32,
-            depth_or_array_layers: 1
+            depth_or_array_layers: 1,
         },
         TextureDimension::D2,
         LiveGraph::try_buffer_srgba(live_graph, output_id, SlotId(0))?,

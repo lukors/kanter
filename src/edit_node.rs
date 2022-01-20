@@ -15,8 +15,9 @@ use crate::{
     listable::*,
     mouse_interaction::Active,
     scan_code_input::*,
+    shared::NodeIdComponent,
     undo::{gui::GuiUndoCommand, prelude::*},
-    AmbiguitySet, Stage, ToolState, shared::NodeIdComponent,
+    AmbiguitySet, Stage, ToolState,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -172,7 +173,9 @@ fn edit_specific_slot_enter(
     q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    if let (Ok(node_id), Ok(mut instructions)) = (q_active.get_single(), q_instructions.get_single_mut()) {
+    if let (Ok(node_id), Ok(mut instructions)) =
+        (q_active.get_single(), q_instructions.get_single_mut())
+    {
         if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
             if node.input_slots().is_empty() {
                 warn!("The node doesn't have any input slots");
@@ -207,7 +210,9 @@ fn edit_specific_slot_update(
         return;
     }
 
-    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.get_single_mut(), q_active.get_single()) {
+    if let (Ok(mut instructions), Ok(node_id)) =
+        (q_instructions.get_single_mut(), q_active.get_single())
+    {
         for event in char_input_events.iter() {
             if event.char.is_digit(10) {
                 instructions.sections[1].value.push(event.char);
@@ -237,7 +242,10 @@ fn edit_specific_slot_update(
                             warn!("That slot does not exist: {}", index);
                         }
                     } else {
-                        error!("The node you're trying to edit does not exist: {}", node_id.0);
+                        error!(
+                            "The node you're trying to edit does not exist: {}",
+                            node_id.0
+                        );
                     }
                 } else {
                     error!(
@@ -257,7 +265,9 @@ fn edit_specific_size_enter(
     q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    if let (Ok(node_id), Ok(mut instructions)) = (q_active.get_single(), q_instructions.get_single_mut()) {
+    if let (Ok(node_id), Ok(mut instructions)) =
+        (q_active.get_single(), q_instructions.get_single_mut())
+    {
         if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
             if let ResizePolicy::SpecificSize(size) = node.resize_policy {
                 instructions.sections[0].value =
@@ -286,7 +296,9 @@ fn edit_specific_size_update(
         return;
     }
 
-    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.get_single_mut(), q_active.get_single()) {
+    if let (Ok(mut instructions), Ok(node_id)) =
+        (q_instructions.get_single_mut(), q_active.get_single())
+    {
         for event in char_input_events.iter() {
             if event.char.is_digit(10) || event.char == 'x' {
                 instructions.sections[1].value.push(event.char);
@@ -338,7 +350,9 @@ fn edit_value_enter(
     q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    if let (Ok(node_id), Ok(mut instructions)) = (q_active.get_single(), q_instructions.get_single_mut()) {
+    if let (Ok(node_id), Ok(mut instructions)) =
+        (q_active.get_single(), q_instructions.get_single_mut())
+    {
         if let Ok(live_graph) = live_graph.read() {
             let value: Result<ChannelPixel> = node_id.0.get(&*live_graph);
             if let Ok(value) = value {
@@ -364,7 +378,9 @@ fn edit_value_update(
         return;
     }
 
-    if let (Ok(mut instructions), Ok(node_id)) = (q_instructions.get_single_mut(), q_active.get_single()) {
+    if let (Ok(mut instructions), Ok(node_id)) =
+        (q_instructions.get_single_mut(), q_active.get_single())
+    {
         for event in char_input_events.iter() {
             if event.char.is_digit(10) || event.char == '.' {
                 instructions.sections[1].value.push(event.char);

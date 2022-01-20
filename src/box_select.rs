@@ -94,12 +94,12 @@ fn box_select(
         for (entity, transform, sprite) in q_draggable.iter() {
             if let Some(size) = sprite.custom_size {
                 let size_half = size / 2.0;
-    
+
                 let drag_box = (
                     transform.translation.truncate() - size_half,
                     transform.translation.truncate() + size_half,
                 );
-    
+
                 if box_intersect(box_box, drag_box) {
                     commands.entity(entity).insert(Selected);
                 } else {

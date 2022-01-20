@@ -6,6 +6,7 @@ use crate::{
     control_pressed,
     hoverable::box_contains_point,
     scan_code_input::ScanCodeInput,
+    shared::NodeIdComponent,
     stretch_between,
     // thumbnail::ThumbnailState,
     undo::{
@@ -20,7 +21,7 @@ use crate::{
     Selected,
     Slot,
     Stage,
-    ToolState, shared::NodeIdComponent,
+    ToolState,
 };
 use bevy::prelude::*;
 use kanter_core::{edge::Edge, node::Side, node_graph::NodeId};
@@ -175,7 +176,7 @@ fn dropped_edge_update(
                         } else if let Ok(add_edge) = connect_arbitrary(*slot, grabbed_edge.slot) {
                             new_edges.push(Box::new(add_edge));
                         }
-    
+
                         continue 'outer;
                     }
                 }
@@ -346,7 +347,7 @@ fn spawn_grabbed_edges(
         },
         ..Default::default()
     };
-    
+
     for (dragged_slot_gtransform, dragged_slot) in q_dragged_slot.iter() {
         if control_pressed(&scan_code_input) {
             match dragged_slot.side {
@@ -414,7 +415,10 @@ fn spawn_grabbed_edges(
 fn dropped_update(
     mut undo_command_manager: ResMut<UndoCommandManager>,
     mut commands: Commands,
-    mut q_dropped: Query<(Entity, Option<&Slot>, Option<&NodeIdComponent>, &Dropped), Added<Dropped>>,
+    mut q_dropped: Query<
+        (Entity, Option<&Slot>, Option<&NodeIdComponent>, &Dropped),
+        Added<Dropped>,
+    >,
 ) {
     let mut changed = false;
 
@@ -550,7 +554,8 @@ impl UndoCommand for SelectedToCursorSneaky {
     }
 
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        let mut query = world.query_filtered::<&mut Transform, (With<Selected>, With<NodeIdComponent>)>();
+        let mut query =
+            world.query_filtered::<&mut Transform, (With<Selected>, With<NodeIdComponent>)>();
         let cursor = *world
             .query_filtered::<&GlobalTransform, With<Cursor>>()
             .iter(world)

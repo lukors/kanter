@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use kanter_core::live_graph::NodeState;
 
-use crate::{sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, Stage, shared::NodeStateComponent};
+use crate::{shared::NodeStateComponent, sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, Stage};
 
 struct StateImages {
     clean: Handle<Image>,
@@ -34,19 +34,16 @@ pub(crate) struct NodeStatePlugin;
 impl Plugin for NodeStatePlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup.system());
-            // .add_system_set_to_stage(
-            //     CoreStage::Update,
-            //     SystemSet::new()
-            //         .after(Stage::Apply)
-            //         .with_system(add_state_image.system().chain(state_materials.system())),
-            // );
+        // .add_system_set_to_stage(
+        //     CoreStage::Update,
+        //     SystemSet::new()
+        //         .after(Stage::Apply)
+        //         .with_system(add_state_image.system().chain(state_materials.system())),
+        // );
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(StateImages {
         clean: asset_server.load("image/node_states/clean.png"),
         dirty: asset_server.load("image/node_states/dirty.png"),

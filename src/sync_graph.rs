@@ -1,8 +1,9 @@
 use std::sync::{Arc, RwLock};
 
 use crate::{
+    shared::{NodeIdComponent, NodeStateComponent, SlotTypeComponent},
     thumbnail::{Thumbnail, ThumbnailState, THUMBNAIL_SIZE},
-    AmbiguitySet, Draggable, Hoverable, Hovered, Stage, shared::{NodeIdComponent, NodeStateComponent, SlotTypeComponent},
+    AmbiguitySet, Draggable, Hoverable, Hovered, Stage,
 };
 use bevy::prelude::*;
 use kanter_core::{
@@ -64,14 +65,14 @@ pub(crate) struct SyncGraphPlugin;
 impl Plugin for SyncGraphPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup.system());
-            // .add_system_set_to_stage(
-            //     CoreStage::Update,
-            //     SystemSet::new()
-            //         .label(Stage::Apply)
-            //         .after(Stage::Update)
-            //         .with_system(sync_graph.system())
-            //         .in_ambiguity_set(AmbiguitySet),
-            // );
+        // .add_system_set_to_stage(
+        //     CoreStage::Update,
+        //     SystemSet::new()
+        //         .label(Stage::Apply)
+        //         .after(Stage::Update)
+        //         .with_system(sync_graph.system())
+        //         .in_ambiguity_set(AmbiguitySet),
+        // );
     }
 }
 
@@ -92,7 +93,12 @@ fn setup(mut commands: Commands, tex_pro: Res<Arc<TextureProcessor>>) {
 fn sync_graph(
     mut commands: Commands,
     // mut materials: ResMut<Assets<ColorMaterial>>,
-    mut q_node: Query<(Entity, &NodeIdComponent, &mut NodeStateComponent, &mut ThumbnailState)>,
+    mut q_node: Query<(
+        Entity,
+        &NodeIdComponent,
+        &mut NodeStateComponent,
+        &mut ThumbnailState,
+    )>,
     // q_edge: Query<(Entity, &Edge)>,
     // q_slot: Query<(&Slot, &GlobalTransform)>,
     // q_selected: Query<Entity, With<Selected>>,

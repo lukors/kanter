@@ -32,19 +32,16 @@ pub(crate) struct ThumbnailStatePlugin;
 impl Plugin for ThumbnailStatePlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup.system());
-            // .add_system_set_to_stage(
-            //     CoreStage::Update,
-            //     SystemSet::new()
-            //         .after(Stage::Apply)
-            //         .with_system(add_state_image.system().chain(state_materials.system())),
-            // );
+        // .add_system_set_to_stage(
+        //     CoreStage::Update,
+        //     SystemSet::new()
+        //         .after(Stage::Apply)
+        //         .with_system(add_state_image.system().chain(state_materials.system())),
+        // );
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(StateImages {
         waiting: asset_server.load("image/thumbnail_states/waiting.png"),
         missing: asset_server.load("image/thumbnail_states/missing.png"),
