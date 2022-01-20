@@ -157,6 +157,7 @@ fn add_update(
     }
 }
 
+#[derive(Component)]
 pub struct NewNode(pub NodeId);
 
 pub fn create_default_node(
