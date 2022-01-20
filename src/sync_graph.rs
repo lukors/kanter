@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::{
     thumbnail::{Thumbnail, ThumbnailState, THUMBNAIL_SIZE},
-    AmbiguitySet, Draggable, Hoverable, Hovered, Stage, shared::{NodeIdComponent, NodeStateComponent},
+    AmbiguitySet, Draggable, Hoverable, Hovered, Stage, shared::{NodeIdComponent, NodeStateComponent, SlotTypeComponent},
 };
 use bevy::prelude::*;
 use kanter_core::{
@@ -44,8 +44,8 @@ pub(crate) struct GuiNodeBundle {
     // selected: Selected,
     draggable: Draggable,
     // dragged: Dragged,
-    node_id: NodeId,
-    node_state: NodeState,
+    node_id: NodeIdComponent,
+    node_state: NodeStateComponent,
     needs_thumbnail: ThumbnailState,
 }
 
@@ -56,7 +56,7 @@ pub(crate) struct SlotBundle {
     hoverable: Hoverable,
     draggable: Draggable,
     slot: Slot,
-    slot_type: SlotType,
+    slot_type: SlotTypeComponent,
 }
 
 pub(crate) struct SyncGraphPlugin;
@@ -106,7 +106,7 @@ fn sync_graph(
 
         if let Some((node_gui_e, _, mut node_state, mut thumbnail_state)) = q_node
             .iter_mut()
-            .find(|(_, node_id_query, _, _)| **node_id_query == node_id)
+            .find(|(_, node_id_query, _, _)| node_id_query.0 == node_id)
         {
             if live_graph.read().unwrap().has_node(node_id).is_err() {
                 info!("Removing the node");
@@ -114,10 +114,10 @@ fn sync_graph(
             } else if let Ok(node_state_actual) = live_graph.read().unwrap().node_state(node_id) {
                 info!(
                     "State changed from {:?} to {:?}",
-                    *node_state, node_state_actual
+                    node_state.0, node_state_actual
                 );
 
-                if *node_state == NodeState::Clean {
+                if node_state.0 == NodeState::Clean {
                     // If the node state has been changed in some way--and it used to be
                     // clean--we can't be sure what has happened since then. So we have to
                     // assume that it has been changed.
@@ -126,7 +126,7 @@ fn sync_graph(
                 if node_state_actual == NodeState::Clean {
                     *thumbnail_state = ThumbnailState::Missing;
                 }
-                *node_state = node_state_actual;
+                node_state.0 = node_state_actual;
             } else {
                 error!(
                     "Tried updating the state of a node that doesn't exist in the graph: {}",
@@ -234,7 +234,7 @@ pub fn spawn_gui_node(
                 )),
                 ..Default::default()
             },
-            node_id: node.node_id,
+            node_id: NodeIdComponent(node.node_id),
             ..Default::default()
         })
         .with_children(|parent| {
@@ -270,7 +270,7 @@ pub fn spawn_gui_node(
                         side: Side::Input,
                         slot_id: slot.slot_id,
                     },
-                    slot_type: slot.slot_type,
+                    slot_type: SlotTypeComponent(slot.slot_type),
                     ..Default::default()
                 });
             }
@@ -295,7 +295,7 @@ pub fn spawn_gui_node(
                         side: Side::Output,
                         slot_id: slot.slot_id,
                     },
-                    slot_type: slot.slot_type,
+                    slot_type: SlotTypeComponent(slot.slot_type),
                     ..Default::default()
                 });
             }
@@ -314,7 +314,7 @@ pub(crate) fn stretch_between(
 
     transform.translation = midpoint.extend(9.0);
     transform.rotation = Quat::from_rotation_z(rotation);
-    sprite.size = Vec2::new(distance, 5.);
+    sprite.custom_size = Some(Vec2::new(distance, 5.));
 }
 
 pub fn remove_gui_node(world: &mut World, node_id: NodeId) {
@@ -326,9 +326,9 @@ pub fn remove_gui_node(world: &mut World, node_id: NodeId) {
         .remove_node(node_id)
         .unwrap();
     let (entity, _) = world
-        .query::<(Entity, &NodeId)>()
+        .query::<(Entity, &NodeIdComponent)>()
         .iter(world)
-        .find(|(_, node_id_cmp)| node_id == **node_id_cmp)
+        .find(|(_, node_id_cmp)| node_id == node_id_cmp.0)
         .unwrap();
     despawn_with_children_recursive(world, entity);
 }
@@ -359,7 +359,7 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
                 )),
                 ..Default::default()
             },
-            node_id: node.node_id,
+            node_id: NodeIdComponent(node.node_id),
             ..Default::default()
         })
         .with_children(|parent| {
@@ -395,7 +395,7 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
                         side: Side::Input,
                         slot_id: slot.slot_id,
                     },
-                    slot_type: slot.slot_type,
+                    slot_type: SlotTypeComponent(slot.slot_type),
                     ..Default::default()
                 });
             }
@@ -420,7 +420,7 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
                         side: Side::Output,
                         slot_id: slot.slot_id,
                     },
-                    slot_type: slot.slot_type,
+                    slot_type: SlotTypeComponent(slot.slot_type),
                     ..Default::default()
                 });
             }

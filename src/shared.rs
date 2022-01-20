@@ -6,11 +6,11 @@ use kanter_core::{node_graph::NodeId, node::SlotType, live_graph::{NodeState, Li
 #[derive(Component)]
 pub struct LiveGraphComponent(pub Arc<RwLock<LiveGraph>>);
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct NodeIdComponent(pub NodeId);
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct NodeStateComponent(pub NodeState);
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct SlotTypeComponent(pub SlotType);
