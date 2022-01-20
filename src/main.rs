@@ -75,7 +75,7 @@ impl Default for ToolState {
 }
 
 fn main() {
-    App::build()
+    App::new()
         .insert_resource(WindowDescriptor {
             title: "Kanter".to_string(),
             width: 1024.0,
