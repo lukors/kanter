@@ -68,14 +68,14 @@ fn thumbnail_state_changed(
         if let Some(thumb_live_graph) = thumbnail_processor(
             &tex_pro,
             &live_graph,
-            *node_id,
+            node_id.0,
             Size::new(THUMBNAIL_SIZE as f32, THUMBNAIL_SIZE as f32),
         ) {
             let thumb_live_graph = Arc::new(RwLock::new(thumb_live_graph));
             tex_pro
                 .push_live_graph(Arc::clone(&thumb_live_graph))
                 .unwrap();
-            commands.entity(entity).insert(thumb_live_graph);
+            commands.entity(entity).insert(LiveGraphComponent(thumb_live_graph));
             *thumb_state = ThumbnailState::Processing;
         }
     }
@@ -94,7 +94,7 @@ fn get_thumbnail_loop(
     )>,
 ) {
     for (node_e, node_id, mut thumb_state, live_graph) in q_node.iter_mut() {
-        let material = match try_get_output(&*live_graph) {
+        let material = match try_get_output(&live_graph.0) {
             Ok(image) => {
                 let image_handle = images.add(image);
                 Some(materials.add(image_handle.into()))
@@ -113,7 +113,7 @@ fn get_thumbnail_loop(
                 .iter()
                 .find(|(_, parent_e)| parent_e.0 == node_e)
             {
-                info!("Got new thumbnail for {}", node_id);
+                info!("Got new thumbnail for {}", node_id.0);
                 commands
                     .entity(thumbnail_e)
                     .remove::<Handle<ColorMaterial>>();
@@ -123,7 +123,7 @@ fn get_thumbnail_loop(
             }
 
             *thumb_state = ThumbnailState::Present;
-            commands.entity(node_e).remove::<Arc<RwLock<LiveGraph>>>();
+            commands.entity(node_e).remove::<LiveGraphComponent>();
         }
     }
 }
@@ -189,7 +189,11 @@ fn try_get_output(live_graph: &Arc<RwLock<LiveGraph>>) -> Result<Image> {
     };
 
     Ok(Image::new(
-        Extent3d::new(size.width as u32, size.height as u32, 1),
+        Extent3d {
+            width: size.width as u32,
+            height: size.height as u32,
+            depth_or_array_layers: 1
+        },
         TextureDimension::D2,
         LiveGraph::try_buffer_srgba(live_graph, output_id, SlotId(0))?,
         TextureFormat::Rgba8Unorm,
