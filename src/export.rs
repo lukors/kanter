@@ -43,7 +43,7 @@ fn export(
 ) {
     for node_id in q_selected.iter() {
         dbg!("BEFORE");
-        let _ = LiveGraph::await_clean_read(&live_graph, node_id.0);
+        let _result = LiveGraph::await_clean_read(&live_graph, node_id.0);
         dbg!("AFTER");
         
         let size: TPSize = match LiveGraph::await_clean_read(&live_graph, node_id.0)
