@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::{
     sync_graph::{stretch_between, Edge as GuiEdge, Slot},
-    thumbnail::ThumbnailState,
+    thumbnail::ThumbnailState, shared::NodeIdComponent,
 };
 
 use super::{prelude::*, AddRemove};
@@ -44,10 +44,10 @@ impl AddRemove for Edge {
 }
 
 fn set_thumbnail_state(world: &mut World, node_id: NodeId, thumbnail_state: ThumbnailState) {
-    let mut q_thumbnail_state = world.query::<(&NodeId, &mut ThumbnailState)>();
+    let mut q_thumbnail_state = world.query::<(&NodeIdComponent, &mut ThumbnailState)>();
     if let Some(mut thumbnail_state_iter) = q_thumbnail_state
         .iter_mut(world)
-        .find(|(node_id_iter, _)| **node_id_iter == node_id)
+        .find(|(node_id_iter, _)| node_id_iter.0 == node_id)
         .map(|(_, thumbnail_state)| thumbnail_state)
     {
         *thumbnail_state_iter = thumbnail_state;
@@ -107,7 +107,12 @@ fn add_gui_edge(world: &mut World, edge: Edge) {
         }
     }
 
-    let mut sprite = Sprite::new(Vec2::new(5., 5.));
+    let mut sprite = Sprite {
+        color: Color::BLACK,
+        custom_size: Some(Vec2::new(5.0, 5.0)),
+        ..Default::default()
+    };
+
     let mut transform = Transform::default();
 
     stretch_between(&mut sprite, &mut transform, start, end);
@@ -115,7 +120,6 @@ fn add_gui_edge(world: &mut World, edge: Edge) {
     world
         .spawn()
         .insert_bundle(SpriteBundle {
-            material: materials.add(Color::rgb(0., 0., 0.).into()),
             sprite,
             transform,
             ..Default::default()
