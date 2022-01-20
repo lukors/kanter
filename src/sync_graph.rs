@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::{
     thumbnail::{Thumbnail, ThumbnailState, THUMBNAIL_SIZE},
-    AmbiguitySet, Draggable, Hoverable, Hovered, Stage,
+    AmbiguitySet, Draggable, Hoverable, Hovered, Stage, shared::{NodeIdComponent, NodeStateComponent},
 };
 use bevy::prelude::*;
 use kanter_core::{
@@ -92,7 +92,7 @@ fn setup(mut commands: Commands, tex_pro: Res<Arc<TextureProcessor>>) {
 fn sync_graph(
     mut commands: Commands,
     // mut materials: ResMut<Assets<ColorMaterial>>,
-    mut q_node: Query<(Entity, &NodeId, &mut NodeState, &mut ThumbnailState)>,
+    mut q_node: Query<(Entity, &NodeIdComponent, &mut NodeStateComponent, &mut ThumbnailState)>,
     // q_edge: Query<(Entity, &Edge)>,
     // q_slot: Query<(&Slot, &GlobalTransform)>,
     // q_selected: Query<Entity, With<Selected>>,
@@ -222,8 +222,11 @@ pub fn spawn_gui_node(
     commands
         .spawn_bundle(GuiNodeBundle {
             sprite_bundle: SpriteBundle {
-                material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
-                sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
+                sprite: Sprite {
+                    color: Color::rgb(0.5, 0.5, 1.0),
+                    custom_size: Some(Vec2::new(NODE_SIZE, NODE_SIZE)),
+                    ..Default::default()
+                },
                 transform: Transform::from_translation(Vec3::new(
                     position.x,
                     position.y,
@@ -237,8 +240,11 @@ pub fn spawn_gui_node(
         .with_children(|parent| {
             parent
                 .spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(0.0, 0.0, 0.0).into()),
-                    sprite: Sprite::new(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
+                    sprite: Sprite {
+                        color: Color::BLACK,
+                        custom_size: Some(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
+                        ..Default::default()
+                    },
                     transform: Transform::from_translation(Vec3::new(0., 0., SMALLEST_DEPTH_UNIT)),
                     ..Default::default()
                 })
@@ -247,8 +253,11 @@ pub fn spawn_gui_node(
             for (i, slot) in node.input_slots().into_iter().enumerate() {
                 parent.spawn_bundle(SlotBundle {
                     sprite_bundle: SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        sprite: Sprite {
+                            color: Color::rgb(0.5, 0.5, 0.5),
+                            custom_size: Some(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                            ..Default::default()
+                        },
                         transform: Transform::from_translation(Vec3::new(
                             -SLOT_DISTANCE_X,
                             THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
@@ -269,8 +278,11 @@ pub fn spawn_gui_node(
             for (i, slot) in node.output_slots().into_iter().enumerate() {
                 parent.spawn_bundle(SlotBundle {
                     sprite_bundle: SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        sprite: Sprite {
+                            color: Color::rgb(0.5, 0.5, 0.5),
+                            custom_size: Some(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                            ..Default::default()
+                        },
                         transform: Transform::from_translation(Vec3::new(
                             SLOT_DISTANCE_X,
                             THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
@@ -335,8 +347,11 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
         .spawn()
         .insert_bundle(GuiNodeBundle {
             sprite_bundle: SpriteBundle {
-                material: materials.add(Color::rgb(0.5, 0.5, 1.0).into()),
-                sprite: Sprite::new(Vec2::new(NODE_SIZE, NODE_SIZE)),
+                sprite: Sprite {
+                    color: Color::rgb(0.5, 0.5, 1.0),
+                    custom_size: Some(Vec2::new(NODE_SIZE, NODE_SIZE)),
+                    ..Default::default()
+                },
                 transform: Transform::from_translation(Vec3::new(
                     translation.x,
                     translation.y,
@@ -350,8 +365,11 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
         .with_children(|parent| {
             parent
                 .spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(0.0, 0.0, 0.0).into()),
-                    sprite: Sprite::new(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
+                    sprite: Sprite {
+                        color: Color::BLACK,
+                        custom_size: Some(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
+                        ..Default::default()
+                    },
                     transform: Transform::from_translation(Vec3::new(0., 0., SMALLEST_DEPTH_UNIT)),
                     ..Default::default()
                 })
@@ -360,8 +378,11 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
             for (i, slot) in node.input_slots().into_iter().enumerate() {
                 parent.spawn_bundle(SlotBundle {
                     sprite_bundle: SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        sprite: Sprite {
+                            color: Color::rgb(0.5, 0.5, 0.5),
+                            custom_size: Some(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                            ..Default::default()
+                        },
                         transform: Transform::from_translation(Vec3::new(
                             -SLOT_DISTANCE_X,
                             THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
@@ -382,8 +403,11 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
             for (i, slot) in node.output_slots().into_iter().enumerate() {
                 parent.spawn_bundle(SlotBundle {
                     sprite_bundle: SpriteBundle {
-                        material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-                        sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        sprite: Sprite {
+                            color: Color::rgb(0.5, 0.5, 0.5),
+                            custom_size: Some(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                            ..Default::default()
+                        },
                         transform: Transform::from_translation(Vec3::new(
                             SLOT_DISTANCE_X,
                             THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2. - SLOT_DISTANCE_Y * i as f32,
