@@ -20,7 +20,7 @@ use crate::{
     Selected,
     Slot,
     Stage,
-    ToolState,
+    ToolState, shared::NodeIdComponent,
 };
 use bevy::prelude::*;
 use kanter_core::{edge::Edge, node::Side, node_graph::NodeId};
@@ -37,7 +37,7 @@ pub(crate) struct Dropped {
     end: Vec2,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Component, Copy, Clone, Debug)]
 struct SourceSlot(Slot);
 
 #[derive(Component)]
@@ -145,7 +145,7 @@ fn dropped_edge_update(
     q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
     q_grabbed_edge: Query<(Entity, &GrabbedEdge, Option<&SourceSlot>)>,
-    mut q_edge: Query<&mut Visible, With<GuiEdge>>,
+    mut q_edge: Query<&mut Visibility, With<GuiEdge>>,
     // mut q_thumbnail_state: Query<(&NodeId, &mut ThumbnailState), Without<GrabbedEdge>>,
     mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
@@ -270,7 +270,7 @@ fn grab_tool_slot_setup(
 pub(crate) fn grab_tool_node_setup(
     mut tool_state: ResMut<State<ToolState>>,
     mut commands: Commands,
-    q_selected_nodes: Query<(Entity, &GlobalTransform), (With<NodeId>, With<Selected>)>,
+    q_selected_nodes: Query<(Entity, &GlobalTransform), (With<NodeIdComponent>, With<Selected>)>,
 ) {
     if q_selected_nodes.iter().count() == 0 {
         tool_state.overwrite_replace(ToolState::None).unwrap();
@@ -312,7 +312,7 @@ fn drag_node_update(
     mut commands: Commands,
     mut q_dragged_node: Query<
         (Entity, &mut Transform, &GlobalTransform),
-        (Added<Dragged>, With<NodeId>, Without<Slot>),
+        (Added<Dragged>, With<NodeIdComponent>, Without<Slot>),
     >,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
 ) {
@@ -333,9 +333,18 @@ fn spawn_grabbed_edges(
     mut commands: Commands,
     q_dragged_slot: Query<(&GlobalTransform, &Slot), Added<Dragged>>,
     q_slot: Query<(&GlobalTransform, &Slot)>,
-    mut q_edge: Query<(&mut Visible, &GuiEdge)>,
+    mut q_edge: Query<(&mut Visibility, &GuiEdge)>,
     scan_code_input: Res<ScanCodeInput>,
 ) {
+    let line_sprite_bundle = SpriteBundle {
+        sprite: Sprite {
+            color: Color::BLACK,
+            custom_size: Some(Vec2::new(5.0, 5.0)),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    
     for (dragged_slot_gtransform, dragged_slot) in q_dragged_slot.iter() {
         if control_pressed(&scan_code_input) {
             match dragged_slot.side {
@@ -354,11 +363,7 @@ fn spawn_grabbed_edges(
                             })
                         {
                             commands
-                                .spawn_bundle(SpriteBundle {
-                                    material: materials.add(Color::rgb(0., 0., 0.).into()),
-                                    sprite: Sprite::new(Vec2::new(5., 5.)),
-                                    ..Default::default()
-                                })
+                                .spawn_bundle(line_sprite_bundle.clone())
                                 .insert(GrabbedEdge {
                                     start: input_slot_gtransform.translation.truncate(),
                                     slot: *input_slot,
@@ -382,11 +387,7 @@ fn spawn_grabbed_edges(
                             })
                         {
                             commands
-                                .spawn_bundle(SpriteBundle {
-                                    material: materials.add(Color::rgb(0., 0., 0.).into()),
-                                    sprite: Sprite::new(Vec2::new(5., 5.)),
-                                    ..Default::default()
-                                })
+                                .spawn_bundle(line_sprite_bundle.clone())
                                 .insert(GrabbedEdge {
                                     start: output_slot_gtransform.translation.truncate(),
                                     slot: *output_slot,
@@ -398,11 +399,7 @@ fn spawn_grabbed_edges(
             }
         } else {
             commands
-                .spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(0., 0., 0.).into()),
-                    sprite: Sprite::new(Vec2::new(5., 5.)),
-                    ..Default::default()
-                })
+                .spawn_bundle(line_sprite_bundle.clone())
                 .insert(GrabbedEdge {
                     start: dragged_slot_gtransform.translation.truncate(),
                     slot: *dragged_slot,
@@ -415,7 +412,7 @@ fn spawn_grabbed_edges(
 fn dropped_update(
     mut undo_command_manager: ResMut<UndoCommandManager>,
     mut commands: Commands,
-    mut q_dropped: Query<(Entity, Option<&Slot>, Option<&NodeId>, &Dropped), Added<Dropped>>,
+    mut q_dropped: Query<(Entity, Option<&Slot>, Option<&NodeIdComponent>, &Dropped), Added<Dropped>>,
 ) {
     let mut changed = false;
 
@@ -441,11 +438,11 @@ fn dropped_update(
 }
 
 fn drag_edge_update(
-    q_node: Query<(&NodeId, &Transform), With<Dragged>>,
+    q_node: Query<(&NodeIdComponent, &Transform), With<Dragged>>,
     q_slot: Query<(&Slot, &Transform)>,
     mut q_edge: Query<
         (&mut Sprite, &mut Transform, &mut GuiEdge),
-        (Without<NodeId>, Without<Slot>, Without<Cursor>),
+        (Without<NodeIdComponent>, Without<Slot>, Without<Cursor>),
     >,
     q_cursor: Query<&Transform, With<Cursor>>,
 ) {

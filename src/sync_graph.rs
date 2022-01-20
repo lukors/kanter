@@ -21,7 +21,7 @@ const SLOT_DISTANCE_Y: f32 = 32. + SLOT_MARGIN;
 const SMALLEST_DEPTH_UNIT: f32 = f32::EPSILON * 500.;
 
 // I'm saving the start and end variables for when I want to select the edges themselves.
-#[derive(Copy, Clone, Debug)]
+#[derive(Component, Copy, Clone, Debug)]
 pub(crate) struct Edge {
     pub start: Vec2,
     pub end: Vec2,
