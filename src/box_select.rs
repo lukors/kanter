@@ -66,7 +66,7 @@ fn box_select(
     >,
     mut commands: Commands,
 ) {
-    if let Ok((mut transform, mut sprite, mut box_select)) = q_box_select.single_mut() {
+    if let Ok((mut transform, mut sprite, mut box_select)) = q_box_select.get_single_mut() {
         if workspace.drag == Drag::Starting {
             box_select.start = workspace.cursor_world;
         }
@@ -84,7 +84,7 @@ fn box_select(
             scale: Vec3::ONE,
         };
 
-        sprite.size = box_select.start - box_select.end;
+        sprite.custom_size = Some(box_select.start - box_select.end);
 
         *transform = new_transform;
 
@@ -92,17 +92,19 @@ fn box_select(
         let box_box = (box_select.start, box_select.end);
 
         for (entity, transform, sprite) in q_draggable.iter() {
-            let size_half = sprite.size / 2.0;
-
-            let drag_box = (
-                transform.translation.truncate() - size_half,
-                transform.translation.truncate() + size_half,
-            );
-
-            if box_intersect(box_box, drag_box) {
-                commands.entity(entity).insert(Selected);
-            } else {
-                commands.entity(entity).remove::<Selected>();
+            if let Some(size) = sprite.custom_size {
+                let size_half = size / 2.0;
+    
+                let drag_box = (
+                    transform.translation.truncate() - size_half,
+                    transform.translation.truncate() + size_half,
+                );
+    
+                if box_intersect(box_box, drag_box) {
+                    commands.entity(entity).insert(Selected);
+                } else {
+                    commands.entity(entity).remove::<Selected>();
+                }
             }
         }
     }
