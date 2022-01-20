@@ -89,7 +89,7 @@ fn setup(
                 justify_content: JustifyContent::SpaceBetween,
                 ..Default::default()
             },
-            color: Color::NONE,
+            color: UiColor(Color::NONE),
             ..Default::default()
         })
         .with_children(|parent| {
