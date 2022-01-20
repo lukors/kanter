@@ -155,27 +155,29 @@ fn dropped_edge_update(
 
         'outer: for (_, grabbed_edge, source_slot) in q_grabbed_edge.iter() {
             for (slot_t, slot_sprite, slot) in q_slot.iter() {
-                if box_contains_point(
-                    slot_t.translation.truncate(),
-                    slot_sprite.size,
-                    cursor_t.translation.truncate(),
-                ) {
-                    if let Some(source_slot) = source_slot {
-                        if source_slot.0 != *slot {
-                            if let Ok(add_edge) = connect_arbitrary(*slot, grabbed_edge.slot) {
-                                new_edges.push(Box::new(add_edge));
+                if let Some(size) = slot_sprite.custom_size {
+                    if box_contains_point(
+                        slot_t.translation.truncate(),
+                        size,
+                        cursor_t.translation.truncate(),
+                    ) {
+                        if let Some(source_slot) = source_slot {
+                            if source_slot.0 != *slot {
+                                if let Ok(add_edge) = connect_arbitrary(*slot, grabbed_edge.slot) {
+                                    new_edges.push(Box::new(add_edge));
+                                }
+                                if let Ok(remove_edge) =
+                                    disconnect_arbitrary(source_slot.0, grabbed_edge.slot)
+                                {
+                                    undo_command_manager.push(Box::new(remove_edge));
+                                }
                             }
-                            if let Ok(remove_edge) =
-                                disconnect_arbitrary(source_slot.0, grabbed_edge.slot)
-                            {
-                                undo_command_manager.push(Box::new(remove_edge));
-                            }
+                        } else if let Ok(add_edge) = connect_arbitrary(*slot, grabbed_edge.slot) {
+                            new_edges.push(Box::new(add_edge));
                         }
-                    } else if let Ok(add_edge) = connect_arbitrary(*slot, grabbed_edge.slot) {
-                        new_edges.push(Box::new(add_edge));
+    
+                        continue 'outer;
                     }
-
-                    continue 'outer;
                 }
             }
             if let Some(source_slot) = source_slot {
@@ -422,7 +424,7 @@ fn dropped_update(
 
             if let (Some(node_id), dropped) = (node_id, transform) {
                 undo_command_manager.push(Box::new(MoveNodeUndo {
-                    node_id: *node_id,
+                    node_id: node_id.0,
                     from: dropped.start,
                     to: dropped.end,
                 }));
@@ -450,9 +452,9 @@ fn drag_edge_update(
 
     for (node_id, node_t) in q_node.iter() {
         for (mut sprite, mut edge_t, mut edge) in q_edge.iter_mut().filter(|(_, _, edge)| {
-            edge.input_slot.node_id == *node_id || edge.output_slot.node_id == *node_id
+            edge.input_slot.node_id == node_id.0 || edge.output_slot.node_id == node_id.0
         }) {
-            for (slot, slot_t) in q_slot.iter().filter(|(slot, _)| slot.node_id == *node_id) {
+            for (slot, slot_t) in q_slot.iter().filter(|(slot, _)| slot.node_id == node_id.0) {
                 if slot.node_id == edge.output_slot.node_id
                     && slot.slot_id == edge.output_slot.slot_id
                     && slot.side == edge.output_slot.side
@@ -480,10 +482,10 @@ pub struct MoveNodeUndo {
 
 impl UndoCommand for MoveNodeUndo {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        let mut query = world.query::<(&NodeId, &mut Transform)>();
+        let mut query = world.query::<(&NodeIdComponent, &mut Transform)>();
         if let Some((_, mut transform)) = query
             .iter_mut(world)
-            .find(|(node_id, _)| **node_id == self.node_id)
+            .find(|(node_id, _)| node_id.0 == self.node_id)
         {
             transform.translation.x = self.to.x;
             transform.translation.y = self.to.y;
@@ -492,10 +494,10 @@ impl UndoCommand for MoveNodeUndo {
     }
 
     fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        let mut query = world.query::<(&NodeId, &mut Transform)>();
+        let mut query = world.query::<(&NodeIdComponent, &mut Transform)>();
         if let Some((_, mut transform)) = query
             .iter_mut(world)
-            .find(|(node_id, _)| **node_id == self.node_id)
+            .find(|(node_id, _)| node_id.0 == self.node_id)
         {
             transform.translation.x = self.from.x;
             transform.translation.y = self.from.y;
@@ -529,7 +531,7 @@ impl UndoCommand for SelectNew {
     }
 
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        let mut query = world.query_filtered::<Entity, (With<Draggable>, Added<NodeId>)>();
+        let mut query = world.query_filtered::<Entity, (With<Draggable>, Added<NodeIdComponent>)>();
         for entity in query.iter(world).collect::<Vec<Entity>>() {
             world.entity_mut(entity).insert(Selected);
         }
@@ -548,7 +550,7 @@ impl UndoCommand for SelectedToCursorSneaky {
     }
 
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        let mut query = world.query_filtered::<&mut Transform, (With<Selected>, With<NodeId>)>();
+        let mut query = world.query_filtered::<&mut Transform, (With<Selected>, With<NodeIdComponent>)>();
         let cursor = *world
             .query_filtered::<&GlobalTransform, With<Cursor>>()
             .iter(world)
@@ -588,9 +590,9 @@ impl UndoCommand for DeselectSneaky {
 
 fn update_node_gui_edges(world: &mut World, node_id: NodeId) {
     let node_transform = *world
-        .query::<(&NodeId, &Transform)>()
+        .query::<(&NodeIdComponent, &Transform)>()
         .iter(world)
-        .find(|(node_id_iter, _)| **node_id_iter == node_id)
+        .find(|(node_id_iter, _)| node_id_iter.0 == node_id)
         .map(|(_, transform)| transform)
         .unwrap();
     let slots = world
