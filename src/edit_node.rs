@@ -123,7 +123,7 @@ fn tool_update(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let Ok(node_id) = q_active.get_single() {
-        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
             show_instructions(&node, &mut instructions);
         }
     }
@@ -173,7 +173,7 @@ fn edit_specific_slot_enter(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.get_single(), q_instructions.get_single_mut()) {
-        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
             if node.input_slots().is_empty() {
                 warn!("The node doesn't have any input slots");
                 edit_state.overwrite_set(EditState::Outer).unwrap();
@@ -217,15 +217,15 @@ fn edit_specific_slot_update(
             } else if event.char == '\r' {
                 // Enter
                 if let Ok(index) = instructions.sections[1].value.parse::<u32>() {
-                    if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
+                    if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
                         if let (Ok(from), Some(slot)) = (
-                            node_id.get(&*live_graph.read().unwrap()),
+                            node_id.0.get(&*live_graph.read().unwrap()),
                             node.input_slots().get(index as usize),
                         ) {
                             let slot_id = (*slot).slot_id;
                             if node.input_slot_with_id(slot_id).is_ok() {
                                 undo_command_manager.push(Box::new(GuiUndoCommand::new(
-                                    *node_id,
+                                    node_id.0,
                                     from,
                                     ResizePolicy::SpecificSlot(slot_id),
                                 )));
@@ -237,7 +237,7 @@ fn edit_specific_slot_update(
                             warn!("That slot does not exist: {}", index);
                         }
                     } else {
-                        error!("The node you're trying to edit does not exist: {}", node_id);
+                        error!("The node you're trying to edit does not exist: {}", node_id.0);
                     }
                 } else {
                     error!(
@@ -258,7 +258,7 @@ fn edit_specific_size_enter(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.get_single(), q_instructions.get_single_mut()) {
-        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
             if let ResizePolicy::SpecificSize(size) = node.resize_policy {
                 instructions.sections[0].value =
                     format!("Current: {}x{}\nNew: ", size.width, size.height);
@@ -296,11 +296,11 @@ fn edit_specific_size_update(
             } else if event.char == '\r' {
                 // Enter
                 if let (Ok(from), Some(size)) = (
-                    node_id.get(&*live_graph.read().unwrap()),
+                    node_id.0.get(&*live_graph.read().unwrap()),
                     string_to_size(&instructions.sections[1].value),
                 ) {
                     undo_command_manager.push(Box::new(GuiUndoCommand::new(
-                        *node_id,
+                        node_id.0,
                         from,
                         ResizePolicy::SpecificSize(size),
                     )));
@@ -340,7 +340,7 @@ fn edit_value_enter(
 ) {
     if let (Ok(node_id), Ok(mut instructions)) = (q_active.get_single(), q_instructions.get_single_mut()) {
         if let Ok(live_graph) = live_graph.read() {
-            let value: Result<ChannelPixel> = node_id.get(&*live_graph);
+            let value: Result<ChannelPixel> = node_id.0.get(&*live_graph);
             if let Ok(value) = value {
                 edit_value_display(&mut instructions, value);
             }
@@ -376,9 +376,9 @@ fn edit_value_update(
                 if let Ok(live_graph) = live_graph.read() {
                     if let (Ok(number), Ok(previous)) = (
                         instructions.sections[1].value.parse::<f32>(),
-                        node_id.get(&*live_graph),
+                        node_id.0.get(&*live_graph),
                     ) {
-                        let gui_translator = GuiUndoCommand::new(*node_id, previous, number);
+                        let gui_translator = GuiUndoCommand::new(node_id.0, previous, number);
                         undo_command_manager.push(Box::new(gui_translator));
                         undo_command_manager.push(Box::new(Checkpoint));
                     } else {
@@ -420,9 +420,9 @@ fn edit(
                                 return;
                             }
                             Some(to) => {
-                                if let Ok(from) = node_id.get(&*live_graph) {
+                                if let Ok(from) = node_id.0.get(&*live_graph) {
                                     undo_command_manager
-                                        .push(Box::new(GuiUndoCommand::new(*node_id, from, to)));
+                                        .push(Box::new(GuiUndoCommand::new(node_id.0, from, to)));
                                     undo_command_manager.push(Box::new(Checkpoint));
                                     parameter_set = true;
                                 }
@@ -431,26 +431,26 @@ fn edit(
                         },
                         EditTarget::ResizeFilter => {
                             if let (Ok(from), Some(to)) =
-                                (node_id.get(&*live_graph), ResizeFilter::choose(i))
+                                (node_id.0.get(&*live_graph), ResizeFilter::choose(i))
                             {
                                 undo_command_manager
-                                    .push(Box::new(GuiUndoCommand::new(*node_id, from, to)));
+                                    .push(Box::new(GuiUndoCommand::new(node_id.0, from, to)));
                                 undo_command_manager.push(Box::new(Checkpoint));
                                 parameter_set = true;
                             }
                         }
                         EditTarget::MixType => {
                             if let Some(mix_type) = MixType::choose(i) {
-                                if let Ok(from) = node_id.get(&*live_graph) {
+                                if let Ok(from) = node_id.0.get(&*live_graph) {
                                     undo_command_manager.push(Box::new(GuiUndoCommand::new(
-                                        *node_id,
+                                        node_id.0,
                                         from,
                                         NodeType::Mix(mix_type),
                                     )));
                                     undo_command_manager.push(Box::new(Checkpoint));
                                     parameter_set = true;
                                 } else {
-                                    error!("unable to get node with id: {}", node_id);
+                                    error!("unable to get node with id: {}", node_id.0);
                                 }
                             }
                         }
@@ -482,7 +482,7 @@ fn edit_exit(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     if let Ok(node_id) = q_active.get_single() {
-        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
             show_instructions(&node, &mut instructions);
         } else {
             error!("Could not find a node with that ID in the graph");
@@ -528,7 +528,7 @@ fn tool_enter(
     mut instructions: ResMut<Instructions>,
 ) {
     if let Ok(node_id) = q_active.get_single() {
-        if let Ok(node) = live_graph.read().unwrap().node(*node_id) {
+        if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
             let _ = edit_state.overwrite_replace(EditState::Outer);
 
             show_instructions(&node, &mut instructions);
