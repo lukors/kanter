@@ -6,7 +6,7 @@ use kanter_core::{live_graph::LiveGraph, node_graph::NodeId};
 use crate::{
     instruction::ToolList,
     undo::{node::RemoveNode, prelude::*},
-    AmbiguitySet, Selected, Stage, ToolState,
+    AmbiguitySet, Selected, Stage, ToolState, shared::NodeIdComponent,
 };
 
 pub(crate) struct DeleteToolPlugin;
@@ -33,7 +33,7 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 fn delete(
     mut tool_state: ResMut<State<ToolState>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
-    q_selected_nodes: Query<&NodeId, With<Selected>>,
+    q_selected_nodes: Query<&NodeIdComponent, With<Selected>>,
 ) {
     for node_id in q_selected_nodes.iter() {
         match live_graph.write().unwrap().remove_node(*node_id) {
