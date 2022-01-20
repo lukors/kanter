@@ -89,7 +89,7 @@ fn setup(
                 justify_content: JustifyContent::SpaceBetween,
                 ..Default::default()
             },
-            material: materials.add(Color::NONE.into()),
+            color: Color::NONE,
             ..Default::default()
         })
         .with_children(|parent| {
