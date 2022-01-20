@@ -43,12 +43,12 @@ fn export(
 ) {
     for node_id in q_selected.iter() {
         dbg!("BEFORE");
-        let _ = LiveGraph::await_clean_read(&live_graph, *node_id);
+        let _ = LiveGraph::await_clean_read(&live_graph, node_id.0);
         dbg!("AFTER");
         
-        let size: TPSize = match LiveGraph::await_clean_read(&live_graph, *node_id)
+        let size: TPSize = match LiveGraph::await_clean_read(&live_graph, node_id.0)
             .unwrap()
-            .slot_data_size(*node_id, SlotId(0))
+            .slot_data_size(node_id.0, SlotId(0))
         {
             Ok(s) => s,
             Err(TexProError::InvalidBufferCount) => {
@@ -81,7 +81,7 @@ fn export(
             }
         };
 
-        let texels = match live_graph.read().unwrap().buffer_rgba(*node_id, SlotId(0)) {
+        let texels = match live_graph.read().unwrap().buffer_rgba(node_id.0, SlotId(0)) {
             Ok(buf) => buf,
             Err(e) => {
                 error!("Error when trying to get pixels from image: {:?}", e);
