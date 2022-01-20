@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::{live_graph::LiveGraph, node_graph::NodeId};
+use kanter_core::live_graph::LiveGraph;
 
 use crate::{
     instruction::ToolList,
@@ -36,9 +36,9 @@ fn delete(
     q_selected_nodes: Query<&NodeIdComponent, With<Selected>>,
 ) {
     for node_id in q_selected_nodes.iter() {
-        match live_graph.write().unwrap().remove_node(*node_id) {
+        match live_graph.write().unwrap().remove_node(node_id.0) {
             Ok(_) => (),
-            Err(e) => warn!("Unable to remove node with id {}: {}", node_id, e),
+            Err(e) => warn!("Unable to remove node with id {}: {}", node_id.0, e),
         }
     }
 
@@ -58,7 +58,7 @@ impl UndoCommand for DeleteSelected {
         undo_command_manager: &mut crate::undo::prelude::UndoCommandManager,
     ) {
         let mut query =
-            world.query_filtered::<(&NodeId, &Transform), (With<Selected>, With<NodeId>)>();
+            world.query_filtered::<(&NodeIdComponent, &Transform), (With<Selected>, With<NodeIdComponent>)>();
         let live_graph = world
             .get_resource::<Arc<RwLock<LiveGraph>>>()
             .unwrap()
@@ -66,7 +66,7 @@ impl UndoCommand for DeleteSelected {
             .unwrap();
 
         for (node_id, transform) in query.iter(world) {
-            let node = live_graph.node(*node_id).unwrap();
+            let node = live_graph.node(node_id.0).unwrap();
             let translation = transform.translation.truncate();
 
             undo_command_manager
