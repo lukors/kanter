@@ -1,19 +1,19 @@
 use bevy::prelude::*;
 use kanter_core::live_graph::NodeState;
 
-use crate::{sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, Stage};
+use crate::{sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, Stage, shared::NodeStateComponent};
 
-struct StateMaterials {
-    clean: Handle<ColorMaterial>,
-    dirty: Handle<ColorMaterial>,
-    requested: Handle<ColorMaterial>,
-    prioritised: Handle<ColorMaterial>,
-    processing: Handle<ColorMaterial>,
-    processing_dirty: Handle<ColorMaterial>,
+struct StateImages {
+    clean: Handle<Image>,
+    dirty: Handle<Image>,
+    requested: Handle<Image>,
+    prioritised: Handle<Image>,
+    processing: Handle<Image>,
+    processing_dirty: Handle<Image>,
 }
 
-impl StateMaterials {
-    fn from_node_state(&self, node_state: NodeState) -> Handle<ColorMaterial> {
+impl StateImages {
+    fn from_node_state(&self, node_state: NodeState) -> Handle<Image> {
         match node_state {
             NodeState::Clean => &self.clean,
             NodeState::Dirty => &self.dirty,
@@ -26,6 +26,7 @@ impl StateMaterials {
     }
 }
 
+#[derive(Component)]
 struct StateImage;
 
 pub(crate) struct NodeStatePlugin;
@@ -45,30 +46,21 @@ impl Plugin for NodeStatePlugin {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.insert_resource(StateMaterials {
-        clean: materials.add(asset_server.load("image/node_states/clean.png").into()),
-        dirty: materials.add(asset_server.load("image/node_states/dirty.png").into()),
-        requested: materials.add(asset_server.load("image/node_states/requested.png").into()),
-        prioritised: materials.add(
-            asset_server
-                .load("image/node_states/prioritised.png")
-                .into(),
-        ),
-        processing: materials.add(asset_server.load("image/node_states/processing.png").into()),
-        processing_dirty: materials.add(
-            asset_server
-                .load("image/node_states/processing_dirty.png")
-                .into(),
-        ),
+    commands.insert_resource(StateImages {
+        clean: asset_server.load("image/node_states/clean.png"),
+        dirty: asset_server.load("image/node_states/dirty.png"),
+        requested: asset_server.load("image/node_states/requested.png"),
+        prioritised: asset_server.load("image/node_states/prioritised.png"),
+        processing: asset_server.load("image/node_states/processing.png"),
+        processing_dirty: asset_server.load("image/node_states/processing_dirty.png"),
     });
 }
 
 fn add_state_image(
-    q_node: Query<(Entity, &NodeState), Added<NodeState>>,
+    q_node: Query<(Entity, &NodeStateComponent), Added<NodeStateComponent>>,
     mut commands: Commands,
-    materials: Res<StateMaterials>,
+    state_images: Res<StateImages>,
 ) {
     for (node_e, node_state) in q_node.iter() {
         commands.entity(node_e).with_children(|parent| {
@@ -79,8 +71,11 @@ fn add_state_image(
                         -THUMBNAIL_SIZE / 2. - SLOT_SIZE / 2.,
                         0.1,
                     )),
-                    material: materials.from_node_state(*node_state),
-                    sprite: Sprite::new(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(SLOT_SIZE, SLOT_SIZE)),
+                        ..Default::default()
+                    },
+                    texture: state_images.from_node_state(node_state.0),
                     ..Default::default()
                 })
                 .insert(StateImage);
@@ -89,16 +84,16 @@ fn add_state_image(
 }
 
 fn state_materials(
-    q_node: Query<(Entity, &NodeState), Changed<NodeState>>,
+    q_node: Query<(Entity, &NodeStateComponent), Changed<NodeStateComponent>>,
     mut q_state_image: Query<(&Parent, &mut Handle<ColorMaterial>), With<StateImage>>,
-    materials: Res<StateMaterials>,
+    images: Res<StateImages>,
 ) {
     for (node_e, node_state) in q_node.iter() {
         if let Some((_, mut color_material)) = q_state_image
             .iter_mut()
             .find(|(parent, _)| parent.0 == node_e)
         {
-            *color_material = materials.from_node_state(*node_state);
+            *color_material = images.from_node_state(*node_state);
         }
     }
 }
