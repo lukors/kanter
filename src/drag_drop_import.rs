@@ -5,7 +5,7 @@ use crate::{instruction::ToolList, AmbiguitySet, Stage, ToolState};
 pub(crate) struct DragDropImport;
 
 impl Plugin for DragDropImport {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::Update,

@@ -3,7 +3,7 @@ use crate::{
     AmbiguitySet, Drag, Draggable, Selected, Slot, Stage, ToolState, Workspace, CAMERA_DISTANCE,
 };
 use bevy::prelude::*;
-#[derive(Default)]
+#[derive(Component, Default)]
 struct BoxSelect {
     start: Vec2,
     end: Vec2,
@@ -11,7 +11,7 @@ struct BoxSelect {
 pub(crate) struct BoxSelectPlugin;
 
 impl Plugin for BoxSelectPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
@@ -42,11 +42,15 @@ impl Plugin for BoxSelectPlugin {
 fn box_select_setup(mut materials: ResMut<Assets<ColorMaterial>>, mut commands: Commands) {
     commands
         .spawn_bundle(SpriteBundle {
-            material: materials.add(Color::rgba(0.0, 1.0, 0.0, 0.3).into()),
-            visible: Visible {
-                is_visible: true,
-                is_transparent: true,
+            sprite: Sprite {
+                color: Color::rgba(0.0, 1.0, 0.0, 0.3),
+                ..Default::default()
             },
+            // material: materials.add(Color::rgba(0.0, 1.0, 0.0, 0.3).into()),
+            // visible: Visible {
+            //     is_visible: true,
+            //     is_transparent: true,
+            // },
             ..Default::default()
         })
         .insert(BoxSelect::default());

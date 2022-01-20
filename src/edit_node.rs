@@ -41,7 +41,7 @@ type OptionEditTarget = Option<EditTarget>;
 pub(crate) struct EditNodePlugin;
 
 impl Plugin for EditNodePlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_state(EditState::None)
             .insert_resource(OptionEditTarget::default())
             .add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))

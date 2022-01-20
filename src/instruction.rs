@@ -45,7 +45,7 @@ impl std::ops::DerefMut for Instructions {
 pub(crate) struct InstructionPlugin;
 
 impl Plugin for InstructionPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.insert_non_send_resource(ToolList::default())
             .insert_non_send_resource(Instructions::default())
             .add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))

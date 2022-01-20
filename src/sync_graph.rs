@@ -28,7 +28,7 @@ pub(crate) struct Edge {
     pub output_slot: Slot,
     pub input_slot: Slot,
 }
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Slot {
     pub node_id: NodeId,
     pub side: Side,
@@ -62,7 +62,7 @@ pub(crate) struct SlotBundle {
 pub(crate) struct SyncGraphPlugin;
 
 impl Plugin for SyncGraphPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_startup_system(setup.system());
             // .add_system_set_to_stage(
             //     CoreStage::Update,

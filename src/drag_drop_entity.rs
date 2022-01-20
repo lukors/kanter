@@ -25,13 +25,13 @@ use crate::{
 use bevy::prelude::*;
 use kanter_core::{edge::Edge, node::Side, node_graph::NodeId};
 
-#[derive(Default)]
+#[derive(Component, Default)]
 pub(crate) struct Draggable;
-#[derive(Default)]
+#[derive(Component, Default)]
 pub(crate) struct Dragged {
     start: Vec2,
 }
-#[derive(Default)]
+#[derive(Component, Default)]
 pub(crate) struct Dropped {
     start: Vec2,
     end: Vec2,
@@ -40,6 +40,7 @@ pub(crate) struct Dropped {
 #[derive(Copy, Clone, Debug)]
 struct SourceSlot(Slot);
 
+#[derive(Component)]
 struct GrabbedEdge {
     start: Vec2,
     slot: Slot,
@@ -55,7 +56,7 @@ enum DragDropStage {
 pub(crate) struct WorkspaceDragDropPlugin;
 
 impl Plugin for WorkspaceDragDropPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()

@@ -11,7 +11,7 @@ use crate::{
 pub(crate) struct HotkeysPlugin;
 
 impl Plugin for HotkeysPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()

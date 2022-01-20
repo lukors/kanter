@@ -9,7 +9,7 @@ use crate::{
 pub(crate) struct DeselectToolPlugin;
 
 impl Plugin for DeselectToolPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_to_stage(
                 CoreStage::Update,

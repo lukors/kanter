@@ -6,7 +6,7 @@ use crate::{Hovered, Selected};
 pub(crate) struct MaterialPlugin;
 
 impl Plugin for MaterialPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set_to_stage(
             CoreStage::PostUpdate,
             SystemSet::new().with_system(material.system()),

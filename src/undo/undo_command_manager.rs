@@ -51,7 +51,7 @@ impl UndoCommandManager {
 
 pub struct UndoCommandManagerPlugin;
 impl Plugin for UndoCommandManagerPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.insert_non_send_resource(UndoCommandManager::new())
             .add_system_set_to_stage(
                 CoreStage::Update,

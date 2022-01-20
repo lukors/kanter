@@ -22,7 +22,7 @@ use native_dialog::FileDialog;
 pub(crate) struct AddToolPlugin;
 
 impl Plugin for AddToolPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_set_to_stage(
                 CoreStage::Update,

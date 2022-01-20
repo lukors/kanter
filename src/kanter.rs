@@ -7,7 +7,7 @@ use kanter_core::texture_processor::TextureProcessor;
 pub(crate) struct KanterPlugin;
 
 impl Plugin for KanterPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         let tex_pro = TextureProcessor::new(Arc::new(1_000_000_000.into()));
 
         app.insert_non_send_resource(tex_pro)

@@ -12,7 +12,7 @@ pub(crate) struct Selected;
 pub(crate) struct MouseInteractionPlugin;
 
 impl Plugin for MouseInteractionPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()

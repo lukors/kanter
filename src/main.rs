@@ -19,6 +19,7 @@ pub mod mouse_interaction;
 pub mod node_state;
 pub mod none_tool;
 pub mod scan_code_input;
+pub mod shared;
 pub mod sync_graph;
 pub mod thumbnail;
 pub mod thumbnail_state;

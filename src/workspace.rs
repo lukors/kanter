@@ -32,7 +32,7 @@ pub(crate) struct Workspace {
 pub(crate) struct WorkspacePlugin;
 
 impl Plugin for WorkspacePlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.insert_resource(Workspace::default())
             .add_system_set_to_stage(
                 CoreStage::PreUpdate,

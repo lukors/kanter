@@ -36,7 +36,7 @@ impl Default for ThumbnailState {
 }
 
 impl Plugin for ThumbnailPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.insert_non_send_resource(Vec::<TexProThumb>::new());
             // .add_system_set_to_stage(
             //     CoreStage::Update,

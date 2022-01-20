@@ -18,13 +18,15 @@ impl Default for FirstPersonState {
     }
 }
 
+#[derive(Component)]
 pub(crate) struct Cursor;
+#[derive(Component)]
 pub(crate) struct Crosshair;
 
 pub(crate) struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_state(FirstPersonState::Off)
             .add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_set_to_stage(

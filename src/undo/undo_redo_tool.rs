@@ -54,7 +54,7 @@ impl UndoCommand for Redo {
 
 pub struct UndoPlugin;
 impl Plugin for UndoPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_to_stage(
             CoreStage::Update,
             undo.system()

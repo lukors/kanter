@@ -187,7 +187,7 @@ impl ScanCode {
 pub struct ScanCodeInputPlugin;
 
 impl Plugin for ScanCodeInputPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.insert_resource(ScanCodeInput::default())
             .add_system_to_stage(CoreStage::PreUpdate, scan_code_grab_input.system());
     }
