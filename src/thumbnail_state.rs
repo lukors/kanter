@@ -5,15 +5,15 @@ use crate::{
     Stage,
 };
 
-struct StateMaterials {
-    waiting: Handle<ColorMaterial>,
-    missing: Handle<ColorMaterial>,
-    processing: Handle<ColorMaterial>,
-    present: Handle<ColorMaterial>,
+struct StateImages {
+    waiting: Handle<Image>,
+    missing: Handle<Image>,
+    processing: Handle<Image>,
+    present: Handle<Image>,
 }
 
-impl StateMaterials {
-    fn from_thumbnail_state(&self, node_state: ThumbnailState) -> Handle<ColorMaterial> {
+impl StateImages {
+    fn from_thumbnail_state(&self, node_state: ThumbnailState) -> Handle<Image> {
         match node_state {
             ThumbnailState::Waiting => &self.waiting,
             ThumbnailState::Missing => &self.missing,
@@ -24,6 +24,7 @@ impl StateMaterials {
     }
 }
 
+#[derive(Component)]
 struct StateImage;
 
 pub(crate) struct ThumbnailStatePlugin;
@@ -43,36 +44,19 @@ impl Plugin for ThumbnailStatePlugin {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.insert_resource(StateMaterials {
-        waiting: materials.add(
-            asset_server
-                .load("image/thumbnail_states/waiting.png")
-                .into(),
-        ),
-        missing: materials.add(
-            asset_server
-                .load("image/thumbnail_states/missing.png")
-                .into(),
-        ),
-        processing: materials.add(
-            asset_server
-                .load("image/thumbnail_states/processing.png")
-                .into(),
-        ),
-        present: materials.add(
-            asset_server
-                .load("image/thumbnail_states/present.png")
-                .into(),
-        ),
+    commands.insert_resource(StateImages {
+        waiting: asset_server.load("image/thumbnail_states/waiting.png"),
+        missing: asset_server.load("image/thumbnail_states/missing.png"),
+        processing: asset_server.load("image/thumbnail_states/processing.png"),
+        present: asset_server.load("image/thumbnail_states/present.png"),
     });
 }
 
 fn add_state_image(
     q_thumbnail: Query<(Entity, &ThumbnailState), Added<ThumbnailState>>,
     mut commands: Commands,
-    materials: Res<StateMaterials>,
+    images: Res<StateImages>,
 ) {
     for (node_e, thumb_state) in q_thumbnail.iter() {
         info!("Adding state image");
@@ -80,8 +64,13 @@ fn add_state_image(
             parent
                 .spawn_bundle(SpriteBundle {
                     transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
-                    material: materials.from_thumbnail_state(*thumb_state),
-                    sprite: Sprite::new(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
+                        ..Default::default()
+                    },
+                    texture: images.from_thumbnail_state(*thumb_state),
+                    // material: materials.from_thumbnail_state(*thumb_state),
+                    // sprite: Sprite::new(Vec2::new(THUMBNAIL_SIZE, THUMBNAIL_SIZE)),
                     ..Default::default()
                 })
                 .insert(StateImage);
@@ -89,10 +78,10 @@ fn add_state_image(
     }
 }
 
-fn state_materials(
+fn state_images(
     q_node: Query<(Entity, &ThumbnailState), Changed<ThumbnailState>>,
-    mut q_state_image: Query<(&Parent, &mut Handle<ColorMaterial>), With<StateImage>>,
-    materials: Res<StateMaterials>,
+    mut q_state_image: Query<(&Parent, &mut Handle<Image>), With<StateImage>>,
+    materials: Res<StateImages>,
 ) {
     for (node_e, node_state) in q_node.iter() {
         if let Some((_, mut color_material)) = q_state_image
