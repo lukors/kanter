@@ -3,7 +3,11 @@ use crate::{instruction::*, AmbiguitySet, Stage, Workspace};
 use bevy::{prelude::*, window::WindowFocused};
 
 pub(crate) const CAMERA_DISTANCE: f32 = 10.;
+
+#[derive(Component)]
 pub(crate) struct WorkspaceCameraAnchor;
+
+#[derive(Component)]
 pub(crate) struct WorkspaceCamera;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
@@ -94,10 +98,9 @@ fn setup(
                 .with_children(|parent| {
                     parent
                         .spawn_bundle(SpriteBundle {
-                            material: materials.add(crosshair_image.into()),
-                            visible: Visible {
+                            texture: Some(crosshair_image),
+                            visibility: Visibility {
                                 is_visible: false,
-                                is_transparent: true,
                             },
                             ..Default::default()
                         })
@@ -157,7 +160,7 @@ fn first_person_on_setup(
     mut windows: ResMut<Windows>,
     mut q_camera: Query<Entity, With<WorkspaceCameraAnchor>>,
     mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
-    mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
+    mut q_crosshair: Query<&mut Visibility, With<Crosshair>>,
     mut commands: Commands,
 ) {
     instruction_list.insert(InstructId::FirstPerson, first_person_instruct(true));
@@ -182,7 +185,7 @@ fn first_person_on_cleanup(
     mut instructions: ResMut<Instructions>,
     mut windows: ResMut<Windows>,
     mut q_cursor: Query<Entity, With<Cursor>>,
-    mut q_crosshair: Query<&mut Visible, With<Crosshair>>,
+    mut q_crosshair: Query<&mut Visibility, With<Crosshair>>,
     mut commands: Commands,
 ) {
     instructions.insert(InstructId::FirstPerson, first_person_instruct(false));
