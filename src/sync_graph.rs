@@ -8,7 +8,7 @@ use crate::{
 use bevy::prelude::*;
 use kanter_core::{
     live_graph::{LiveGraph, NodeState},
-    node::{Node, Side, SlotType},
+    node::{Node, Side},
     node_graph::{NodeId, SlotId},
     texture_processor::TextureProcessor,
 };
@@ -65,14 +65,14 @@ pub(crate) struct SyncGraphPlugin;
 impl Plugin for SyncGraphPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup.system())
-        .add_system_set_to_stage(
-            CoreStage::Update,
-            SystemSet::new()
-                .label(Stage::Apply)
-                .after(Stage::Update)
-                .with_system(sync_graph.system())
-                .in_ambiguity_set(AmbiguitySet),
-        );
+            .add_system_set_to_stage(
+                CoreStage::Update,
+                SystemSet::new()
+                    .label(Stage::Apply)
+                    .after(Stage::Update)
+                    .with_system(sync_graph.system())
+                    .in_ambiguity_set(AmbiguitySet),
+            );
     }
 }
 
@@ -221,7 +221,6 @@ fn sync_graph(
 
 pub fn spawn_gui_node(
     commands: &mut Commands,
-    materials: &mut ResMut<Assets<ColorMaterial>>,
     node: &Node,
     position: Vec2,
 ) {
@@ -347,7 +346,6 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
         .add_node_with_id(node.clone())
         .unwrap();
 
-    let mut materials = world.remove_resource::<Assets<ColorMaterial>>().unwrap();
     let entity = world
         .spawn()
         .insert_bundle(GuiNodeBundle {
@@ -431,6 +429,5 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
         })
         .id();
 
-    world.insert_resource(materials);
     entity
 }

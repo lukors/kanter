@@ -39,18 +39,13 @@ impl Plugin for BoxSelectPlugin {
     }
 }
 
-fn box_select_setup(mut materials: ResMut<Assets<ColorMaterial>>, mut commands: Commands) {
+fn box_select_setup(mut commands: Commands) {
     commands
         .spawn_bundle(SpriteBundle {
             sprite: Sprite {
                 color: Color::rgba(0.0, 1.0, 0.0, 0.3),
                 ..Default::default()
             },
-            // material: materials.add(Color::rgba(0.0, 1.0, 0.0, 0.3).into()),
-            // visible: Visible {
-            //     is_visible: true,
-            //     is_transparent: true,
-            // },
             ..Default::default()
         })
         .insert(BoxSelect::default());

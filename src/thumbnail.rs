@@ -43,18 +43,18 @@ impl Default for ThumbnailState {
 impl Plugin for ThumbnailPlugin {
     fn build(&self, app: &mut App) {
         app.insert_non_send_resource(Vec::<TexProThumb>::new())
-        .add_system_set_to_stage(
-            CoreStage::Update,
-            SystemSet::new()
-                .label(Stage::Apply)
-                .after(Stage::Update)
-                .with_system(
-                    get_thumbnail_loop
-                        .system()
-                        .chain(thumbnail_state_changed.system())
-                        .in_ambiguity_set(AmbiguitySet),
-                ),
-        );
+            .add_system_set_to_stage(
+                CoreStage::Update,
+                SystemSet::new()
+                    .label(Stage::Apply)
+                    .after(Stage::Update)
+                    .with_system(
+                        get_thumbnail_loop
+                            .system()
+                            .chain(thumbnail_state_changed.system())
+                            .in_ambiguity_set(AmbiguitySet),
+                    ),
+            );
     }
 }
 
@@ -103,9 +103,7 @@ fn get_thumbnail_loop(
                 let image_handle = images.add(image);
                 Some(image_handle)
             }
-            Err(_) => {
-                None
-            }
+            Err(_) => None,
         };
 
         if let Some(image) = image {

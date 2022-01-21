@@ -3,10 +3,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use kanter_core::{
-    error::TexProError,
-    live_graph::LiveGraph,
-    node_graph::{NodeId, SlotId},
-    slot_data::Size as TPSize,
+    error::TexProError, live_graph::LiveGraph, node_graph::SlotId, slot_data::Size as TPSize,
 };
 use native_dialog::FileDialog;
 use std::{

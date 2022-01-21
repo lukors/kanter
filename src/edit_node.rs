@@ -5,7 +5,6 @@ use bevy::prelude::*;
 use kanter_core::{
     live_graph::LiveGraph,
     node::{mix::MixType, node_type::NodeType, Node, ResizeFilter, ResizePolicy},
-    node_graph::NodeId,
     slot_data::{ChannelPixel, Size as TPSize},
 };
 

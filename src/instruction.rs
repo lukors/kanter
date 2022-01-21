@@ -61,11 +61,7 @@ impl Plugin for InstructionPlugin {
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let mut text = Text::default();
     text.sections.resize(
         2,

@@ -117,7 +117,6 @@ fn add_gui_edge(world: &mut World, edge: Edge) {
     let mut transform = Transform::default();
 
     stretch_between(&mut sprite, &mut transform, start, end);
-    let mut materials = world.remove_resource::<Assets<ColorMaterial>>().unwrap();
     world
         .spawn()
         .insert_bundle(SpriteBundle {
@@ -131,7 +130,6 @@ fn add_gui_edge(world: &mut World, edge: Edge) {
             output_slot,
             input_slot,
         });
-    world.insert_resource(materials);
 }
 
 fn remove_gui_edge(world: &mut World, edge: Edge) {

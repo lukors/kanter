@@ -332,7 +332,6 @@ fn drag_node_update(
 
 /// When a slot is grabbed this system creates its edge entity.
 fn spawn_grabbed_edges(
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
     q_dragged_slot: Query<(&GlobalTransform, &Slot), Added<Dragged>>,
     q_slot: Query<(&GlobalTransform, &Slot)>,
