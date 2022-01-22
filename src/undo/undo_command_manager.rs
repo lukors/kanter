@@ -4,7 +4,7 @@ use std::{collections::VecDeque, fmt::Debug};
 
 use super::{UndoCommand, UndoCommandType};
 
-type BoxUndoCommand = Box<dyn UndoCommand + Send + Sync + 'static>;
+pub type BoxUndoCommand = Box<dyn UndoCommand + Send + Sync + 'static>;
 
 #[derive(Debug, Default)]
 pub struct UndoCommandManager {

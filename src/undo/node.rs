@@ -1,11 +1,9 @@
-use std::sync::{Arc, RwLock};
-
 use bevy::prelude::*;
-use kanter_core::{live_graph::LiveGraph, node::Node};
+use kanter_core::{edge::Edge as CoreEdge, node::Node};
 
-use crate::sync_graph;
+use crate::sync_graph::{self, Edge};
 
-use super::{edge::RemoveEdge, prelude::*};
+use super::{edge::RemoveEdge, prelude::*, undo_command_manager::BoxUndoCommand};
 
 // impl AddRemove for Node {
 //     fn add(&self, world: &mut World) -> Entity {
@@ -32,23 +30,6 @@ use super::{edge::RemoveEdge, prelude::*};
 //     }
 // }
 
-pub fn remove_node(live_graph: &Arc<RwLock<LiveGraph>>, node: Node) -> Vec<Box<dyn UndoCommand>> {
-    let mut undo_batch: Vec<Box<dyn UndoCommand>> = Vec::new();
-
-    for edge in live_graph
-        .read()
-        .unwrap()
-        .edges()
-        .iter()
-        .filter(|edge| edge.input_id() == node.node_id || edge.output_id() == node.node_id)
-    {
-        undo_batch.push(Box::new(RemoveEdge(*edge)));
-    }
-    undo_batch.push(Box::new(RemoveNode::new(node, Vec2::ZERO)));
-
-    undo_batch
-}
-
 #[derive(Clone, Debug)]
 pub struct AddNode {
     pub node: Node,
@@ -72,18 +53,67 @@ impl AddNode {
     }
 }
 
+/// Removes only the `Node`, and none of the connected `Edge`s. You should almost always use
+/// `RemoveNode` instead, which removes connected edges too.
 #[derive(Clone, Debug)]
-pub struct RemoveNode {
+pub struct RemoveNodeOnly {
     pub node: Node,
     pub translation: Vec2,
 }
-impl UndoCommand for RemoveNode {
+impl UndoCommand for RemoveNodeOnly {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         sync_graph::remove_gui_node(world, self.node.node_id);
     }
 
     fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
         sync_graph::spawn_gui_node_2(world, self.node.clone(), self.translation);
+    }
+}
+impl RemoveNodeOnly {
+    pub fn new(node: Node, translation: Vec2) -> Self {
+        Self { node, translation }
+    }
+}
+
+/// Removes the `Node` and all connected `Edge`s.
+#[derive(Clone, Debug)]
+pub struct RemoveNode {
+    pub node: Node,
+    pub translation: Vec2,
+}
+impl UndoCommand for RemoveNode {
+    fn command_type(&self) -> super::UndoCommandType {
+        super::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut commands: Vec<BoxUndoCommand> = Vec::new();
+
+        let mut q_edge = world.query::<&Edge>();
+
+        for edge in q_edge.iter(world).filter(|edge| {
+            edge.input_slot.node_id == self.node.node_id
+                || edge.output_slot.node_id == self.node.node_id
+        }) {
+            let edge = edge.clone();
+            commands.push(Box::new(RemoveEdge(CoreEdge {
+                input_id: edge.input_slot.node_id,
+                input_slot: edge.input_slot.slot_id,
+                output_id: edge.output_slot.node_id,
+                output_slot: edge.output_slot.slot_id,
+            })));
+        }
+
+        commands.push(Box::new(RemoveNodeOnly {
+            node: self.node.clone(),
+            translation: self.translation,
+        }));
+
+        undo_command_manager.commands.push_front(Box::new(commands));
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is never put on the undo stack, so this can not be reached");
     }
 }
 impl RemoveNode {
