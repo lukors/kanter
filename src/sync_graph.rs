@@ -219,11 +219,7 @@ fn sync_graph(
     }
 }
 
-pub fn spawn_gui_node(
-    commands: &mut Commands,
-    node: &Node,
-    position: Vec2,
-) {
+pub fn spawn_gui_node(commands: &mut Commands, node: &Node, position: Vec2) {
     commands
         .spawn_bundle(GuiNodeBundle {
             sprite_bundle: SpriteBundle {
