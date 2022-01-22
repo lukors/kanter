@@ -59,7 +59,6 @@ pub(crate) enum ToolState {
     None,
     Add,
     BoxSelect,
-    Delete,
     EditNode,
     Export,
     Grab(GrabToolType),

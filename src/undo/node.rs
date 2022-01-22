@@ -95,7 +95,6 @@ impl UndoCommand for RemoveNode {
             edge.input_slot.node_id == self.node.node_id
                 || edge.output_slot.node_id == self.node.node_id
         }) {
-            let edge = edge.clone();
             commands.push(Box::new(RemoveEdge(CoreEdge {
                 input_id: edge.input_slot.node_id,
                 input_slot: edge.input_slot.slot_id,
