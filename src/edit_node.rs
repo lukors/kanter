@@ -129,7 +129,14 @@ fn tool_update(
             tool_state.overwrite_replace(ToolState::None).unwrap();
             return;
         }
-        node_id
+        node_id.0
+    } else {
+        tool_state.overwrite_replace(ToolState::None).unwrap();
+        return;
+    };
+
+    let node_type = if let Ok(node) = live_graph.read().unwrap().node(active_id) {
+        node.node_type
     } else {
         tool_state.overwrite_replace(ToolState::None).unwrap();
         return;
@@ -156,14 +163,22 @@ fn tool_update(
                 true
             }
             ScanCode::KeyT => {
-                instructions.insert(InstructId::Tool, MixType::list());
-                *edit_target = Some(EditTarget::MixType);
-                edit_state.overwrite_replace(EditState::Inner).unwrap();
-                true
+                if let NodeType::Mix(_) = node_type {
+                    instructions.insert(InstructId::Tool, MixType::list());
+                    *edit_target = Some(EditTarget::MixType);
+                    edit_state.overwrite_replace(EditState::Inner).unwrap();
+                    true
+                } else {
+                    false
+                }
             }
             ScanCode::KeyV => {
-                edit_state.overwrite_replace(EditState::Value).unwrap();
-                true
+                if let NodeType::Value(_) = node_type {
+                    edit_state.overwrite_replace(EditState::Value).unwrap();
+                    true
+                } else {
+                    false
+                }
             }
             _ => false,
         } {
