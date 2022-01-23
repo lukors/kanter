@@ -12,21 +12,7 @@ use kanter_core::{edge::Edge, live_graph::LiveGraph, node::Side, node_graph::Nod
 
 impl AddRemove for Edge {
     fn add(&self, world: &mut World) {
-        if let Some(live_graph) = world.remove_resource::<Arc<RwLock<LiveGraph>>>() {
-            if let Ok(mut live_graph) = live_graph.write() {
-                if let Ok(edge) = live_graph.connect(
-                    self.output_id(),
-                    self.input_id(),
-                    self.output_slot(),
-                    self.input_slot(),
-                ) {
-                    add_gui_edge(world, edge);
-                } else {
-                    error!("Couldn't add the edge");
-                }
-            }
-            world.insert_resource(live_graph);
-        }
+        add_edge(world, *self, None);
     }
 
     fn remove(&self, world: &mut World) {
@@ -44,6 +30,25 @@ impl AddRemove for Edge {
     }
 }
 
+/// Adds an edge and its corresponding GUI representation.
+fn add_edge(world: &mut World, edge: Edge, start_end: Option<(Vec2, Vec2)>) {
+    if let Some(live_graph) = world.remove_resource::<Arc<RwLock<LiveGraph>>>() {
+        if let Ok(mut live_graph) = live_graph.write() {
+            if let Ok(edge) = live_graph.connect(
+                edge.output_id(),
+                edge.input_id(),
+                edge.output_slot(),
+                edge.input_slot(),
+            ) {
+                add_gui_edge(world, edge, start_end);
+            } else {
+                error!("Couldn't add the edge");
+            }
+        }
+        world.insert_resource(live_graph);
+    }
+}
+
 fn set_thumbnail_state(world: &mut World, node_id: NodeId, thumbnail_state: ThumbnailState) {
     let mut q_thumbnail_state = world.query::<(&NodeIdComponent, &mut ThumbnailState)>();
     if let Some(mut thumbnail_state_iter) = q_thumbnail_state
@@ -56,14 +61,18 @@ fn set_thumbnail_state(world: &mut World, node_id: NodeId, thumbnail_state: Thum
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct RemoveEdge(pub Edge);
+pub struct RemoveEdge(pub(crate) GuiEdge);
 impl UndoCommand for RemoveEdge {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        self.0.remove(world);
+        let edge: Edge = self.0.into();
+        edge.remove(world);
     }
 
     fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        self.0.add(world);
+        let edge: Edge = self.0.into();
+        let start_end = Some((self.0.start, self.0.end));
+
+        add_edge(world, edge, start_end);
     }
 }
 
@@ -79,7 +88,9 @@ impl UndoCommand for AddEdge {
     }
 }
 
-fn add_gui_edge(world: &mut World, edge: Edge) {
+/// Adds the GUI representation of an edge. Use `add_edge()` to add an actual edge, which also
+/// calls this function.
+fn add_gui_edge(world: &mut World, edge: Edge, start_end: Option<(Vec2, Vec2)>) {
     let output_slot = Slot {
         node_id: edge.output_id,
         side: Side::Output,
@@ -91,22 +102,29 @@ fn add_gui_edge(world: &mut World, edge: Edge) {
         slot_id: edge.input_slot,
     };
 
-    let mut start = Vec2::ZERO;
-    let mut end = Vec2::ZERO;
+    let (start, end) = match start_end {
+        Some((start, end)) => (start, end),
+        None => {
+            let mut start = Vec2::ZERO;
+            let mut end = Vec2::ZERO;
 
-    for (slot, global_transform) in world.query::<(&Slot, &GlobalTransform)>().iter(world) {
-        if slot.node_id == output_slot.node_id
-            && slot.slot_id == output_slot.slot_id
-            && slot.side == output_slot.side
-        {
-            start = global_transform.translation.truncate();
-        } else if slot.node_id == input_slot.node_id
-            && slot.slot_id == input_slot.slot_id
-            && slot.side == input_slot.side
-        {
-            end = global_transform.translation.truncate();
+            for (slot, global_transform) in world.query::<(&Slot, &GlobalTransform)>().iter(world) {
+                if slot.node_id == output_slot.node_id
+                    && slot.slot_id == output_slot.slot_id
+                    && slot.side == output_slot.side
+                {
+                    start = global_transform.translation.truncate();
+                } else if slot.node_id == input_slot.node_id
+                    && slot.slot_id == input_slot.slot_id
+                    && slot.side == input_slot.side
+                {
+                    end = global_transform.translation.truncate();
+                }
+            }
+
+            (start, end)
         }
-    }
+    };
 
     let mut sprite = Sprite {
         color: Color::BLACK,

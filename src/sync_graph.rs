@@ -7,6 +7,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use kanter_core::{
+    edge::Edge as CoreEdge,
     live_graph::{LiveGraph, NodeState},
     node::{Node, Side},
     node_graph::{NodeId, SlotId},
@@ -29,6 +30,18 @@ pub(crate) struct Edge {
     pub output_slot: Slot,
     pub input_slot: Slot,
 }
+
+impl From<Edge> for CoreEdge {
+    fn from(edge: Edge) -> Self {
+        Self {
+            input_id: edge.input_slot.node_id,
+            input_slot: edge.input_slot.slot_id,
+            output_id: edge.output_slot.node_id,
+            output_slot: edge.output_slot.slot_id,
+        }
+    }
+}
+
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Slot {
     pub node_id: NodeId,

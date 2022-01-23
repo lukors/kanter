@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use kanter_core::{edge::Edge as CoreEdge, node::Node};
+use kanter_core::node::Node;
 
 use crate::sync_graph::{self, Edge};
 
@@ -95,12 +95,7 @@ impl UndoCommand for RemoveNode {
             edge.input_slot.node_id == self.node.node_id
                 || edge.output_slot.node_id == self.node.node_id
         }) {
-            commands.push(Box::new(RemoveEdge(CoreEdge {
-                input_id: edge.input_slot.node_id,
-                input_slot: edge.input_slot.slot_id,
-                output_id: edge.output_slot.node_id,
-                output_slot: edge.output_slot.slot_id,
-            })));
+            commands.push(Box::new(RemoveEdge(*edge)));
         }
 
         commands.push(Box::new(RemoveNodeOnly {

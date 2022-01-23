@@ -146,7 +146,8 @@ fn dropped_edge_update(
     q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
     q_grabbed_edge: Query<(Entity, &GrabbedEdge, Option<&SourceSlot>)>,
-    mut q_edge: Query<&mut Visibility, With<GuiEdge>>,
+    mut q_edge_visible: Query<&mut Visibility, With<GuiEdge>>,
+    q_edge: Query<&GuiEdge>,
     // mut q_thumbnail_state: Query<(&NodeId, &mut ThumbnailState), Without<GrabbedEdge>>,
     mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
@@ -167,10 +168,14 @@ fn dropped_edge_update(
                                 if let Ok(add_edge) = connect_arbitrary(*slot, grabbed_edge.slot) {
                                     new_edges.push(Box::new(add_edge));
                                 }
-                                if let Ok(remove_edge) =
-                                    disconnect_arbitrary(source_slot.0, grabbed_edge.slot)
-                                {
-                                    undo_command_manager.push(Box::new(remove_edge));
+                                for edge in q_edge.iter() {
+                                    if (edge.input_slot == source_slot.0
+                                        && edge.output_slot == grabbed_edge.slot)
+                                        || (edge.output_slot == source_slot.0
+                                            && edge.input_slot == grabbed_edge.slot)
+                                    {
+                                        undo_command_manager.push(Box::new(RemoveEdge(*edge)));
+                                    }
                                 }
                             }
                         } else if let Ok(add_edge) = connect_arbitrary(*slot, grabbed_edge.slot) {
@@ -182,8 +187,13 @@ fn dropped_edge_update(
                 }
             }
             if let Some(source_slot) = source_slot {
-                if let Ok(remove_edge) = disconnect_arbitrary(source_slot.0, grabbed_edge.slot) {
-                    undo_command_manager.push(Box::new(remove_edge));
+                for edge in q_edge.iter() {
+                    if (edge.input_slot == source_slot.0 && edge.output_slot == grabbed_edge.slot)
+                        || (edge.output_slot == source_slot.0
+                            && edge.input_slot == grabbed_edge.slot)
+                    {
+                        undo_command_manager.push(Box::new(RemoveEdge(*edge)));
+                    }
                 }
             }
         }
@@ -197,26 +207,11 @@ fn dropped_edge_update(
             commands.entity(edge_e).despawn_recursive();
         }
 
-        for mut visible in q_edge.iter_mut() {
+        for mut visible in q_edge_visible.iter_mut() {
             visible.is_visible = true;
         }
 
         tool_state.overwrite_replace(ToolState::None).unwrap();
-    }
-}
-
-fn disconnect_arbitrary(slot_a: Slot, slot_b: Slot) -> Result<RemoveEdge> {
-    if let Ok(edge) = Edge::from_arbitrary(
-        slot_a.node_id,
-        slot_a.side,
-        slot_a.slot_id,
-        slot_b.node_id,
-        slot_b.side,
-        slot_b.slot_id,
-    ) {
-        Ok(RemoveEdge(edge))
-    } else {
-        Err(anyhow!("could not disconnect slot"))
     }
 }
 
