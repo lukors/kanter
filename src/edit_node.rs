@@ -122,11 +122,18 @@ fn tool_update(
     q_active: Query<&NodeIdComponent, With<Active>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
-    if let Ok(node_id) = q_active.get_single() {
+    let active_id = if let Ok(node_id) = q_active.get_single() {
         if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
             show_instructions(&node, &mut instructions);
+        } else {
+            tool_state.overwrite_replace(ToolState::None).unwrap();
+            return;
         }
-    }
+        node_id
+    } else {
+        tool_state.overwrite_replace(ToolState::None).unwrap();
+        return;
+    };
 
     let scan_codes: Vec<ScanCode> = scan_code_input.get_just_pressed().copied().collect();
 
