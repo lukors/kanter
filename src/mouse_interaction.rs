@@ -1,6 +1,6 @@
 /// All workspace mouse interaction.
 use crate::{
-    shared::NodeIdComponent, AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Slot, CustomStage,
+    shared::NodeIdComponent, AmbiguitySet, CustomStage, Drag, Dropped, GrabToolType, Hovered, Slot,
     ToolState, Workspace,
 };
 use bevy::prelude::*;

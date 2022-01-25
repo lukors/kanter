@@ -1,4 +1,3 @@
-use crate::CustomStage;
 use bevy::prelude::*;
 use std::{collections::VecDeque, fmt::Debug};
 
@@ -55,8 +54,7 @@ impl Plugin for UndoCommandManagerPlugin {
         app.insert_non_send_resource(UndoCommandManager::new())
             .add_system_to_stage(
                 CoreStage::Update,
-                apply_commands.exclusive_system()
-                .at_end(),
+                apply_commands.exclusive_system().at_end(),
             );
     }
 }

@@ -16,11 +16,11 @@ use crate::{
     },
     AmbiguitySet,
     Cursor,
+    CustomStage,
     Edge as GuiEdge,
     GrabToolType,
     Selected,
     Slot,
-    CustomStage,
     ToolState,
 };
 use bevy::prelude::*;

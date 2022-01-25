@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use kanter_core::live_graph::NodeState;
 
-use crate::{shared::NodeStateComponent, sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, CustomStage};
+use crate::{
+    shared::NodeStateComponent, sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, CustomStage,
+};
 
 struct StateImages {
     clean: Handle<Image>,

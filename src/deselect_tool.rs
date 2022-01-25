@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     instruction::ToolList,
     scan_code_input::{ScanCode, ScanCodeInput},
-    AmbiguitySet, Selected, CustomStage, ToolState,
+    AmbiguitySet, CustomStage, Selected, ToolState,
 };
 
 pub(crate) struct DeselectToolPlugin;

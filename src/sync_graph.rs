@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use crate::{
     shared::{NodeIdComponent, NodeStateComponent, SlotTypeComponent},
     thumbnail::{Thumbnail, ThumbnailState, THUMBNAIL_SIZE},
-    AmbiguitySet, Draggable, Hoverable, Hovered, CustomStage,
+    AmbiguitySet, CustomStage, Draggable, Hoverable, Hovered,
 };
 use bevy::prelude::*;
 use kanter_core::{

@@ -8,7 +8,7 @@ use crate::{
         prelude::{Checkpoint, UndoCommandManager},
         undo_command_manager::UndoCancel,
     },
-    GrabToolType, CustomStage, ToolState,
+    CustomStage, GrabToolType, ToolState,
 };
 
 pub(crate) struct HotkeysPlugin;

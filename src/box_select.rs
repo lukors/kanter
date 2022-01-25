@@ -1,6 +1,7 @@
 /// Box select tool
 use crate::{
-    AmbiguitySet, Drag, Draggable, Selected, Slot, CustomStage, ToolState, Workspace, CAMERA_DISTANCE,
+    AmbiguitySet, CustomStage, Drag, Draggable, Selected, Slot, ToolState, Workspace,
+    CAMERA_DISTANCE,
 };
 use bevy::prelude::*;
 #[derive(Component, Default)]

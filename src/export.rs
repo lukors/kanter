@@ -1,5 +1,5 @@
 use crate::{
-    instruction::ToolList, shared::NodeIdComponent, AmbiguitySet, Selected, CustomStage, ToolState,
+    instruction::ToolList, shared::NodeIdComponent, AmbiguitySet, CustomStage, Selected, ToolState,
 };
 use bevy::prelude::*;
 use kanter_core::{

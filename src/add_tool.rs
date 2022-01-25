@@ -8,7 +8,7 @@ use crate::{
     },
     instruction::*,
     undo::{node::AddNode, prelude::*},
-    AmbiguitySet, GrabToolType, CustomStage, ToolState,
+    AmbiguitySet, CustomStage, GrabToolType, ToolState,
 };
 use anyhow::{anyhow, Result};
 use bevy::prelude::*;

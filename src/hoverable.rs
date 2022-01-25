@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{workspace::Workspace, AmbiguitySet, Dragged, CustomStage, ToolState};
+use crate::{workspace::Workspace, AmbiguitySet, CustomStage, Dragged, ToolState};
 
 #[derive(Component, Default)]
 pub(crate) struct Hoverable;
