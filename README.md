@@ -5,42 +5,25 @@ A node based texture creation tool for Windows and Linux. It uses [Kanter Core](
 
 ![kanter_0-2-0](https://user-images.githubusercontent.com/1719884/117169645-908b1d80-adc9-11eb-9aee-6815c34d3f53.png)
 
-## Goals
-- Responsiveness - It should be fast to start, and snappy to use
-- Simplicity - It should be easy to understand and not be bloated with unnecessary nodes or cluttered UI
-- Completeness - It should have the tools to generate every kind of texture
+## Long-Term Goals
+- [x] Responsiveness - It should be fast to start, and respond quickly to input
+- [ ] Simplicity - It should be easy to understand and use
+- [ ] Completeness - It should have the tools to generate every kind of texture
+
+## Short-Term Goal
+Our strategy is to use feedback, testing and our long-term goals to guide our efforts towards the most valuable work.
+
+**Our current goal is to release [Alpha 3](https://github.com/lukors/kanter/milestone/4), which includes support for our first use case; manual image channel packing.**
 
 ## Features
-In its current pre-alpha state Kanter can be used for simple tasks like packing textures, inverting channels in an image, and changing the alpha channel of an image.
-
-It is very clunky and has many rough corners, but it gets the job done.
+It's fast, but not much else, it does not cover any use cases since it is too buggy and incomplete to use comfortably.
 
 ### Nodes
 - Input: Loads an image from disk
-- Mix: Mathematically combines two inputs
+- Output: Saves an image to disk when selected and `Shift` `Alt` `S` is pressed
+- Separate: Takes an RGBA image and splits it into 4 grayscale images
+- Combine: Takes 4 grayscale images and merges them into an RGBA image
 - Value: Outputs a given value
-- Output: Saves an image to disk when selected and `Shift Alt S` is pressed
 
 ### Other
-- Basic node manipulation
 - Instructional text in the program to guide the user
-
-## Roadmap
-The focus right now is on beefing up the backend library that this application uses, so the artist won't have as many technical limitations. Then the plan is to build out basic functionality like save/load graphs, a set of basic nodes and make it nice to use. That's as far as the roadmap goes right now.
-
-I keep most planned tasks as issues on GitHub, so check those to see what's coming up.
-
-## License
-Licensed under either of
-
- * Apache License, Version 2.0
-   ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license
-   ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-
-at your option.
-
-## Contribution
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
