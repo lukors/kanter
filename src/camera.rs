@@ -1,5 +1,5 @@
 /// Box select tool
-use crate::{instruction::*, AmbiguitySet, Stage, Workspace};
+use crate::{instruction::*, AmbiguitySet, CustomStage, Workspace};
 use bevy::{prelude::*, window::WindowFocused};
 
 pub(crate) const CAMERA_DISTANCE: f32 = 10.;
@@ -36,8 +36,8 @@ impl Plugin for CameraPlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .label(Stage::Setup)
-                    .after(Stage::Input)
+                    .label(CustomStage::Setup)
+                    .after(CustomStage::Input)
                     .with_system(
                         first_person_on_setup
                             .system()

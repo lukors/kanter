@@ -1,6 +1,6 @@
 /// All workspace mouse interaction.
 use crate::{
-    shared::NodeIdComponent, AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Slot, Stage,
+    shared::NodeIdComponent, AmbiguitySet, Drag, Dropped, GrabToolType, Hovered, Slot, CustomStage,
     ToolState, Workspace,
 };
 use bevy::prelude::*;
@@ -17,8 +17,8 @@ impl Plugin for MouseInteractionPlugin {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(Stage::Setup)
-                .after(Stage::Input)
+                .label(CustomStage::Setup)
+                .after(CustomStage::Input)
                 .with_system(
                     mouse_interaction
                         .system()

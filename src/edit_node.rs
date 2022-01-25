@@ -16,7 +16,7 @@ use crate::{
     scan_code_input::*,
     shared::NodeIdComponent,
     undo::{gui::GuiUndoCommand, prelude::*},
-    AmbiguitySet, Stage, ToolState,
+    AmbiguitySet, CustomStage, ToolState,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -48,8 +48,8 @@ impl Plugin for EditNodePlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .label(Stage::Update)
-                    .after(Stage::Setup)
+                    .label(CustomStage::Update)
+                    .after(CustomStage::Setup)
                     .in_ambiguity_set(AmbiguitySet)
                     .with_system(
                         tool_enter

@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use crate::{
     shared::{NodeIdComponent, NodeStateComponent, SlotTypeComponent},
     thumbnail::{Thumbnail, ThumbnailState, THUMBNAIL_SIZE},
-    AmbiguitySet, Draggable, Hoverable, Hovered, Stage,
+    AmbiguitySet, Draggable, Hoverable, Hovered, CustomStage,
 };
 use bevy::prelude::*;
 use kanter_core::{
@@ -81,8 +81,8 @@ impl Plugin for SyncGraphPlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .label(Stage::Apply)
-                    .after(Stage::Update)
+                    .label(CustomStage::Apply)
+                    .after(CustomStage::Update)
                     .with_system(sync_graph.system())
                     .in_ambiguity_set(AmbiguitySet),
             );

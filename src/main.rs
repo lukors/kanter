@@ -40,10 +40,12 @@ use workspace::*;
 pub(crate) struct AmbiguitySet;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
-pub(crate) enum Stage {
+pub(crate) enum CustomStage {
+    /// Gathering input.
     Input,
     Setup,
     Update,
+    /// Applying all changes.
     Apply,
 }
 

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     thumbnail::{ThumbnailState, THUMBNAIL_SIZE},
-    Stage,
+    CustomStage,
 };
 
 struct StateImages {
@@ -35,7 +35,7 @@ impl Plugin for ThumbnailStatePlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .after(Stage::Apply)
+                    .after(CustomStage::Apply)
                     .with_system(add_state_image.system().chain(state_images.system())),
             );
     }

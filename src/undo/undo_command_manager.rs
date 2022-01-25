@@ -1,4 +1,4 @@
-use crate::Stage;
+use crate::CustomStage;
 use bevy::prelude::*;
 use std::{collections::VecDeque, fmt::Debug};
 
@@ -53,12 +53,10 @@ pub struct UndoCommandManagerPlugin;
 impl Plugin for UndoCommandManagerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_non_send_resource(UndoCommandManager::new())
-            .add_system_set_to_stage(
+            .add_system_to_stage(
                 CoreStage::Update,
-                SystemSet::new()
-                    .label(Stage::Apply)
-                    .after(Stage::Update)
-                    .with_system(apply_commands.exclusive_system()),
+                apply_commands.exclusive_system()
+                .at_end(),
             );
     }
 }

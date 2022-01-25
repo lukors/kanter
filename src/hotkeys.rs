@@ -8,7 +8,7 @@ use crate::{
         prelude::{Checkpoint, UndoCommandManager},
         undo_command_manager::UndoCancel,
     },
-    GrabToolType, Stage, ToolState,
+    GrabToolType, CustomStage, ToolState,
 };
 
 pub(crate) struct HotkeysPlugin;
@@ -18,7 +18,7 @@ impl Plugin for HotkeysPlugin {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(Stage::Input)
+                .label(CustomStage::Input)
                 .with_system(focus_change.system().chain(hotkeys.system())), // .with_system(print_pressed_keys.system())
         )
         .add_system_set_to_stage(

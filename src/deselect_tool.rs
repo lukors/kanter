@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     instruction::ToolList,
     scan_code_input::{ScanCode, ScanCodeInput},
-    AmbiguitySet, Selected, Stage, ToolState,
+    AmbiguitySet, Selected, CustomStage, ToolState,
 };
 
 pub(crate) struct DeselectToolPlugin;
@@ -15,8 +15,8 @@ impl Plugin for DeselectToolPlugin {
                 CoreStage::Update,
                 deselect
                     .system()
-                    .label(Stage::Apply)
-                    .after(Stage::Update)
+                    .label(CustomStage::Apply)
+                    .after(CustomStage::Update)
                     .with_run_criteria(State::on_update(ToolState::None)),
             );
     }

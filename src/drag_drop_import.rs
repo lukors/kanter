@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{instruction::ToolList, AmbiguitySet, Stage, ToolState};
+use crate::{instruction::ToolList, AmbiguitySet, CustomStage, ToolState};
 
 pub(crate) struct DragDropImport;
 
@@ -9,7 +9,7 @@ impl Plugin for DragDropImport {
         app.add_startup_system(setup.system())
             .add_system_set_to_stage(
                 CoreStage::Update,
-                SystemSet::new().label(Stage::Input).with_system(
+                SystemSet::new().label(CustomStage::Input).with_system(
                     drag_drop_import
                         .system()
                         .with_run_criteria(State::on_update(ToolState::None))

@@ -1,4 +1,4 @@
-use crate::{instruction::*, scan_code_input::ScanCodeInput, AmbiguitySet, Stage, ToolState};
+use crate::{instruction::*, scan_code_input::ScanCodeInput, AmbiguitySet, CustomStage, ToolState};
 use bevy::prelude::*;
 
 pub(crate) struct NoneToolPlugin;
@@ -8,8 +8,8 @@ impl Plugin for NoneToolPlugin {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(Stage::Update)
-                .after(Stage::Setup)
+                .label(CustomStage::Update)
+                .after(CustomStage::Setup)
                 .with_run_criteria(State::on_enter(ToolState::None))
                 .in_ambiguity_set(AmbiguitySet)
                 .with_system(restore_instructions.system())

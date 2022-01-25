@@ -1,6 +1,6 @@
 /// Box select tool
 use crate::{
-    AmbiguitySet, Drag, Draggable, Selected, Slot, Stage, ToolState, Workspace, CAMERA_DISTANCE,
+    AmbiguitySet, Drag, Draggable, Selected, Slot, CustomStage, ToolState, Workspace, CAMERA_DISTANCE,
 };
 use bevy::prelude::*;
 #[derive(Component, Default)]
@@ -15,8 +15,8 @@ impl Plugin for BoxSelectPlugin {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(Stage::Update)
-                .after(Stage::Setup)
+                .label(CustomStage::Update)
+                .after(CustomStage::Setup)
                 .with_system(
                     box_select_setup
                         .system()

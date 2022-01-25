@@ -1,6 +1,6 @@
 use crate::{
     shared::{LiveGraphComponent, NodeIdComponent},
-    AmbiguitySet, Stage,
+    AmbiguitySet, CustomStage,
 };
 use anyhow::{anyhow, Result};
 use bevy::{
@@ -46,8 +46,8 @@ impl Plugin for ThumbnailPlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .label(Stage::Apply)
-                    .after(Stage::Update)
+                    .label(CustomStage::Apply)
+                    .after(CustomStage::Update)
                     .with_system(
                         get_thumbnail_loop
                             .system()

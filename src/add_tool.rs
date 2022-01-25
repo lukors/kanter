@@ -8,7 +8,7 @@ use crate::{
     },
     instruction::*,
     undo::{node::AddNode, prelude::*},
-    AmbiguitySet, GrabToolType, Stage, ToolState,
+    AmbiguitySet, GrabToolType, CustomStage, ToolState,
 };
 use anyhow::{anyhow, Result};
 use bevy::prelude::*;
@@ -27,8 +27,8 @@ impl Plugin for AddToolPlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .label(Stage::Setup)
-                    .after(Stage::Input)
+                    .label(CustomStage::Setup)
+                    .after(CustomStage::Input)
                     .with_system(
                         add_tool_instructions
                             .system()

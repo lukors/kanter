@@ -20,7 +20,7 @@ use crate::{
     GrabToolType,
     Selected,
     Slot,
-    Stage,
+    CustomStage,
     ToolState,
 };
 use bevy::prelude::*;
@@ -61,9 +61,9 @@ impl Plugin for WorkspaceDragDropPlugin {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(Stage::Update)
+                .label(CustomStage::Update)
                 .label(DragDropStage::Setup)
-                .after(Stage::Setup)
+                .after(CustomStage::Setup)
                 .with_system(dropped_update.system())
                 .with_system(
                     grab_tool_slot_setup

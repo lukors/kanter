@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use super::{prelude::*, UndoCommandType};
-use crate::{AmbiguitySet, Stage, ToolState};
+use crate::{AmbiguitySet, CustomStage, ToolState};
 use bevy::prelude::*;
 
 #[derive(Debug)]
@@ -58,16 +58,16 @@ impl Plugin for UndoPlugin {
         app.add_system_to_stage(
             CoreStage::Update,
             undo.system()
-                .label(Stage::Update)
-                .after(Stage::Setup)
+                .label(CustomStage::Update)
+                .after(CustomStage::Setup)
                 .with_run_criteria(State::on_update(ToolState::Undo))
                 .in_ambiguity_set(AmbiguitySet),
         )
         .add_system_to_stage(
             CoreStage::Update,
             redo.system()
-                .label(Stage::Update)
-                .after(Stage::Setup)
+                .label(CustomStage::Update)
+                .after(CustomStage::Setup)
                 .with_run_criteria(State::on_update(ToolState::Redo))
                 .in_ambiguity_set(AmbiguitySet),
         );

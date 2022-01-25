@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use kanter_core::live_graph::NodeState;
 
-use crate::{shared::NodeStateComponent, sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, Stage};
+use crate::{shared::NodeStateComponent, sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, CustomStage};
 
 struct StateImages {
     clean: Handle<Image>,
@@ -37,7 +37,7 @@ impl Plugin for NodeStatePlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .after(Stage::Apply)
+                    .after(CustomStage::Apply)
                     .with_system(add_state_image.system().chain(state_materials.system())),
             );
     }

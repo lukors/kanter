@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{workspace::Workspace, AmbiguitySet, Dragged, Stage, ToolState};
+use crate::{workspace::Workspace, AmbiguitySet, Dragged, CustomStage, ToolState};
 
 #[derive(Component, Default)]
 pub(crate) struct Hoverable;
@@ -15,8 +15,8 @@ impl Plugin for HoverablePlugin {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(Stage::Update)
-                .after(Stage::Setup)
+                .label(CustomStage::Update)
+                .after(CustomStage::Setup)
                 // Other
                 .with_system(
                     hoverable

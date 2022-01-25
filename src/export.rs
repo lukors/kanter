@@ -1,5 +1,5 @@
 use crate::{
-    instruction::ToolList, shared::NodeIdComponent, AmbiguitySet, Selected, Stage, ToolState,
+    instruction::ToolList, shared::NodeIdComponent, AmbiguitySet, Selected, CustomStage, ToolState,
 };
 use bevy::prelude::*;
 use kanter_core::{
@@ -19,8 +19,8 @@ impl Plugin for ExportPlugin {
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
-                    .label(Stage::Apply)
-                    .after(Stage::Update)
+                    .label(CustomStage::Apply)
+                    .after(CustomStage::Update)
                     .with_system(
                         export
                             .system()
