@@ -11,12 +11,12 @@ edition = "2021"
 anyhow = "1.0.44"
 bevy = { version = "0.6.0", default-features = false, features = [
     # "bevy_audio",
-    "bevy_gilrs",
+    # "bevy_gilrs",
     "bevy_winit",
     "render",
     "png",
-    "hdr",
-    "vorbis",
+    # "hdr",
+    # "vorbis",
     "x11",
     "filesystem_watcher",
 ]}
