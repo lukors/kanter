@@ -4,7 +4,10 @@ use crate::{
     camera::FirstPersonState,
     delete_tool::DeleteSelected,
     scan_code_input::{ScanCode, ScanCodeInput},
-    undo::prelude::{Checkpoint, UndoCommandManager},
+    undo::{
+        prelude::{Checkpoint, UndoCommandManager},
+        undo_command_manager::UndoCancel,
+    },
     GrabToolType, Stage, ToolState,
 };
 
@@ -131,6 +134,7 @@ fn hotkeys(
             }
         }
     } else if cancel_just_pressed(&sc_input, &i_mouse_button) && tool_current != ToolState::None {
+        undo_command_manager.push(Box::new(UndoCancel));
         tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 

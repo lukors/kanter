@@ -123,3 +123,21 @@ impl UndoCommand for Vec<BoxUndoCommand> {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct UndoCancel;
+impl UndoCommand for UndoCancel {
+    fn command_type(&self) -> UndoCommandType {
+        UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        while let Some(command) = undo_command_manager.command_batch.pop_back() {
+            command.backward(world, undo_command_manager);
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this `UndoCommand` is never put on the undo stack");
+    }
+}
