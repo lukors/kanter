@@ -10,7 +10,7 @@ use crate::{
     stretch_between,
     // thumbnail::ThumbnailState,
     undo::{
-        edge::{AddEdge, RemoveEdge},
+        edge::{AddEdge, RemoveGuiEdge},
         prelude::*,
         undo_command_manager::Checkpoint,
     },
@@ -174,7 +174,7 @@ fn dropped_edge_update(
                                         || (edge.output_slot == source_slot.0
                                             && edge.input_slot == grabbed_edge.slot)
                                     {
-                                        undo_command_manager.push(Box::new(RemoveEdge(*edge)));
+                                        undo_command_manager.push(Box::new(RemoveGuiEdge(*edge)));
                                     }
                                 }
                             }
@@ -192,7 +192,7 @@ fn dropped_edge_update(
                         || (edge.output_slot == source_slot.0
                             && edge.input_slot == grabbed_edge.slot)
                     {
-                        undo_command_manager.push(Box::new(RemoveEdge(*edge)));
+                        undo_command_manager.push(Box::new(RemoveGuiEdge(*edge)));
                     }
                 }
             }

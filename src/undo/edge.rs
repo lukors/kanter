@@ -6,9 +6,11 @@ use crate::{
     thumbnail::ThumbnailState,
 };
 
-use super::{prelude::*, AddRemove};
+use super::{prelude::*, undo_command_manager::BoxUndoCommand, AddRemove};
 use bevy::prelude::*;
-use kanter_core::{edge::Edge, live_graph::LiveGraph, node::Side, node_graph::NodeId};
+use kanter_core::{
+    edge::Edge, error::TexProError, live_graph::LiveGraph, node::Side, node_graph::NodeId,
+};
 
 impl AddRemove for Edge {
     fn add(&self, world: &mut World) {
@@ -34,15 +36,27 @@ impl AddRemove for Edge {
 fn add_edge(world: &mut World, edge: Edge, start_end: Option<(Vec2, Vec2)>) {
     if let Some(live_graph) = world.remove_resource::<Arc<RwLock<LiveGraph>>>() {
         if let Ok(mut live_graph) = live_graph.write() {
-            if let Ok(edge) = live_graph.connect(
-                edge.output_id(),
-                edge.input_id(),
-                edge.output_slot(),
-                edge.input_slot(),
-            ) {
-                add_gui_edge(world, edge, start_end);
+            if live_graph
+                .can_connect(
+                    edge.output_id(),
+                    edge.input_id(),
+                    edge.output_slot(),
+                    edge.input_slot(),
+                )
+                .is_ok()
+            {
+                if let Ok(edge) = live_graph.connect(
+                    edge.output_id(),
+                    edge.input_id(),
+                    edge.output_slot(),
+                    edge.input_slot(),
+                ) {
+                    add_gui_edge(world, edge, start_end);
+                } else {
+                    error!("could not add the edge");
+                }
             } else {
-                error!("Couldn't add the edge");
+                error!("could not add the edge")
             }
         }
         world.insert_resource(live_graph);
@@ -61,8 +75,8 @@ fn set_thumbnail_state(world: &mut World, node_id: NodeId, thumbnail_state: Thum
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct RemoveEdge(pub(crate) GuiEdge);
-impl UndoCommand for RemoveEdge {
+pub struct RemoveGuiEdge(pub(crate) GuiEdge);
+impl UndoCommand for RemoveGuiEdge {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         let edge: Edge = self.0.into();
         edge.remove(world);
@@ -76,9 +90,71 @@ impl UndoCommand for RemoveEdge {
     }
 }
 
+/// Checks if the connection can be made, and if so creates `UndoCommand`s that disconnect each
+/// edge connected to the input slot, and an `UndoCommand` that does the connection.
 #[derive(Clone, Copy, Debug)]
 pub struct AddEdge(pub Edge);
 impl UndoCommand for AddEdge {
+    fn command_type(&self) -> super::UndoCommandType {
+        super::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        if let Some(live_graph) = world.remove_resource::<Arc<RwLock<LiveGraph>>>() {
+            let can_connect = live_graph.read().unwrap().can_connect(
+                self.0.output_id,
+                self.0.input_id,
+                self.0.output_slot,
+                self.0.input_slot,
+            );
+
+            match can_connect {
+                Ok(_) | Err(TexProError::SlotOccupied) => {
+                    let mut undo_commands: Vec<BoxUndoCommand> = Vec::new();
+
+                    let input_slot = Slot {
+                        node_id: self.0.input_id,
+                        side: Side::Input,
+                        slot_id: self.0.input_slot,
+                    };
+
+                    // Remove any input edges.
+                    let mut q_gui_edge = world.query::<&GuiEdge>();
+                    for gui_edge in q_gui_edge
+                        .iter(world)
+                        .filter(|edge| edge.input_slot == input_slot)
+                    {
+                        undo_commands.push(Box::new(RemoveGuiEdge(*gui_edge)));
+                    }
+
+                    // Connect the new edge.
+                    undo_commands.push(Box::new(AddEdgeOnly(self.0)));
+
+                    undo_command_manager
+                        .commands
+                        .push_front(Box::new(undo_commands));
+                }
+                Err(_) => {
+                    warn!("tried creating invalid connection");
+                }
+            }
+
+            world.insert_resource(live_graph);
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this `UndoCommand` is never put on the Undo stack");
+    }
+}
+
+/// Only creates a connection, without removing any existing connections.
+/// You should generally use `AddEdge` instead.
+///
+/// Fails if an `Edge` is already connected to the same input slot.
+#[derive(Clone, Copy, Debug)]
+pub struct AddEdgeOnly(pub Edge);
+impl UndoCommand for AddEdgeOnly {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         self.0.add(world);
     }

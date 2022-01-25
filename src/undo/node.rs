@@ -3,7 +3,7 @@ use kanter_core::node::Node;
 
 use crate::sync_graph::{self, Edge};
 
-use super::{edge::RemoveEdge, prelude::*, undo_command_manager::BoxUndoCommand};
+use super::{edge::RemoveGuiEdge, prelude::*, undo_command_manager::BoxUndoCommand};
 
 // impl AddRemove for Node {
 //     fn add(&self, world: &mut World) -> Entity {
@@ -95,7 +95,7 @@ impl UndoCommand for RemoveNode {
             edge.input_slot.node_id == self.node.node_id
                 || edge.output_slot.node_id == self.node.node_id
         }) {
-            commands.push(Box::new(RemoveEdge(*edge)));
+            commands.push(Box::new(RemoveGuiEdge(*edge)));
         }
 
         commands.push(Box::new(RemoveNodeOnly {
