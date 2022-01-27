@@ -10,12 +10,9 @@ use crate::{
 };
 use bevy::prelude::*;
 
-use self::node::{grab_node_setup, MoveNodeUndo};
+use self::node::{grab_node_setup, grab_node_update_edge, MoveNodeUndo};
 use self::{
-    edge::{
-        drag_edge_update, dropped_edge_update, grab_tool_slot_setup, grabbed_edge_update,
-        spawn_grabbed_edges,
-    },
+    edge::{dropped_edge_update, grab_tool_slot_setup, grabbed_edge_update, spawn_grabbed_edges},
     node::{grab_node_cleanup, grab_node_update},
 };
 
@@ -76,6 +73,7 @@ impl Plugin for WorkspaceDragDropPlugin {
                 .with_system(
                     grab_node_update
                         .system()
+                        .chain(grab_node_update_edge)
                         .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Node)))
                         .in_ambiguity_set(AmbiguitySet),
                 )
@@ -109,8 +107,7 @@ impl Plugin for WorkspaceDragDropPlugin {
                         .system()
                         .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(drag_edge_update.system()),
+                ),
         );
     }
 }

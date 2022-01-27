@@ -157,3 +157,37 @@ pub(crate) fn grab_node_cleanup(
         }
     }
 }
+
+pub(crate) fn grab_node_update_edge(
+    q_node: Query<(&NodeIdComponent, &Transform), With<Dragged>>,
+    q_slot: Query<(&Slot, &Transform)>,
+    mut q_edge: Query<
+        (&mut Sprite, &mut Transform, &mut GuiEdge),
+        (Without<NodeIdComponent>, Without<Slot>, Without<Cursor>),
+    >,
+    q_cursor: Query<&Transform, With<Cursor>>,
+) {
+    let cursor_t = q_cursor.iter().next().unwrap().translation;
+
+    for (node_id, node_t) in q_node.iter() {
+        for (mut sprite, mut edge_t, mut edge) in q_edge.iter_mut().filter(|(_, _, edge)| {
+            edge.input_slot.node_id == node_id.0 || edge.output_slot.node_id == node_id.0
+        }) {
+            for (slot, slot_t) in q_slot.iter().filter(|(slot, _)| slot.node_id == node_id.0) {
+                if slot.node_id == edge.output_slot.node_id
+                    && slot.slot_id == edge.output_slot.slot_id
+                    && slot.side == edge.output_slot.side
+                {
+                    edge.start = (cursor_t + node_t.translation + slot_t.translation).truncate();
+                } else if slot.node_id == edge.input_slot.node_id
+                    && slot.slot_id == edge.input_slot.slot_id
+                    && slot.side == edge.input_slot.side
+                {
+                    edge.end = (cursor_t + node_t.translation + slot_t.translation).truncate();
+                }
+            }
+
+            stretch_between(&mut sprite, &mut edge_t, edge.start, edge.end);
+        }
+    }
+}
