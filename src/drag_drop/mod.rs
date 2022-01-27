@@ -3,16 +3,12 @@ pub mod node;
 
 use std::fmt::Debug;
 
-use crate::{
-    shared::NodeIdComponent,
-    undo::{prelude::*, undo_command_manager::Checkpoint},
-    AmbiguitySet, CustomStage, GrabToolType, Slot, ToolState,
-};
+use crate::{AmbiguitySet, CustomStage, GrabToolType, ToolState};
 use bevy::prelude::*;
 
 use self::{
     edge::grab_edge_cleanup,
-    node::{grab_node_setup, grab_node_update_edge, MoveNodeUndo},
+    node::{grab_node_setup, grab_node_update_edge},
 };
 use self::{
     edge::{dropped_edge_update, grab_tool_slot_setup, grabbed_edge_update},
@@ -26,10 +22,7 @@ pub(crate) struct Dragged {
     start: Vec2,
 }
 #[derive(Component, Default)]
-pub(crate) struct Dropped {
-    start: Vec2,
-    end: Vec2,
-}
+pub(crate) struct Dropped;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 enum DragDropStage {
@@ -48,7 +41,7 @@ impl Plugin for WorkspaceDragDropPlugin {
                 .label(CustomStage::Update)
                 .label(DragDropStage::Setup)
                 .after(CustomStage::Setup)
-                .with_system(dropped_update.system())
+                // .with_system(dropped_update.system())
                 .with_system(
                     grab_tool_slot_setup
                         .system()
@@ -105,55 +98,5 @@ impl Plugin for WorkspaceDragDropPlugin {
                         .in_ambiguity_set(AmbiguitySet),
                 ),
         );
-    }
-}
-
-/// Drops all grabbed entities.
-pub(crate) fn grab_tool_cleanup(
-    mut commands: Commands,
-    q_dragged: Query<(Entity, &Dragged, &GlobalTransform)>,
-) {
-    // Todo: This should be replaced with a specific solution for edges, and one for nodes.
-    // They need different cleanup.
-
-    for (entity, dragged, gtransform) in q_dragged.iter() {
-        commands.entity(entity).remove::<Dragged>();
-        commands.entity(entity).insert(Dropped {
-            start: dragged.start,
-            end: gtransform.translation.truncate(),
-        });
-    }
-}
-
-/// When an entity gets the `Dropped` component, this system returns it to its un-dragged state.
-fn dropped_update(
-    mut undo_command_manager: ResMut<UndoCommandManager>,
-    mut commands: Commands,
-    mut q_dropped: Query<
-        (Entity, Option<&Slot>, Option<&NodeIdComponent>, &Dropped),
-        Added<Dropped>,
-    >,
-) {
-    // Todo: Should this be replaced with a specific solution for each type of draggable?
-    let mut changed = false;
-
-    for (entity, slot_id, node_id, transform) in q_dropped.iter_mut() {
-        if slot_id.is_none() {
-            commands.entity(entity).remove::<Parent>();
-
-            if let (Some(node_id), dropped) = (node_id, transform) {
-                undo_command_manager.push(Box::new(MoveNodeUndo {
-                    node_id: node_id.0,
-                    from: dropped.start,
-                    to: dropped.end,
-                }));
-                changed = true;
-            }
-        }
-        commands.entity(entity).remove::<Dropped>();
-    }
-
-    if changed {
-        undo_command_manager.push(Box::new(Checkpoint));
     }
 }

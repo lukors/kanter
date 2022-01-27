@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 /// Adding new nodes
 use crate::{
     camera::Cursor,
-    drag_drop::{grab_tool_cleanup, node::grab_node_setup, Draggable},
+    drag_drop::{node::grab_node_setup, Draggable},
     instruction::*,
     mouse_interaction::Selected,
     shared::NodeIdComponent,
@@ -148,12 +148,6 @@ impl Plugin for AddToolPlugin {
                         grab_tool_add_update
                             .system()
                             .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Add)))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        grab_tool_cleanup
-                            .system()
-                            .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Add)))
                             .in_ambiguity_set(AmbiguitySet),
                     ),
             );

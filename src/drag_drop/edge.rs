@@ -6,7 +6,6 @@ use crate::{
     hoverable::box_contains_point,
     mouse_interaction::Selected,
     scan_code_input::ScanCodeInput,
-    shared::NodeIdComponent,
     stretch_between,
     undo::{
         edge::{AddEdge, RemoveGuiEdge},
@@ -121,21 +120,19 @@ pub(crate) fn grab_tool_slot_setup(
 /// removes the edges.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn dropped_edge_update(
-    mut commands: Commands,
+    mut undo_command_manager: ResMut<UndoCommandManager>,
     mut tool_state: ResMut<State<ToolState>>,
     i_mouse_button: Res<Input<MouseButton>>,
     q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
-    q_grabbed_edge: Query<(Entity, &GrabbedEdge, Option<&SourceSlot>)>,
-    mut q_edge_visible: Query<&mut Visibility, With<GuiEdge>>,
+    q_grabbed_edge: Query<(&GrabbedEdge, Option<&SourceSlot>)>,
     q_edge: Query<&GuiEdge>,
-    mut undo_command_manager: ResMut<UndoCommandManager>,
 ) {
     if i_mouse_button.just_released(MouseButton::Left) {
         let cursor_t = q_cursor.iter().next().unwrap();
         let mut new_edges = Vec::new();
 
-        'outer: for (_, grabbed_edge, source_slot) in q_grabbed_edge.iter() {
+        'outer: for (grabbed_edge, source_slot) in q_grabbed_edge.iter() {
             for (slot_t, slot_sprite, slot) in q_slot.iter() {
                 if let Some(size) = slot_sprite.custom_size {
                     if box_contains_point(
@@ -166,6 +163,7 @@ pub(crate) fn dropped_edge_update(
                     }
                 }
             }
+
             if let Some(source_slot) = source_slot {
                 for edge in q_edge.iter() {
                     if (edge.input_slot == source_slot.0 && edge.output_slot == grabbed_edge.slot)
@@ -182,15 +180,6 @@ pub(crate) fn dropped_edge_update(
             undo_command_manager.push(new_edge);
         }
         undo_command_manager.push(Box::new(Checkpoint));
-
-        for (edge_e, _, _) in q_grabbed_edge.iter() {
-            commands.entity(edge_e).despawn_recursive();
-        }
-
-        for mut visible in q_edge_visible.iter_mut() {
-            visible.is_visible = true;
-        }
-
         tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 }
@@ -230,11 +219,16 @@ pub(crate) fn grabbed_edge_update(
 /// Drops all grabbed entities.
 pub(crate) fn grab_edge_cleanup(
     mut commands: Commands,
-    q_dragged: Query<Entity, (With<GuiEdge>, With<Dragged>)>,
+    q_grabbed_edge: Query<Entity, With<GrabbedEdge>>,
+    q_dragged: Query<Entity, With<Dragged>>,
     mut q_edge: Query<&mut Visibility, (With<GuiEdge>, Without<Dragged>)>,
 ) {
-    for entity in q_dragged.iter() {
+    for entity in q_grabbed_edge.iter() {
         commands.entity(entity).despawn_recursive();
+    }
+
+    for entity in q_dragged.iter() {
+        commands.entity(entity).remove::<Dragged>();
     }
 
     for mut visibility in q_edge.iter_mut() {
