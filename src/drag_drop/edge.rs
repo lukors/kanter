@@ -226,3 +226,18 @@ pub(crate) fn grabbed_edge_update(
         }
     }
 }
+
+/// Drops all grabbed entities.
+pub(crate) fn grab_edge_cleanup(
+    mut commands: Commands,
+    q_dragged: Query<Entity, (With<GuiEdge>, With<Dragged>)>,
+    mut q_edge: Query<&mut Visibility, (With<GuiEdge>, Without<Dragged>)>,
+) {
+    for entity in q_dragged.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    for mut visibility in q_edge.iter_mut() {
+        *visibility = Visibility { is_visible: true };
+    }
+}

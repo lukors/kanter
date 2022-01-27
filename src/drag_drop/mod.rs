@@ -10,7 +10,10 @@ use crate::{
 };
 use bevy::prelude::*;
 
-use self::node::{grab_node_setup, grab_node_update_edge, MoveNodeUndo};
+use self::{
+    edge::grab_edge_cleanup,
+    node::{grab_node_setup, grab_node_update_edge, MoveNodeUndo},
+};
 use self::{
     edge::{dropped_edge_update, grab_tool_slot_setup, grabbed_edge_update},
     node::{grab_node_cleanup, grab_node_update},
@@ -50,12 +53,6 @@ impl Plugin for WorkspaceDragDropPlugin {
                     grab_tool_slot_setup
                         .system()
                         .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Slot)))
-                        .in_ambiguity_set(AmbiguitySet),
-                )
-                .with_system(
-                    grab_tool_update
-                        .system()
-                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
                 ),
         )
@@ -102,32 +99,12 @@ impl Plugin for WorkspaceDragDropPlugin {
                         .in_ambiguity_set(AmbiguitySet),
                 )
                 .with_system(
-                    grab_tool_cleanup
+                    grab_edge_cleanup
                         .system()
                         .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
                 ),
         );
-    }
-}
-
-/// Exit grab tool if mouse button is released.
-fn grab_tool_update(
-    mut commands: Commands,
-    q_dragged: Query<(Entity, &Dragged, &GlobalTransform)>,
-    mut tool_state: ResMut<State<ToolState>>,
-    i_mouse_button: Res<Input<MouseButton>>,
-) {
-    // Todo: Replace with specific solutions that create UndoCommands before exiting tool.
-    if i_mouse_button.just_released(MouseButton::Left) {
-        for (entity, dragged, gtransform) in q_dragged.iter() {
-            commands.entity(entity).remove::<Dragged>();
-            commands.entity(entity).insert(Dropped {
-                start: dragged.start,
-                end: gtransform.translation.truncate(),
-            });
-        }
-        // tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 }
 
