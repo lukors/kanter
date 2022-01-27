@@ -118,21 +118,29 @@ pub(crate) fn grab_tool_slot_setup(
 
 /// When an edge is dropped, this system updates the node graph based on where its dropped, and
 /// removes the edges.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn dropped_edge_update(
+pub(crate) fn grab_edge_update(
     mut undo_command_manager: ResMut<UndoCommandManager>,
     mut tool_state: ResMut<State<ToolState>>,
     i_mouse_button: Res<Input<MouseButton>>,
     q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
-    q_grabbed_edge: Query<(&GrabbedEdge, Option<&SourceSlot>)>,
-    q_edge: Query<&GuiEdge>,
+    mut q_grabbed_edge: Query<
+        (
+            &mut Transform,
+            &mut Sprite,
+            &GrabbedEdge,
+            Option<&SourceSlot>,
+        ),
+        Without<Slot>,
+    >,
+    q_edge: Query<&GuiEdge, Without<GrabbedEdge>>,
 ) {
+    let cursor_t = q_cursor.iter().next().unwrap();
+
     if i_mouse_button.just_released(MouseButton::Left) {
-        let cursor_t = q_cursor.iter().next().unwrap();
         let mut new_edges = Vec::new();
 
-        'outer: for (grabbed_edge, source_slot) in q_grabbed_edge.iter() {
+        'outer: for (_, _, grabbed_edge, source_slot) in q_grabbed_edge.iter() {
             for (slot_t, slot_sprite, slot) in q_slot.iter() {
                 if let Some(size) = slot_sprite.custom_size {
                     if box_contains_point(
@@ -181,6 +189,16 @@ pub(crate) fn dropped_edge_update(
         }
         undo_command_manager.push(Box::new(Checkpoint));
         tool_state.overwrite_replace(ToolState::None).unwrap();
+    } else {
+        // Update grabbed edge
+        for (mut edge_t, mut sprite, edge, _) in q_grabbed_edge.iter_mut() {
+            stretch_between(
+                &mut sprite,
+                &mut edge_t,
+                edge.start,
+                cursor_t.translation.truncate(),
+            );
+        }
     }
 }
 
@@ -200,21 +218,21 @@ fn connect_arbitrary(slot_a: Slot, slot_b: Slot) -> Result<AddEdge> {
 }
 
 /// Updates the visual of all dragged slots.
-pub(crate) fn grabbed_edge_update(
-    mut q_edge: Query<(&mut Transform, &GrabbedEdge, &mut Sprite)>,
-    q_cursor: Query<&GlobalTransform, With<Cursor>>,
-) {
-    if let Ok(cursor_t) = q_cursor.get_single() {
-        for (mut edge_t, edge, mut sprite) in q_edge.iter_mut() {
-            stretch_between(
-                &mut sprite,
-                &mut edge_t,
-                edge.start,
-                cursor_t.translation.truncate(),
-            );
-        }
-    }
-}
+// pub(crate) fn grabbed_edge_update(
+//     mut q_edge: Query<(&mut Transform, &GrabbedEdge, &mut Sprite)>,
+//     q_cursor: Query<&GlobalTransform, With<Cursor>>,
+// ) {
+//     if let Ok(cursor_t) = q_cursor.get_single() {
+//         for (mut edge_t, edge, mut sprite) in q_edge.iter_mut() {
+//             stretch_between(
+//                 &mut sprite,
+//                 &mut edge_t,
+//                 edge.start,
+//                 cursor_t.translation.truncate(),
+//             );
+//         }
+//     }
+// }
 
 /// Drops all grabbed entities.
 pub(crate) fn grab_edge_cleanup(

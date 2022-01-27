@@ -3,7 +3,7 @@ pub mod node;
 
 use std::fmt::Debug;
 
-use crate::{AmbiguitySet, CustomStage, GrabToolType, ToolState};
+use crate::{AmbiguitySet, GrabToolType, ToolState};
 use bevy::prelude::*;
 
 use self::{
@@ -11,7 +11,7 @@ use self::{
     node::{grab_node_setup, grab_node_update_edge},
 };
 use self::{
-    edge::{dropped_edge_update, grab_tool_slot_setup, grabbed_edge_update},
+    edge::{grab_edge_update, grab_tool_slot_setup},
     node::{grab_node_cleanup, grab_node_update},
 };
 
@@ -36,20 +36,6 @@ pub(crate) struct WorkspaceDragDropPlugin;
 impl Plugin for WorkspaceDragDropPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set_to_stage(
-            CoreStage::Update,
-            SystemSet::new()
-                .label(CustomStage::Update)
-                .label(DragDropStage::Setup)
-                .after(CustomStage::Setup)
-                // .with_system(dropped_update.system())
-                .with_system(
-                    grab_tool_slot_setup
-                        .system()
-                        .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Slot)))
-                        .in_ambiguity_set(AmbiguitySet),
-                ),
-        )
-        .add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
                 .label(DragDropStage::Node)
@@ -80,13 +66,13 @@ impl Plugin for WorkspaceDragDropPlugin {
                 .label(DragDropStage::Edge)
                 .after(DragDropStage::Node)
                 .with_system(
-                    grabbed_edge_update
+                    grab_tool_slot_setup
                         .system()
-                        .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
+                        .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
                 )
                 .with_system(
-                    dropped_edge_update
+                    grab_edge_update
                         .system()
                         .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
