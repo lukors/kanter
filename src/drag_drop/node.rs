@@ -46,7 +46,6 @@ impl UndoCommand for MoveNodeUndo {
 pub(crate) fn grab_node_setup(
     mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
-    mut undo_command_manager: ResMut<UndoCommandManager>,
     mut q_selected_nodes: Query<
         (Entity, &mut Transform, &GlobalTransform),
         (With<NodeIdComponent>, With<Selected>),

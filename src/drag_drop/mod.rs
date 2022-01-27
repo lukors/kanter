@@ -84,7 +84,7 @@ impl Plugin for WorkspaceDragDropPlugin {
                         .system()
                         .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Node)))
                         .in_ambiguity_set(AmbiguitySet),
-                ), // .with_system(drag_node_update.system()),
+                ),
         )
         .add_system_set_to_stage(
             CoreStage::Update,
@@ -110,11 +110,7 @@ impl Plugin for WorkspaceDragDropPlugin {
                         .with_run_criteria(State::on_exit(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
                 )
-                .with_system(drag_edge_update.system()), // )
-                                                         // .add_system_set_to_stage(
-                                                         //     CoreStage::Update,
-                                                         //     SystemSet::new()
-                                                         //         .after(DragDropStage::GuiEdge)
+                .with_system(drag_edge_update.system()),
         );
     }
 }
