@@ -66,16 +66,20 @@ impl UndoCommand for SelectedToCursorSneaky {
 
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         let mut query =
-            world.query_filtered::<&mut Transform, (With<Selected>, With<NodeIdComponent>)>();
+            world.query_filtered::<(&mut Transform, &mut GlobalTransform), (With<Selected>, With<NodeIdComponent>)>();
         let cursor = *world
             .query_filtered::<&GlobalTransform, With<Cursor>>()
             .iter(world)
             .next()
             .unwrap();
 
-        for mut transform in query.iter_mut(world) {
+        for (mut transform, mut global_transform) in query.iter_mut(world) {
             transform.translation.x = cursor.translation.x;
             transform.translation.y = cursor.translation.y;
+
+            // I've read that I shouldn't edit the `GlobalTransform`, but it makes this case work.
+            global_transform.translation.x = cursor.translation.x;
+            global_transform.translation.y = cursor.translation.y;
         }
     }
 

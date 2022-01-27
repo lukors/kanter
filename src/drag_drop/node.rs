@@ -56,17 +56,15 @@ pub(crate) fn grab_node_setup(
     let (cursor_e, cursor_transform) = q_cursor.single();
     let mut any_nodes = false;
 
-    for (entity, mut transform, gtransform) in q_selected_nodes.iter_mut() {
+    for (entity, mut transform, global_transform) in q_selected_nodes.iter_mut() {
         commands.entity(cursor_e).push_children(&[entity]);
         commands.entity(entity).insert(Dragged {
-            start: gtransform.translation.truncate(),
+            start: global_transform.translation.truncate(),
         });
 
-        // undo_command_manager.push(Box::new(SelectedToCursorSneaky));
-
-        let global_pos = gtransform.translation - cursor_transform.translation;
-        transform.translation.x = global_pos.x;
-        transform.translation.y = global_pos.y;
+        let cursor_space = global_transform.translation - cursor_transform.translation;
+        transform.translation.x = cursor_space.x;
+        transform.translation.y = cursor_space.y;
 
         any_nodes = true;
     }
