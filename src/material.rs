@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use kanter_core::node::SlotType;
 
 use crate::{
+    mouse_interaction::Active,
     shared::{NodeIdComponent, SlotTypeComponent},
     Hovered, Selected,
 };
@@ -20,7 +21,15 @@ impl Plugin for MaterialPlugin {
 // Todo: This function should probably return a color and not a material, if it is needed at all.
 // This is due to Bevy 0.6.0, which allows for setting the color of a sprite without a material.
 fn material(
-    mut q_node: Query<(&mut Sprite, Option<&Hovered>, Option<&Selected>), With<NodeIdComponent>>,
+    mut q_node: Query<
+        (
+            &mut Sprite,
+            Option<&Hovered>,
+            Option<&Selected>,
+            Option<&Active>,
+        ),
+        With<NodeIdComponent>,
+    >,
     mut q_slot: Query<
         (
             &SlotTypeComponent,
@@ -31,8 +40,10 @@ fn material(
         Without<NodeIdComponent>,
     >,
 ) {
-    for (mut sprite, hovered, selected) in q_node.iter_mut() {
-        let value = if selected.is_some() {
+    for (mut sprite, hovered, selected, active) in q_node.iter_mut() {
+        let value = if active.is_some() {
+            0.0
+        } else if selected.is_some() {
             0.25
         } else if hovered.is_some() {
             0.35
