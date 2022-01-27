@@ -1,8 +1,6 @@
 pub mod edge;
 pub mod node;
 
-use std::fmt::Debug;
-
 use crate::{AmbiguitySet, GrabToolType, ToolState};
 use bevy::prelude::*;
 
@@ -24,13 +22,6 @@ pub(crate) struct Dragged {
 #[derive(Component, Default)]
 pub(crate) struct Dropped;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
-enum DragDropStage {
-    Setup,
-    Node,
-    Edge,
-}
-
 pub(crate) struct WorkspaceDragDropPlugin;
 
 impl Plugin for WorkspaceDragDropPlugin {
@@ -38,8 +29,6 @@ impl Plugin for WorkspaceDragDropPlugin {
         app.add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(DragDropStage::Node)
-                .after(DragDropStage::Setup)
                 .with_system(
                     grab_node_setup
                         .system()
@@ -63,8 +52,6 @@ impl Plugin for WorkspaceDragDropPlugin {
         .add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
-                .label(DragDropStage::Edge)
-                .after(DragDropStage::Node)
                 .with_system(
                     grab_tool_slot_setup
                         .system()
