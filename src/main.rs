@@ -5,7 +5,7 @@ pub mod camera;
 pub mod core_translation;
 pub mod delete_tool;
 pub mod deselect_tool;
-pub mod drag_drop_entity;
+pub mod drag_drop;
 pub mod drag_drop_import;
 pub mod edit_node;
 pub mod export;
@@ -28,7 +28,7 @@ pub mod workspace;
 
 use bevy::prelude::*;
 use camera::*;
-use drag_drop_entity::*;
+use drag_drop::*;
 use hotkeys::*;
 use hoverable::*;
 use kanter::*;

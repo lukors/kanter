@@ -2,11 +2,11 @@ use std::sync::{Arc, RwLock};
 
 /// Adding new nodes
 use crate::{
-    drag_drop_entity::{
-        grab_tool_cleanup, grab_tool_node_setup, DeselectSneaky, DragToolUndo, SelectNew,
-        SelectedToCursorSneaky,
-    },
+    camera::Cursor,
+    drag_drop::{grab_tool_cleanup, node::grab_tool_node_setup, Draggable},
     instruction::*,
+    mouse_interaction::Selected,
+    shared::NodeIdComponent,
     undo::{node::AddNode, prelude::*},
     AmbiguitySet, CustomStage, GrabToolType, ToolState,
 };
@@ -18,6 +18,93 @@ use kanter_core::{
     node_graph::NodeId,
 };
 use native_dialog::FileDialog;
+
+#[derive(Copy, Clone, Debug)]
+struct DragToolUndo;
+impl UndoCommand for DragToolUndo {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut tool_state = world.get_resource_mut::<State<ToolState>>().unwrap();
+        let _ = tool_state.overwrite_replace(ToolState::Grab(GrabToolType::Node));
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is not saved on the undo stack");
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+struct SelectNew;
+impl UndoCommand for SelectNew {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query = world.query_filtered::<Entity, (With<Draggable>, Added<NodeIdComponent>)>();
+        for entity in query.iter(world).collect::<Vec<Entity>>() {
+            world.entity_mut(entity).insert(Selected);
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is not saved on the undo stack");
+    }
+}
+
+/// The sneaky variant is not saved on the undo stack. Can probably be replaced with a command that
+/// removes the most recent command from the undo stack.
+#[derive(Copy, Clone, Debug)]
+struct SelectedToCursorSneaky;
+impl UndoCommand for SelectedToCursorSneaky {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query =
+            world.query_filtered::<&mut Transform, (With<Selected>, With<NodeIdComponent>)>();
+        let cursor = *world
+            .query_filtered::<&GlobalTransform, With<Cursor>>()
+            .iter(world)
+            .next()
+            .unwrap();
+
+        for mut transform in query.iter_mut(world) {
+            transform.translation.x = cursor.translation.x;
+            transform.translation.y = cursor.translation.y;
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is not saved on the undo stack");
+    }
+}
+
+/// The sneaky variant is not saved on the undo stack. Can probably be replaced with a command that
+/// removes the most recent command from the undo stack.
+#[derive(Copy, Clone, Debug)]
+struct DeselectSneaky;
+impl UndoCommand for DeselectSneaky {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        let mut query = world.query_filtered::<Entity, With<Selected>>();
+
+        for entity in query.iter(world).collect::<Vec<Entity>>() {
+            world.entity_mut(entity).remove::<Selected>();
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is not saved on the undo stack");
+    }
+}
 
 pub(crate) struct AddToolPlugin;
 
