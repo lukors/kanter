@@ -7,7 +7,7 @@ use crate::{
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
 
-use super::Dragged;
+use super::{Dragged, Dropped};
 
 #[derive(Clone, Debug)]
 pub struct MoveNodeUndo {
@@ -43,39 +43,36 @@ impl UndoCommand for MoveNodeUndo {
 }
 
 /// Grab all selected nodes.
-pub(crate) fn grab_tool_node_setup(
+pub(crate) fn grab_node_setup(
+    mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
-    mut commands: Commands,
-    q_selected_nodes: Query<(Entity, &GlobalTransform), (With<NodeIdComponent>, With<Selected>)>,
-) {
-    if q_selected_nodes.iter().count() == 0 {
-        tool_state.overwrite_replace(ToolState::None).unwrap();
-    }
-
-    for (entity, gtransform) in q_selected_nodes.iter() {
-        commands.entity(entity).insert(Dragged {
-            start: gtransform.translation.truncate(),
-        });
-    }
-}
-
-/// Updates all dragged nodes.
-pub(crate) fn drag_node_update(
-    mut commands: Commands,
-    mut q_dragged_node: Query<
+    mut undo_command_manager: ResMut<UndoCommandManager>,
+    mut q_selected_nodes: Query<
         (Entity, &mut Transform, &GlobalTransform),
-        (Added<Dragged>, With<NodeIdComponent>, Without<Slot>),
+        (With<NodeIdComponent>, With<Selected>),
     >,
     q_cursor: Query<(Entity, &GlobalTransform), With<Cursor>>,
 ) {
-    if let Ok((cursor_e, cursor_transform)) = q_cursor.get_single() {
-        for (entity, mut transform, global_transform) in q_dragged_node.iter_mut() {
-            commands.entity(cursor_e).push_children(&[entity]);
+    let (cursor_e, cursor_transform) = q_cursor.single();
+    let mut any_nodes = false;
 
-            let global_pos = global_transform.translation - cursor_transform.translation;
-            transform.translation.x = global_pos.x;
-            transform.translation.y = global_pos.y;
-        }
+    for (entity, mut transform, gtransform) in q_selected_nodes.iter_mut() {
+        commands.entity(cursor_e).push_children(&[entity]);
+        commands.entity(entity).insert(Dragged {
+            start: gtransform.translation.truncate(),
+        });
+
+        // undo_command_manager.push(Box::new(SelectedToCursorSneaky));
+
+        let global_pos = gtransform.translation - cursor_transform.translation;
+        transform.translation.x = global_pos.x;
+        transform.translation.y = global_pos.y;
+
+        any_nodes = true;
+    }
+
+    if !any_nodes {
+        tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 }
 
@@ -113,5 +110,53 @@ fn update_node_gui_edges(world: &mut World, node_id: NodeId) {
         }
 
         stretch_between(&mut sprite, &mut edge_t, edge.start, edge.end);
+    }
+}
+
+/// Exit grab tool if mouse button is released.
+pub(crate) fn grab_node_update(
+    mut commands: Commands,
+    mut undo_command_manager: ResMut<UndoCommandManager>,
+    q_dragged: Query<(Entity, &NodeIdComponent, &Dragged, &GlobalTransform)>,
+    mut tool_state: ResMut<State<ToolState>>,
+    i_mouse_button: Res<Input<MouseButton>>,
+) {
+    if i_mouse_button.just_released(MouseButton::Left) {
+        for (entity, node_id, dragged, gtransform) in q_dragged.iter() {
+            let to = gtransform.translation.truncate();
+
+            undo_command_manager.push(Box::new(MoveNodeUndo {
+                node_id: node_id.0,
+                from: dragged.start,
+                to,
+            }));
+
+            commands.entity(entity).remove::<Parent>();
+            commands.entity(entity).remove::<Dragged>();
+        }
+
+        undo_command_manager.push(Box::new(Checkpoint));
+        tool_state.overwrite_replace(ToolState::None).unwrap();
+    }
+}
+
+pub(crate) fn grab_node_cleanup(
+    mut commands: Commands,
+    mut q_dragged: Query<
+        (Entity, Option<&Dragged>, Option<&Dropped>, &mut Transform),
+        With<NodeIdComponent>,
+    >,
+) {
+    for (entity, dragged, dropped, mut transform) in q_dragged.iter_mut() {
+        if dragged.is_some() || dropped.is_some() {
+            commands.entity(entity).remove::<Dragged>();
+            commands.entity(entity).remove::<Dropped>();
+            commands.entity(entity).remove::<Parent>();
+
+            if let Some(dragged) = dragged {
+                transform.translation.x = dragged.start.x;
+                transform.translation.y = dragged.start.y;
+            }
+        }
     }
 }

@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 /// Adding new nodes
 use crate::{
     camera::Cursor,
-    drag_drop::{grab_tool_cleanup, node::grab_tool_node_setup, Draggable},
+    drag_drop::{grab_tool_cleanup, node::grab_node_setup, Draggable},
     instruction::*,
     mouse_interaction::Selected,
     shared::NodeIdComponent,
@@ -58,7 +58,7 @@ impl UndoCommand for SelectNew {
 /// The sneaky variant is not saved on the undo stack. Can probably be replaced with a command that
 /// removes the most recent command from the undo stack.
 #[derive(Copy, Clone, Debug)]
-struct SelectedToCursorSneaky;
+pub(crate) struct SelectedToCursorSneaky;
 impl UndoCommand for SelectedToCursorSneaky {
     fn command_type(&self) -> crate::undo::UndoCommandType {
         crate::undo::UndoCommandType::Custom
@@ -135,7 +135,7 @@ impl Plugin for AddToolPlugin {
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
-                        grab_tool_node_setup
+                        grab_node_setup
                             .system()
                             .with_run_criteria(State::on_enter(ToolState::Grab(GrabToolType::Add)))
                             .in_ambiguity_set(AmbiguitySet),
