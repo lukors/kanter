@@ -31,18 +31,89 @@ pub struct GrabbedEdge {
 
 /// Grab all selected slots.
 pub(crate) fn grab_tool_slot_setup(
-    mut tool_state: ResMut<State<ToolState>>,
     mut commands: Commands,
-    q_selected_slots: Query<(Entity, &GlobalTransform), (With<Slot>, With<Selected>)>,
+    mut tool_state: ResMut<State<ToolState>>,
+    q_selected_slots: Query<(Entity, &GlobalTransform, &Slot), With<Selected>>,
+    q_slot: Query<(&GlobalTransform, &Slot)>,
+    mut q_edge: Query<(&mut Visibility, &GuiEdge)>,
+    scan_code_input: Res<ScanCodeInput>,
 ) {
+    let line_sprite_bundle = SpriteBundle {
+        sprite: Sprite {
+            color: Color::BLACK,
+            custom_size: Some(Vec2::new(5.0, 5.0)),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
     if q_selected_slots.iter().count() == 0 {
         tool_state.overwrite_replace(ToolState::None).unwrap();
     }
 
-    for (entity, gtransform) in q_selected_slots.iter() {
+    for (entity, global_transform, slot) in q_selected_slots.iter() {
         commands.entity(entity).insert(Dragged {
-            start: gtransform.translation.truncate(),
+            start: global_transform.translation.truncate(),
         });
+
+        if control_pressed(&scan_code_input) {
+            match slot.side {
+                Side::Output => {
+                    for (mut edge_visible, edge) in q_edge
+                        .iter_mut()
+                        .filter(|(_, edge)| edge.output_slot == *slot)
+                    {
+                        edge_visible.is_visible = false;
+
+                        if let Some((input_slot_gtransform, input_slot)) =
+                            q_slot.iter().find(|(_, slot)| {
+                                slot.node_id == edge.input_slot.node_id
+                                    && slot.slot_id == edge.input_slot.slot_id
+                                    && slot.side == Side::Input
+                            })
+                        {
+                            commands
+                                .spawn_bundle(line_sprite_bundle.clone())
+                                .insert(GrabbedEdge {
+                                    start: input_slot_gtransform.translation.truncate(),
+                                    slot: *input_slot,
+                                })
+                                .insert(SourceSlot(*slot));
+                        }
+                    }
+                }
+                Side::Input => {
+                    if let Some((mut edge_visible, edge)) =
+                        q_edge.iter_mut().find(|(_, edge)| edge.input_slot == *slot)
+                    {
+                        edge_visible.is_visible = false;
+
+                        if let Some((output_slot_gtransform, output_slot)) =
+                            q_slot.iter().find(|(_, slot)| {
+                                slot.node_id == edge.output_slot.node_id
+                                    && slot.slot_id == edge.output_slot.slot_id
+                                    && slot.side == Side::Output
+                            })
+                        {
+                            commands
+                                .spawn_bundle(line_sprite_bundle.clone())
+                                .insert(GrabbedEdge {
+                                    start: output_slot_gtransform.translation.truncate(),
+                                    slot: *output_slot,
+                                })
+                                .insert(SourceSlot(*slot));
+                        }
+                    }
+                }
+            }
+        } else {
+            commands
+                .spawn_bundle(line_sprite_bundle.clone())
+                .insert(GrabbedEdge {
+                    start: global_transform.translation.truncate(),
+                    slot: *slot,
+                });
+        }
     }
 }
 
@@ -152,86 +223,6 @@ pub(crate) fn grabbed_edge_update(
                 edge.start,
                 cursor_t.translation.truncate(),
             );
-        }
-    }
-}
-
-/// When a slot is grabbed this system creates its edge entity.
-pub(crate) fn spawn_grabbed_edges(
-    mut commands: Commands,
-    q_dragged_slot: Query<(&GlobalTransform, &Slot), Added<Dragged>>,
-    q_slot: Query<(&GlobalTransform, &Slot)>,
-    mut q_edge: Query<(&mut Visibility, &GuiEdge)>,
-    scan_code_input: Res<ScanCodeInput>,
-) {
-    let line_sprite_bundle = SpriteBundle {
-        sprite: Sprite {
-            color: Color::BLACK,
-            custom_size: Some(Vec2::new(5.0, 5.0)),
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-
-    for (dragged_slot_gtransform, dragged_slot) in q_dragged_slot.iter() {
-        if control_pressed(&scan_code_input) {
-            match dragged_slot.side {
-                Side::Output => {
-                    for (mut edge_visible, edge) in q_edge
-                        .iter_mut()
-                        .filter(|(_, edge)| edge.output_slot == *dragged_slot)
-                    {
-                        edge_visible.is_visible = false;
-
-                        if let Some((input_slot_gtransform, input_slot)) =
-                            q_slot.iter().find(|(_, slot)| {
-                                slot.node_id == edge.input_slot.node_id
-                                    && slot.slot_id == edge.input_slot.slot_id
-                                    && slot.side == Side::Input
-                            })
-                        {
-                            commands
-                                .spawn_bundle(line_sprite_bundle.clone())
-                                .insert(GrabbedEdge {
-                                    start: input_slot_gtransform.translation.truncate(),
-                                    slot: *input_slot,
-                                })
-                                .insert(SourceSlot(*dragged_slot));
-                        }
-                    }
-                }
-                Side::Input => {
-                    if let Some((mut edge_visible, edge)) = q_edge
-                        .iter_mut()
-                        .find(|(_, edge)| edge.input_slot == *dragged_slot)
-                    {
-                        edge_visible.is_visible = false;
-
-                        if let Some((output_slot_gtransform, output_slot)) =
-                            q_slot.iter().find(|(_, slot)| {
-                                slot.node_id == edge.output_slot.node_id
-                                    && slot.slot_id == edge.output_slot.slot_id
-                                    && slot.side == Side::Output
-                            })
-                        {
-                            commands
-                                .spawn_bundle(line_sprite_bundle.clone())
-                                .insert(GrabbedEdge {
-                                    start: output_slot_gtransform.translation.truncate(),
-                                    slot: *output_slot,
-                                })
-                                .insert(SourceSlot(*dragged_slot));
-                        }
-                    }
-                }
-            }
-        } else {
-            commands
-                .spawn_bundle(line_sprite_bundle.clone())
-                .insert(GrabbedEdge {
-                    start: dragged_slot_gtransform.translation.truncate(),
-                    slot: *dragged_slot,
-                });
         }
     }
 }

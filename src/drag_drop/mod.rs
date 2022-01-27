@@ -12,7 +12,7 @@ use bevy::prelude::*;
 
 use self::node::{grab_node_setup, grab_node_update_edge, MoveNodeUndo};
 use self::{
-    edge::{dropped_edge_update, grab_tool_slot_setup, grabbed_edge_update, spawn_grabbed_edges},
+    edge::{dropped_edge_update, grab_tool_slot_setup, grabbed_edge_update},
     node::{grab_node_cleanup, grab_node_update},
 };
 
@@ -90,9 +90,8 @@ impl Plugin for WorkspaceDragDropPlugin {
                 .label(DragDropStage::Edge)
                 .after(DragDropStage::Node)
                 .with_system(
-                    spawn_grabbed_edges
+                    grabbed_edge_update
                         .system()
-                        .chain(grabbed_edge_update.system())
                         .with_run_criteria(State::on_update(ToolState::Grab(GrabToolType::Slot)))
                         .in_ambiguity_set(AmbiguitySet),
                 )
