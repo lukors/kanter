@@ -202,13 +202,17 @@ fn first_person_on_cleanup(
 /// Pan using the mouse.
 fn mouse_pan(
     workspace: Res<Workspace>,
+    windows: Res<Windows>,
     mut camera: Query<&mut Transform, With<WorkspaceCamera>>,
     i_mouse_button: Res<Input<MouseButton>>,
 ) {
     if i_mouse_button.pressed(MouseButton::Middle) && workspace.cursor_moved {
+        let window = windows.get_primary().unwrap();
+        let scale = window.backend_scale_factor();
+
         if let Ok(mut camera_t) = camera.get_single_mut() {
-            camera_t.translation.x -= workspace.cursor_delta.x;
-            camera_t.translation.y += workspace.cursor_delta.y;
+            camera_t.translation.x -= workspace.cursor_delta.x * (1.0 / scale as f32);
+            camera_t.translation.y += workspace.cursor_delta.y * (1.0 / scale as f32);
         }
     }
 }
