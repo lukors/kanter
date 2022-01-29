@@ -15,7 +15,6 @@ use bevy::prelude::*;
 use kanter_core::{
     live_graph::LiveGraph,
     node::{mix::MixType, node_type::NodeType, Node},
-    node_graph::NodeId,
 };
 use native_dialog::FileDialog;
 
@@ -168,7 +167,6 @@ fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
 
 /// When you press the button for a node it creates that node for you.
 fn add_update(
-    mut commands: Commands,
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut tool_state: ResMut<State<ToolState>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
@@ -224,14 +222,7 @@ fn add_update(
         };
 
         if let Some(node_type) = node_type {
-            if create_and_grab_node(
-                &mut commands,
-                &mut undo_command_manager,
-                &*live_graph,
-                &node_type,
-            )
-            .is_ok()
-            {
+            if create_and_grab_node(&mut undo_command_manager, &*live_graph, &node_type).is_ok() {
                 info!("Added node: {:?}", node_type);
             } else {
                 warn!("failed to create node: {:?}", node_type);
@@ -246,12 +237,11 @@ fn add_update(
 }
 
 pub fn create_and_grab_node(
-    commands: &mut Commands,
     undo_command_manager: &mut UndoCommandManager,
     live_graph: &Arc<RwLock<LiveGraph>>,
     node_type: &NodeType,
 ) -> Result<()> {
-    let node = create_default_node(commands, live_graph, node_type.clone())?;
+    let node = create_default_node(live_graph, node_type.clone())?;
 
     undo_command_manager.push(Box::new(AddNode::new(node, Vec2::ZERO)));
     undo_command_manager.push(Box::new(DeselectSneaky));
@@ -264,22 +254,14 @@ pub fn create_and_grab_node(
     Ok(())
 }
 
-#[derive(Component)]
-pub struct NewNode(pub NodeId);
-
 pub fn create_default_node(
-    commands: &mut Commands,
     live_graph: &Arc<RwLock<LiveGraph>>,
     node_type: NodeType,
 ) -> Result<Node> {
     let node_id = live_graph.write().map_err(|e| anyhow!("{}", e))?.new_id();
-    let output = Ok(Node::with_id(node_type, node_id)
+    Ok(Node::with_id(node_type, node_id)
         .resize_policy(kanter_core::node::ResizePolicy::MostPixels)
-        .resize_filter(kanter_core::node::ResizeFilter::Triangle));
-
-    commands.spawn().insert(NewNode(node_id));
-
-    output
+        .resize_filter(kanter_core::node::ResizeFilter::Triangle))
 }
 
 fn grab_tool_add_instructions(mut instructions: ResMut<Instructions>) {

@@ -4,7 +4,12 @@ use bevy::prelude::*;
 use kanter_core::{live_graph::LiveGraph, node::node_type::NodeType};
 
 use crate::{
-    add_tool::create_and_grab_node, instruction::ToolList, undo::prelude::UndoCommandManager,
+    add_tool::create_and_grab_node,
+    camera::Cursor,
+    instruction::ToolList,
+    mouse_interaction::Selected,
+    sync_graph::NODE_SIZE,
+    undo::{prelude::UndoCommandManager, UndoCommand},
     AmbiguitySet, CustomStage, ToolState,
 };
 
@@ -30,31 +35,64 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 }
 
 fn drag_drop_import(
-    mut commands: Commands,
     mut undo_command_manager: ResMut<UndoCommandManager>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut events: EventReader<FileDragAndDrop>,
 ) {
-    let mut node_created = false;
+    let mut created_nodes: usize = 0;
 
     for event in events.iter() {
         if let FileDragAndDrop::DroppedFile { id: _, path_buf } = event {
-            if !node_created {
-                let node_type = NodeType::Image(path_buf.clone());
+            let node_type = NodeType::Image(path_buf.clone());
 
-                if create_and_grab_node(
-                    &mut commands,
-                    &mut undo_command_manager,
-                    &*live_graph,
-                    &node_type,
-                )
-                .is_ok()
-                {
-                    node_created = true;
-                } else {
-                    error!("failed to create node");
-                }
+            if create_and_grab_node(&mut undo_command_manager, &*live_graph, &node_type).is_ok() {
+                created_nodes += 1;
+            } else {
+                error!("failed to create node: {:?}", node_type);
             }
         }
+    }
+
+    if created_nodes > 1 {
+        undo_command_manager.push(Box::new(DragDropImportOffset));
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+struct DragDropImportOffset;
+impl UndoCommand for DragDropImportOffset {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        const NODE_OFFSET: f32 = NODE_SIZE + 12.0;
+
+        let cursor_transform = *world
+            .query_filtered::<&GlobalTransform, With<Cursor>>()
+            .iter(world)
+            .next()
+            .unwrap();
+
+        let mut q_new_node =
+            world.query_filtered::<(&mut Transform, &mut GlobalTransform), With<Selected>>();
+
+        for (i, (mut transform, mut global_transform)) in q_new_node.iter_mut(world).enumerate() {
+            dbg!(NODE_OFFSET * i as f32);
+            let new_translation = {
+                let mut translation = transform.translation;
+                translation.x = 0.0;
+                translation.y = NODE_OFFSET * i as f32;
+                translation
+            };
+            let new_global_translation = cursor_transform.translation - new_translation;
+
+            transform.translation = new_translation;
+            global_transform.translation = new_global_translation;
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("command is never placed on undo stack");
     }
 }
