@@ -168,7 +168,7 @@ fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
 
 /// When you press the button for a node it creates that node for you.
 fn add_update(
-    commands: Commands,
+    mut commands: Commands,
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut tool_state: ResMut<State<ToolState>>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
@@ -224,16 +224,19 @@ fn add_update(
         };
 
         if let Some(node_type) = node_type {
-            if let Ok(node) = create_default_node(commands, &live_graph, node_type.clone()) {
-                undo_command_manager.push(Box::new(AddNode::new(node, Vec2::ZERO)));
-                undo_command_manager.push(Box::new(DeselectSneaky));
-                undo_command_manager.push(Box::new(SelectNew));
-                undo_command_manager.push(Box::new(SelectedToCursorSneaky));
-                undo_command_manager.push(Box::new(DragToolUndo));
-                // Not adding an undo checkpoint because it should be added after the `Node` has
-                // been placed.
+            if create_and_grab_node(
+                &mut commands,
+                &mut undo_command_manager,
+                &*live_graph,
+                &node_type,
+            )
+            .is_ok()
+            {
                 info!("Added node: {:?}", node_type);
+            } else {
+                warn!("failed to create node: {:?}", node_type);
             }
+
             break;
         } else if done {
             tool_state.overwrite_replace(ToolState::None).unwrap();
@@ -242,11 +245,30 @@ fn add_update(
     }
 }
 
+pub fn create_and_grab_node(
+    commands: &mut Commands,
+    undo_command_manager: &mut UndoCommandManager,
+    live_graph: &Arc<RwLock<LiveGraph>>,
+    node_type: &NodeType,
+) -> Result<()> {
+    let node = create_default_node(commands, live_graph, node_type.clone())?;
+
+    undo_command_manager.push(Box::new(AddNode::new(node, Vec2::ZERO)));
+    undo_command_manager.push(Box::new(DeselectSneaky));
+    undo_command_manager.push(Box::new(SelectNew));
+    undo_command_manager.push(Box::new(SelectedToCursorSneaky));
+    undo_command_manager.push(Box::new(DragToolUndo));
+    // Not adding an undo checkpoint because it should be added after the `Node` has
+    // been placed.
+
+    Ok(())
+}
+
 #[derive(Component)]
 pub struct NewNode(pub NodeId);
 
 pub fn create_default_node(
-    mut commands: Commands,
+    commands: &mut Commands,
     live_graph: &Arc<RwLock<LiveGraph>>,
     node_type: NodeType,
 ) -> Result<Node> {

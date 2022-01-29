@@ -1,6 +1,12 @@
-use bevy::prelude::*;
+use std::sync::{Arc, RwLock};
 
-use crate::{instruction::ToolList, AmbiguitySet, CustomStage, ToolState};
+use bevy::prelude::*;
+use kanter_core::{live_graph::LiveGraph, node::node_type::NodeType};
+
+use crate::{
+    add_tool::create_and_grab_node, instruction::ToolList, undo::prelude::UndoCommandManager,
+    AmbiguitySet, CustomStage, ToolState,
+};
 
 pub(crate) struct DragDropImport;
 
@@ -23,8 +29,32 @@ fn setup(mut tool_list: ResMut<ToolList>) {
     tool_list.insert("Drag and drop to import image".to_string());
 }
 
-fn drag_drop_import(mut events: EventReader<FileDragAndDrop>) {
+fn drag_drop_import(
+    mut commands: Commands,
+    mut undo_command_manager: ResMut<UndoCommandManager>,
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
+    mut events: EventReader<FileDragAndDrop>,
+) {
+    let mut node_created = false;
+
     for event in events.iter() {
-        info!("{:?}", event);
+        if let FileDragAndDrop::DroppedFile { id: _, path_buf } = event {
+            if !node_created {
+                let node_type = NodeType::Image(path_buf.clone());
+
+                if create_and_grab_node(
+                    &mut commands,
+                    &mut undo_command_manager,
+                    &*live_graph,
+                    &node_type,
+                )
+                .is_ok()
+                {
+                    node_created = true;
+                } else {
+                    error!("failed to create node");
+                }
+            }
+        }
     }
 }
