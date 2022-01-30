@@ -34,7 +34,7 @@ impl Plugin for KanterPlugin {
             .add_plugin(crate::thumbnail_state::ThumbnailStatePlugin)
             .add_plugin(crate::undo::undo_command_manager::UndoCommandManagerPlugin)
             .add_plugin(crate::undo::undo_redo_tool::UndoPlugin);
-            // This will be re-enabled when drag and drop is supported in Bevy on Windows.
-            // .add_plugin(crate::drag_drop_import::DragDropImport);
+        // This will be re-enabled when drag and drop is supported in Bevy on Windows.
+        // .add_plugin(crate::drag_drop_import::DragDropImport);
     }
 }
