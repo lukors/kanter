@@ -14,7 +14,7 @@ pub(crate) struct Active;
 pub(crate) struct Selected;
 
 fn select_node(world: &mut World, node_id: NodeId) {
-    let mut q_node_id = world.query::<(Entity, &NodeIdComponent)>();
+    let mut q_node_id = world.query_filtered::<(Entity, &NodeIdComponent), Without<Selected>>();
 
     if let Some((entity, _)) = q_node_id
         .iter(world)
@@ -22,7 +22,7 @@ fn select_node(world: &mut World, node_id: NodeId) {
     {
         world.entity_mut(entity).insert(Selected);
     } else {
-        warn!("tried and failed to select a node");
+        warn!("failed to select a node");
     }
 }
 
@@ -35,7 +35,7 @@ fn deselect_node(world: &mut World, node_id: NodeId) {
     {
         world.entity_mut(entity).remove::<Selected>();
     } else {
-        warn!("tried and failed to deselect a node");
+        warn!("failed to deselect a node");
     }
 }
 
@@ -48,6 +48,77 @@ impl UndoCommand for SelectNode {
 
     fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
         deselect_node(world, self.0);
+    }
+}
+
+fn make_node_active(world: &mut World, node_id: NodeId) {
+    let mut q_node_id = world.query_filtered::<(Entity, &NodeIdComponent), Without<Active>>();
+
+    if let Some((entity, _)) = q_node_id
+        .iter(world)
+        .find(|(_, node_id_component)| node_id_component.0 == node_id)
+    {
+        world.entity_mut(entity).insert(Active);
+    } else {
+        warn!("failed to make a node active");
+    }
+}
+
+fn make_node_not_active(world: &mut World, node_id: NodeId) {
+    let mut q_node_id = world.query_filtered::<(Entity, &NodeIdComponent), With<Active>>();
+
+    if let Some((entity, _)) = q_node_id
+        .iter(world)
+        .find(|(_, node_id_component)| node_id_component.0 == node_id)
+    {
+        world.entity_mut(entity).remove::<Active>();
+    } else {
+        warn!("failed to make a node not active");
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct MakeNodeActive(pub NodeId);
+impl UndoCommand for MakeNodeActive {
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        make_node_active(world, self.0);
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        make_node_not_active(world, self.0);
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct MakeNodeNotActive(pub NodeId);
+impl UndoCommand for MakeNodeNotActive {
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        make_node_not_active(world, self.0);
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        make_node_active(world, self.0);
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct MakeNothingActive;
+impl UndoCommand for MakeNothingActive {
+    fn command_type(&self) -> UndoCommandType {
+        UndoCommandType::Custom
+    }
+    
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut q_active_node_id = world.query_filtered::<&NodeIdComponent, With<Active>>();
+        assert!(q_active_node_id.iter(world).count() < 2, "there was more than one active node");
+        
+        if let Some(node_id) = q_active_node_id.iter(world).next() {
+            undo_command_manager.push_front(Box::new(MakeNodeNotActive(node_id.0)));
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this undo command is never put on the undo stack");
     }
 }
 
@@ -161,16 +232,17 @@ fn mouse_interaction(
             // Select the one slot
             commands.entity(entity).insert(Selected);
             commands.entity(entity).insert(Active);
-        } else if let Some((entity, node_id)) = hovered_node {
+        } else if let Some((_, node_id)) = hovered_node {
             // Select the one node
             undo_command_manager.push(Box::new(ReplaceSelection(vec![node_id.0])));
-            commands.entity(entity).insert(Active);
+            undo_command_manager.push(Box::new(MakeNodeActive(node_id.0)));
         } else {
             // Deselect everything.
             undo_command_manager.push(Box::new(DeselectAll));
-            for entity in q_active.iter() {
-                commands.entity(entity).remove::<Active>();
-            }
+            undo_command_manager.push(Box::new(MakeNothingActive));
+            // for entity in q_active.iter() {
+                // undo_command_manager.push(Box::new(MakeNodeNotActive(node_id.0)));
+            // }
         }
         undo_command_manager.push(Box::new(Checkpoint));
     } else if workspace.drag == Drag::Starting {
