@@ -78,7 +78,6 @@ impl UndoCommand for DragDropImportOffset {
             world.query_filtered::<(&mut Transform, &mut GlobalTransform), With<Selected>>();
 
         for (i, (mut transform, mut global_transform)) in q_new_node.iter_mut(world).enumerate() {
-            dbg!(NODE_OFFSET * i as f32);
             let new_translation = {
                 let mut translation = transform.translation;
                 translation.x = 0.0;
