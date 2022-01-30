@@ -1,11 +1,14 @@
-use std::{sync::{Arc, RwLock}, collections::VecDeque};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, RwLock},
+};
 
 /// Adding new nodes
 use crate::{
     camera::Cursor,
     drag_drop::{node::grab_node_setup, Draggable},
     instruction::*,
-    mouse_interaction::{Selected, SelectNode, DeselectAll},
+    mouse_interaction::{DeselectAll, SelectNode, Selected},
     shared::NodeIdComponent,
     sync_graph::NODE_SIZE,
     undo::{node::AddNode, prelude::*, undo_command_manager::BoxUndoCommand},
@@ -46,8 +49,9 @@ impl UndoCommand for SelectNew {
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
         let mut undo_batch: Vec<BoxUndoCommand> = Vec::new();
         undo_batch.push(Box::new(DeselectAll));
-        
-        let mut query = world.query_filtered::<&NodeIdComponent, (With<Draggable>, Added<NodeIdComponent>)>();
+
+        let mut query =
+            world.query_filtered::<&NodeIdComponent, (With<Draggable>, Added<NodeIdComponent>)>();
         for node_id in query.iter(world) {
             undo_batch.push(Box::new(SelectNode(node_id.0)));
         }

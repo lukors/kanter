@@ -1,7 +1,10 @@
 /// Box select tool
 use crate::{
+    mouse_interaction::{DeselectAll, DeselectNode, SelectNode},
+    shared::NodeIdComponent,
+    undo::prelude::{Checkpoint, UndoCommandManager},
     AmbiguitySet, CustomStage, Drag, Draggable, Selected, Slot, ToolState, Workspace,
-    CAMERA_DISTANCE, shared::NodeIdComponent, undo::prelude::{UndoCommandManager, Checkpoint}, mouse_interaction::{DeselectAll, SelectNode, DeselectNode},
+    CAMERA_DISTANCE,
 };
 use bevy::prelude::*;
 #[derive(Component, Default)]
@@ -57,9 +60,17 @@ fn box_select(
     mut tool_state: ResMut<State<ToolState>>,
     workspace: Res<Workspace>,
     mut undo_command_manager: ResMut<UndoCommandManager>,
-    mut q_box_select: Query<(&mut Transform, &mut Sprite, &mut BoxSelect), Without<NodeIdComponent>>,
+    mut q_box_select: Query<
+        (&mut Transform, &mut Sprite, &mut BoxSelect),
+        Without<NodeIdComponent>,
+    >,
     q_draggable: Query<
-        (Option<&Selected>, &NodeIdComponent, &GlobalTransform, &Sprite),
+        (
+            Option<&Selected>,
+            &NodeIdComponent,
+            &GlobalTransform,
+            &Sprite,
+        ),
         With<Draggable>,
     >,
 ) {
@@ -73,7 +84,7 @@ fn box_select(
         let mut hovered_node_ids = Vec::new();
         let mut to_select = Vec::new();
         let mut to_deselect = Vec::new();
-        
+
         for (selected, node_id, transform, sprite) in q_draggable.iter() {
             if let Some(size) = sprite.custom_size {
                 let size_half = size / 2.0;

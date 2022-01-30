@@ -69,12 +69,14 @@ impl UndoCommand for DeselectAll {
     fn command_type(&self) -> UndoCommandType {
         UndoCommandType::Custom
     }
-    
+
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
         let mut q_selected = world.query_filtered::<&NodeIdComponent, With<Selected>>();
 
         for node_id in q_selected.iter(world) {
-            undo_command_manager.commands.push_front(Box::new(DeselectNode(node_id.0)));
+            undo_command_manager
+                .commands
+                .push_front(Box::new(DeselectNode(node_id.0)));
         }
     }
 
@@ -89,17 +91,21 @@ impl UndoCommand for ReplaceSelection {
     fn command_type(&self) -> UndoCommandType {
         UndoCommandType::Custom
     }
-    
+
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
         let mut q_node_id = world.query::<(&NodeIdComponent, Option<&Selected>)>();
 
         for (node_id, selected) in q_node_id.iter(world) {
             let in_new_selection = self.0.contains(&node_id.0);
-            
+
             if selected.is_none() && in_new_selection {
-                undo_command_manager.commands.push_front(Box::new(SelectNode(node_id.0)));
+                undo_command_manager
+                    .commands
+                    .push_front(Box::new(SelectNode(node_id.0)));
             } else if selected.is_some() && !in_new_selection {
-                undo_command_manager.commands.push_front(Box::new(DeselectNode(node_id.0)));
+                undo_command_manager
+                    .commands
+                    .push_front(Box::new(DeselectNode(node_id.0)));
             }
         }
     }
