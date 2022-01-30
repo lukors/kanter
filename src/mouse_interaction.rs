@@ -52,7 +52,7 @@ impl UndoCommand for SelectNode {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct DeselectNode(NodeId);
+pub struct DeselectNode(pub NodeId);
 impl UndoCommand for DeselectNode {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         deselect_node(world, self.0);

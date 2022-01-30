@@ -1,7 +1,7 @@
 /// Box select tool
 use crate::{
     AmbiguitySet, CustomStage, Drag, Draggable, Selected, Slot, ToolState, Workspace,
-    CAMERA_DISTANCE, shared::NodeIdComponent, undo::prelude::{UndoCommandManager, Checkpoint}, mouse_interaction::{DeselectAll, SelectNode},
+    CAMERA_DISTANCE, shared::NodeIdComponent, undo::prelude::{UndoCommandManager, Checkpoint}, mouse_interaction::{DeselectAll, SelectNode, DeselectNode},
 };
 use bevy::prelude::*;
 #[derive(Component, Default)]
@@ -59,7 +59,7 @@ fn box_select(
     mut undo_command_manager: ResMut<UndoCommandManager>,
     mut q_box_select: Query<(&mut Transform, &mut Sprite, &mut BoxSelect), Without<NodeIdComponent>>,
     q_draggable: Query<
-        (Entity, &NodeIdComponent, &GlobalTransform, &Sprite),
+        (Option<&Selected>, &NodeIdComponent, &GlobalTransform, &Sprite),
         With<Draggable>,
     >,
 ) {
@@ -71,8 +71,10 @@ fn box_select(
         let box_box = (box_select.start, box_select.end);
 
         let mut hovered_node_ids = Vec::new();
+        let mut to_select = Vec::new();
+        let mut to_deselect = Vec::new();
         
-        for (entity, node_id, transform, sprite) in q_draggable.iter() {
+        for (selected, node_id, transform, sprite) in q_draggable.iter() {
             if let Some(size) = sprite.custom_size {
                 let size_half = size / 2.0;
 
@@ -83,19 +85,28 @@ fn box_select(
 
                 if box_intersect(box_box, drag_box) {
                     hovered_node_ids.push(node_id.0);
-                    commands.entity(entity).insert(Selected);
+
+                    if selected.is_none() {
+                        to_select.push(node_id.0);
+                    }
+                    // commands.entity(entity).insert(Selected);
                 } else {
-                    commands.entity(entity).remove::<Selected>();
+                    if selected.is_some() {
+                        to_deselect.push(node_id.0);
+                    }
+                    // commands.entity(entity).remove::<Selected>();
                 }
             }
         }
 
         // Todo: I think the ToolState check here is redundant, since this system is set to run on
         // the Update of ToolState::BoxSelect, ToolState::None should be impossible.
-        if workspace.drag == Drag::Dropping {
-            undo_command_manager.push(Box::new(DeselectAll));
-            
-            for node_id in hovered_node_ids {
+        if workspace.drag == Drag::Dropping && *tool_state.current() != ToolState::None {
+            for node_id in to_deselect {
+                undo_command_manager.push(Box::new(DeselectNode(node_id)));
+            }
+
+            for node_id in to_select {
                 undo_command_manager.push(Box::new(SelectNode(node_id)));
             }
 
