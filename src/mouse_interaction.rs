@@ -83,6 +83,32 @@ impl UndoCommand for DeselectAll {
     }
 }
 
+#[derive(Debug)]
+pub struct ReplaceSelection(pub Vec<NodeId>);
+impl UndoCommand for ReplaceSelection {
+    fn command_type(&self) -> UndoCommandType {
+        UndoCommandType::Custom
+    }
+    
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut q_node_id = world.query::<(&NodeIdComponent, Option<&Selected>)>();
+
+        for (node_id, selected) in q_node_id.iter(world) {
+            let in_new_selection = self.0.contains(&node_id.0);
+            
+            if selected.is_none() && in_new_selection {
+                undo_command_manager.commands.push_front(Box::new(SelectNode(node_id.0)));
+            } else if selected.is_some() && !in_new_selection {
+                undo_command_manager.commands.push_front(Box::new(DeselectNode(node_id.0)));
+            }
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("command is never put on undo stack");
+    }
+}
+
 pub(crate) struct MouseInteractionPlugin;
 
 impl Plugin for MouseInteractionPlugin {
@@ -121,24 +147,28 @@ fn mouse_interaction(
     let single_click = i_mouse_button.just_released(MouseButton::Left)
         && workspace.drag != Drag::Dropping
         && !some_dropped;
+    let hovered_slot = q_hovered_slot.iter().next();
+    let hovered_node = q_hovered_node.iter().next();
 
     if single_click {
-        // Deselect everything.
-        undo_command_manager.push(Box::new(DeselectAll));
-        for entity in q_active.iter() {
-            commands.entity(entity).remove::<Active>();
-        }
-
-        undo_command_manager.push(Box::new(Checkpoint));
-    }
-
-    if let Some(entity) = q_hovered_slot.iter().next() {
-        // Slot
-        if single_click {
+        if let Some(entity) = hovered_slot {
             // Select the one slot
             commands.entity(entity).insert(Selected);
             commands.entity(entity).insert(Active);
-        } else if workspace.drag == Drag::Starting {
+        } else if let Some((entity, node_id)) = hovered_node {
+            // Select the one node
+            undo_command_manager.push(Box::new(ReplaceSelection(vec![node_id.0])));
+            commands.entity(entity).insert(Active);
+        } else {
+            // Deselect everything.
+            undo_command_manager.push(Box::new(DeselectAll));
+            for entity in q_active.iter() {
+                commands.entity(entity).remove::<Active>();
+            }
+        }
+        undo_command_manager.push(Box::new(Checkpoint));
+    } else if workspace.drag == Drag::Starting {
+        if let Some(entity) = hovered_slot {
             // Drag on slot
             for entity in q_selected_slot.iter() {
                 commands.entity(entity).remove::<Selected>();
@@ -147,15 +177,7 @@ fn mouse_interaction(
             tool_state
                 .overwrite_replace(ToolState::Grab(GrabToolType::Slot))
                 .unwrap();
-        }
-    } else if let Some((entity, node_id)) = q_hovered_node.iter().next() {
-        // Node
-        if single_click {
-            // Select the one node
-            undo_command_manager.push(Box::new(SelectNode(node_id.0)));
-            commands.entity(entity).insert(Active);
-            undo_command_manager.push(Box::new(Checkpoint));
-        } else if workspace.drag == Drag::Starting {
+        } else if let Some((entity, node_id)) = hovered_node {
             // Drag on node
             let some_hovered_selected_node = q_hovered_selected_node.iter().count() > 0;
             if !some_hovered_selected_node {
@@ -165,9 +187,9 @@ fn mouse_interaction(
             tool_state
                 .overwrite_replace(ToolState::Grab(GrabToolType::Node))
                 .unwrap();
+        } else {
+            // Drag on empty space
+            tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
         }
-    } else if workspace.drag == Drag::Starting {
-        // Drag on empty space
-        tool_state.overwrite_replace(ToolState::BoxSelect).unwrap();
     }
 }

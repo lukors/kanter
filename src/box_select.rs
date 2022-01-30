@@ -99,9 +99,7 @@ fn box_select(
             }
         }
 
-        // Todo: I think the ToolState check here is redundant, since this system is set to run on
-        // the Update of ToolState::BoxSelect, ToolState::None should be impossible.
-        if workspace.drag == Drag::Dropping && *tool_state.current() != ToolState::None {
+        if workspace.drag == Drag::Dropping {
             for node_id in to_deselect {
                 undo_command_manager.push(Box::new(DeselectNode(node_id)));
             }

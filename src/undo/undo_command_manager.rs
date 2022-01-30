@@ -41,7 +41,12 @@ impl UndoCommandManager {
         }
 
         while let Some(command) = self.commands.pop_front() {
-            self.command_forward(world, command)
+            command.forward(world, self);
+
+            if command.command_type() == UndoCommandType::Command {
+                self.command_batch.push_back(command);
+                self.redo_stack.clear();
+            }
         }
     }
 
@@ -51,15 +56,6 @@ impl UndoCommandManager {
 
     pub fn redo_stack(&self) -> &Vec<BoxUndoCommand> {
         &self.redo_stack
-    }
-
-    fn command_forward(&mut self, world: &mut World, command: BoxUndoCommand) {
-        command.forward(world, self);
-
-        if command.command_type() == UndoCommandType::Command {
-            self.command_batch.push_back(command);
-            self.redo_stack.clear();
-        }
     }
 }
 
