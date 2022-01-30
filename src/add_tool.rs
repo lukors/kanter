@@ -5,10 +5,10 @@ use crate::{
     camera::Cursor,
     drag_drop::{node::grab_node_setup, Draggable},
     instruction::*,
-    mouse_interaction::{DeselectAll, SelectNode, Selected},
+    mouse_interaction::{ReplaceSelection, Selected},
     shared::NodeIdComponent,
     sync_graph::NODE_SIZE,
-    undo::{node::AddNode, prelude::*, undo_command_manager::BoxUndoCommand},
+    undo::{node::AddNode, prelude::*},
     AmbiguitySet, CustomStage, GrabToolType, ToolState,
 };
 use anyhow::{anyhow, Result};
@@ -44,15 +44,11 @@ impl UndoCommand for SelectNew {
     }
 
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
-        let mut undo_batch: Vec<BoxUndoCommand> = vec![Box::new(DeselectAll)];
-
         let mut query =
             world.query_filtered::<&NodeIdComponent, (With<Draggable>, Added<NodeIdComponent>)>();
-        for node_id in query.iter(world) {
-            undo_batch.push(Box::new(SelectNode(node_id.0)));
-        }
+        let new_node_ids = query.iter(world).map(|node_id| node_id.0).collect();
 
-        undo_command_manager.push_front_vec(undo_batch);
+        undo_command_manager.push_front(Box::new(ReplaceSelection(new_node_ids)));
     }
 
     fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
@@ -298,7 +294,6 @@ pub fn create_node(
 }
 
 pub fn grab_new_nodes(undo_command_manager: &mut UndoCommandManager) {
-    undo_command_manager.push(Box::new(DeselectSneaky));
     undo_command_manager.push(Box::new(SelectNew));
     undo_command_manager.push(Box::new(SelectedToCursorSneaky));
     undo_command_manager.push(Box::new(DragToolUndo));
