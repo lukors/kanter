@@ -5,7 +5,7 @@ use crate::{
     camera::Cursor,
     drag_drop::{node::grab_node_setup, Draggable},
     instruction::*,
-    mouse_interaction::Selected,
+    mouse_interaction::{Selected, SelectNode},
     shared::NodeIdComponent,
     sync_graph::NODE_SIZE,
     undo::{node::AddNode, prelude::*},
@@ -43,11 +43,16 @@ impl UndoCommand for SelectNew {
         crate::undo::UndoCommandType::Custom
     }
 
-    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        let mut query = world.query_filtered::<Entity, (With<Draggable>, Added<NodeIdComponent>)>();
-        for entity in query.iter(world).collect::<Vec<Entity>>() {
-            world.entity_mut(entity).insert(Selected);
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut query = world.query_filtered::<&NodeIdComponent, (With<Draggable>, Added<NodeIdComponent>)>();
+        for node_id in query.iter(world) {
+            undo_command_manager.commands.push_front(Box::new(SelectNode(node_id.0)));
+            // world.entity_mut(entity).insert(Selected);
         }
+        // let mut query = world.query_filtered::<Entity, (With<Draggable>, Added<NodeIdComponent>)>();
+        // for entity in query.iter(world).collect::<Vec<Entity>>() {
+        //     world.entity_mut(entity).insert(Selected);
+        // }
     }
 
     fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
