@@ -49,16 +49,10 @@ impl UndoCommand for SelectNew {
         
         let mut query = world.query_filtered::<&NodeIdComponent, (With<Draggable>, Added<NodeIdComponent>)>();
         for node_id in query.iter(world) {
-            // undo_command_manager.commands.push_front(Box::new(SelectNode(node_id.0)));
             undo_batch.push(Box::new(SelectNode(node_id.0)));
-            // world.entity_mut(entity).insert(Selected);
         }
 
         undo_command_manager.push_front_vec(undo_batch);
-        // let mut query = world.query_filtered::<Entity, (With<Draggable>, Added<NodeIdComponent>)>();
-        // for entity in query.iter(world).collect::<Vec<Entity>>() {
-        //     world.entity_mut(entity).insert(Selected);
-        // }
     }
 
     fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
