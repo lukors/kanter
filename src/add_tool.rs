@@ -268,13 +268,14 @@ fn add_update(
             let mut created_nodes: usize = 0;
 
             for node_type in node_types {
-                if create_and_grab_node(&mut undo_command_manager, &*live_graph, &node_type).is_ok()
-                {
+                if create_node(&mut undo_command_manager, &*live_graph, &node_type).is_ok() {
                     created_nodes += 1;
                 } else {
                     warn!("failed to create node: {:?}", node_type);
                 }
             }
+
+            grab_new_nodes(&mut undo_command_manager);
 
             if created_nodes > 1 {
                 undo_command_manager.push(Box::new(MultiImportOffset));
@@ -288,7 +289,7 @@ fn add_update(
     }
 }
 
-pub fn create_and_grab_node(
+pub fn create_node(
     undo_command_manager: &mut UndoCommandManager,
     live_graph: &Arc<RwLock<LiveGraph>>,
     node_type: &NodeType,
@@ -296,14 +297,15 @@ pub fn create_and_grab_node(
     let node = create_default_node(live_graph, node_type.clone())?;
 
     undo_command_manager.push(Box::new(AddNode::new(node, Vec2::ZERO)));
+
+    Ok(())
+}
+
+pub fn grab_new_nodes(undo_command_manager: &mut UndoCommandManager) {
     undo_command_manager.push(Box::new(DeselectSneaky));
     undo_command_manager.push(Box::new(SelectNew));
     undo_command_manager.push(Box::new(SelectedToCursorSneaky));
     undo_command_manager.push(Box::new(DragToolUndo));
-    // Not adding an undo checkpoint because it should be added after the `Node` has
-    // been placed.
-
-    Ok(())
 }
 
 pub fn create_default_node(
