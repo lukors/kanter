@@ -1,10 +1,9 @@
 /// Box select tool
 use crate::{
-    mouse_interaction::{DeselectAll, DeselectNode, SelectNode},
+    mouse_interaction::{DeselectNode, SelectNode},
     shared::NodeIdComponent,
     undo::prelude::{Checkpoint, UndoCommandManager},
-    AmbiguitySet, CustomStage, Drag, Draggable, Selected, Slot, ToolState, Workspace,
-    CAMERA_DISTANCE,
+    AmbiguitySet, CustomStage, Drag, Draggable, Selected, ToolState, Workspace, CAMERA_DISTANCE,
 };
 use bevy::prelude::*;
 #[derive(Component, Default)]
@@ -56,7 +55,6 @@ fn box_select_setup(mut commands: Commands) {
 }
 
 fn box_select(
-    mut commands: Commands,
     mut tool_state: ResMut<State<ToolState>>,
     workspace: Res<Workspace>,
     mut undo_command_manager: ResMut<UndoCommandManager>,
@@ -100,12 +98,8 @@ fn box_select(
                     if selected.is_none() {
                         to_select.push(node_id.0);
                     }
-                    // commands.entity(entity).insert(Selected);
-                } else {
-                    if selected.is_some() {
-                        to_deselect.push(node_id.0);
-                    }
-                    // commands.entity(entity).remove::<Selected>();
+                } else if selected.is_some() {
+                    to_deselect.push(node_id.0);
                 }
             }
         }

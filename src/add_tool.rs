@@ -1,7 +1,4 @@
-use std::{
-    collections::VecDeque,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 /// Adding new nodes
 use crate::{
@@ -47,8 +44,7 @@ impl UndoCommand for SelectNew {
     }
 
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
-        let mut undo_batch: Vec<BoxUndoCommand> = Vec::new();
-        undo_batch.push(Box::new(DeselectAll));
+        let mut undo_batch: Vec<BoxUndoCommand> = vec![Box::new(DeselectAll)];
 
         let mut query =
             world.query_filtered::<&NodeIdComponent, (With<Draggable>, Added<NodeIdComponent>)>();

@@ -183,7 +183,7 @@ fn mouse_interaction(
             tool_state
                 .overwrite_replace(ToolState::Grab(GrabToolType::Slot))
                 .unwrap();
-        } else if let Some((entity, node_id)) = hovered_node {
+        } else if let Some((_entity, node_id)) = hovered_node {
             // Drag on node
             let some_hovered_selected_node = q_hovered_selected_node.iter().count() > 0;
             if !some_hovered_selected_node {
