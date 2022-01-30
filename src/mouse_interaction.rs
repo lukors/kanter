@@ -109,12 +109,10 @@ fn mouse_interaction(
     mut tool_state: ResMut<State<ToolState>>,
     mut undo_command_manager: ResMut<UndoCommandManager>,
     i_mouse_button: Res<Input<MouseButton>>,
-    q_hovered_node: Query<Entity, (With<NodeIdComponent>, With<Hovered>)>,
-    q_selected_node: Query<Entity, (With<NodeIdComponent>, With<Selected>)>,
+    q_hovered_node: Query<(Entity, &NodeIdComponent), With<Hovered>>,
     q_hovered_selected_node: Query<Entity, (With<NodeIdComponent>, With<Selected>, With<Hovered>)>,
     q_hovered_slot: Query<Entity, (With<Slot>, With<Hovered>)>,
     q_selected_slot: Query<Entity, (With<Slot>, With<Selected>)>,
-    q_selected: Query<&NodeIdComponent, With<Selected>>,
     q_active: Query<Entity, With<Active>>,
     q_dropped: Query<&Dropped>,
     workspace: Res<Workspace>,
@@ -150,21 +148,19 @@ fn mouse_interaction(
                 .overwrite_replace(ToolState::Grab(GrabToolType::Slot))
                 .unwrap();
         }
-    } else if let Some(entity) = q_hovered_node.iter().next() {
+    } else if let Some((entity, node_id)) = q_hovered_node.iter().next() {
         // Node
         if single_click {
             // Select the one node
-            commands.entity(entity).insert(Selected);
+            undo_command_manager.push(Box::new(SelectNode(node_id.0)));
             commands.entity(entity).insert(Active);
+            undo_command_manager.push(Box::new(Checkpoint));
         } else if workspace.drag == Drag::Starting {
             // Drag on node
             let some_hovered_selected_node = q_hovered_selected_node.iter().count() > 0;
             if !some_hovered_selected_node {
-                for entity in q_selected_node.iter() {
-                    commands.entity(entity).remove::<Selected>();
-                }
-
-                commands.entity(entity).insert(Selected);
+                undo_command_manager.push(Box::new(DeselectAll));
+                undo_command_manager.push(Box::new(SelectNode(node_id.0)));
             }
             tool_state
                 .overwrite_replace(ToolState::Grab(GrabToolType::Node))
