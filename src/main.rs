@@ -6,7 +6,8 @@ pub mod core_translation;
 pub mod delete_tool;
 pub mod deselect_tool;
 pub mod drag_drop;
-pub mod drag_drop_import;
+// This will be re-enabled when drag and drop is supported in Bevy on Windows.
+// pub mod drag_drop_import;
 pub mod edit_node;
 pub mod export;
 pub mod hotkeys;
