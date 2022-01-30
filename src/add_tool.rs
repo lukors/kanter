@@ -1,14 +1,14 @@
-use std::sync::{Arc, RwLock};
+use std::{sync::{Arc, RwLock}, collections::VecDeque};
 
 /// Adding new nodes
 use crate::{
     camera::Cursor,
     drag_drop::{node::grab_node_setup, Draggable},
     instruction::*,
-    mouse_interaction::{Selected, SelectNode},
+    mouse_interaction::{Selected, SelectNode, DeselectAll},
     shared::NodeIdComponent,
     sync_graph::NODE_SIZE,
-    undo::{node::AddNode, prelude::*},
+    undo::{node::AddNode, prelude::*, undo_command_manager::BoxUndoCommand},
     AmbiguitySet, CustomStage, GrabToolType, ToolState,
 };
 use anyhow::{anyhow, Result};
@@ -44,11 +44,17 @@ impl UndoCommand for SelectNew {
     }
 
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut undo_batch: Vec<BoxUndoCommand> = Vec::new();
+        undo_batch.push(Box::new(DeselectAll));
+        
         let mut query = world.query_filtered::<&NodeIdComponent, (With<Draggable>, Added<NodeIdComponent>)>();
         for node_id in query.iter(world) {
-            undo_command_manager.commands.push_front(Box::new(SelectNode(node_id.0)));
+            // undo_command_manager.commands.push_front(Box::new(SelectNode(node_id.0)));
+            undo_batch.push(Box::new(SelectNode(node_id.0)));
             // world.entity_mut(entity).insert(Selected);
         }
+
+        undo_command_manager.push_front_vec(undo_batch);
         // let mut query = world.query_filtered::<Entity, (With<Draggable>, Added<NodeIdComponent>)>();
         // for entity in query.iter(world).collect::<Vec<Entity>>() {
         //     world.entity_mut(entity).insert(Selected);

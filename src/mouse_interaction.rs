@@ -1,7 +1,7 @@
 /// All workspace mouse interaction.
 use crate::{
     shared::NodeIdComponent,
-    undo::{prelude::*, UndoCommand},
+    undo::{prelude::*, UndoCommand, UndoCommandType},
     AmbiguitySet, CustomStage, Drag, Dropped, GrabToolType, Hovered, Slot, ToolState, Workspace,
 };
 use bevy::prelude::*;
@@ -64,10 +64,10 @@ impl UndoCommand for DeselectNode {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct DeselectAll;
+pub struct DeselectAll;
 impl UndoCommand for DeselectAll {
-    fn command_type(&self) -> crate::undo::UndoCommandType {
-        crate::undo::UndoCommandType::Custom
+    fn command_type(&self) -> UndoCommandType {
+        UndoCommandType::Custom
     }
     
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {

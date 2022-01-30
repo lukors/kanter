@@ -10,7 +10,8 @@ pub struct UndoCommandManager {
     pub(crate) commands: VecDeque<BoxUndoCommand>,
     pub(crate) undo_stack: Vec<BoxUndoCommand>,
     pub(crate) redo_stack: Vec<BoxUndoCommand>,
-    pub(crate) command_batch: VecDeque<BoxUndoCommand>, // Maybe this and also the undo/redo stacks should be made private with some refactoring?
+    // Maybe this and also the undo/redo stacks should be made private with some refactoring?
+    pub(crate) command_batch: VecDeque<BoxUndoCommand>,
 }
 
 impl UndoCommandManager {
@@ -22,6 +23,16 @@ impl UndoCommandManager {
         self.commands.push_back(undo_command);
     }
 
+    pub fn push_front(&mut self, undo_command: BoxUndoCommand) {
+        self.commands.push_front(undo_command);
+    }
+
+    pub fn push_front_vec(&mut self, mut undo_commands: Vec<BoxUndoCommand>) {
+        while let Some(undo_command) = undo_commands.pop() {
+            self.push_front(undo_command);
+        }
+    }
+
     fn apply_commands(&mut self, world: &mut World) {
         // if !self.commands.is_empty() {
         //     dbg!(&self.commands);
@@ -30,12 +41,7 @@ impl UndoCommandManager {
         // }
 
         while let Some(command) = self.commands.pop_front() {
-            command.forward(world, self);
-
-            if command.command_type() == UndoCommandType::Command {
-                self.command_batch.push_back(command);
-                self.redo_stack.clear();
-            }
+            self.command_forward(world, command)
         }
     }
 
@@ -45,6 +51,15 @@ impl UndoCommandManager {
 
     pub fn redo_stack(&self) -> &Vec<BoxUndoCommand> {
         &self.redo_stack
+    }
+
+    fn command_forward(&mut self, world: &mut World, command: BoxUndoCommand) {
+        command.forward(world, self);
+
+        if command.command_type() == UndoCommandType::Command {
+            self.command_batch.push_back(command);
+            self.redo_stack.clear();
+        }
     }
 }
 
@@ -99,22 +114,16 @@ impl UndoCommand for Checkpoint {
 }
 
 impl UndoCommand for Vec<BoxUndoCommand> {
-    fn forward(
-        &self,
-        world: &mut bevy::prelude::World,
-        undo_command_manager: &mut super::undo_command_manager::UndoCommandManager,
-    ) {
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
         for command in self.iter() {
+            assert!(command.command_type() == UndoCommandType::Command);
             command.forward(world, undo_command_manager);
         }
     }
 
-    fn backward(
-        &self,
-        world: &mut bevy::prelude::World,
-        undo_command_manager: &mut super::undo_command_manager::UndoCommandManager,
-    ) {
+    fn backward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
         for command in self.iter().rev() {
+            assert!(command.command_type() == UndoCommandType::Command);
             command.backward(world, undo_command_manager);
         }
     }
