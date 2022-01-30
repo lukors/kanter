@@ -7,6 +7,7 @@ use crate::{
     instruction::*,
     mouse_interaction::Selected,
     shared::NodeIdComponent,
+    sync_graph::NODE_SIZE,
     undo::{node::AddNode, prelude::*},
     AmbiguitySet, CustomStage, GrabToolType, ToolState,
 };
@@ -109,6 +110,45 @@ impl UndoCommand for DeselectSneaky {
     }
 }
 
+/// Applies offsets when multiple nodes have been created at once, so they don't overlap.
+#[derive(Copy, Clone, Debug)]
+pub struct MultiImportOffset;
+impl UndoCommand for MultiImportOffset {
+    fn command_type(&self) -> crate::undo::UndoCommandType {
+        crate::undo::UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        const NODE_OFFSET: f32 = NODE_SIZE + 12.0;
+
+        let cursor_transform = *world
+            .query_filtered::<&GlobalTransform, With<Cursor>>()
+            .iter(world)
+            .next()
+            .unwrap();
+
+        let mut q_new_node =
+            world.query_filtered::<(&mut Transform, &mut GlobalTransform), With<Selected>>();
+
+        for (i, (mut transform, mut global_transform)) in q_new_node.iter_mut(world).enumerate() {
+            let new_translation = {
+                let mut translation = transform.translation;
+                translation.x = 0.0;
+                translation.y = NODE_OFFSET * i as f32;
+                translation
+            };
+            let new_global_translation = cursor_transform.translation - new_translation;
+
+            transform.translation = new_translation;
+            global_transform.translation = new_global_translation;
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("command is never placed on undo stack");
+    }
+}
+
 pub(crate) struct AddToolPlugin;
 
 impl Plugin for AddToolPlugin {
@@ -175,30 +215,24 @@ fn add_update(
     let mut done = false;
 
     for event in char_input_events.iter() {
-        let node_type: Option<NodeType> = match event.char.to_ascii_lowercase() {
-            'c' => Some(NodeType::CombineRgba),
+        let node_types: Vec<NodeType> = match event.char.to_ascii_lowercase() {
+            'c' => vec![NodeType::CombineRgba],
             'i' => {
-                match FileDialog::new()
-                    // .set_location("~/Desktop")
+                let file_dialog = FileDialog::new()
                     .add_filter("PNG Image", &["png"])
                     .add_filter("JPEG Image", &["jpg", "jpeg"])
-                    .show_open_single_file()
-                {
-                    Ok(Some(path)) => Some(NodeType::Image(path)),
-                    Ok(None) => {
-                        warn!("Invalid path");
-                        done = true;
-                        None
-                    }
-                    Err(e) => {
-                        warn!("Error bringing up file dialog: {}", e);
-                        done = true;
-                        None
-                    }
+                    .show_open_multiple_file();
+
+                if let Ok(path_bufs) = file_dialog {
+                    path_bufs.into_iter().map(NodeType::Image).collect()
+                } else {
+                    error!("could not open file dialog");
+                    done = true;
+                    Vec::new()
                 }
             }
-            'm' => Some(NodeType::Mix(MixType::Add)),
-            'n' => Some(NodeType::HeightToNormal),
+            'm' => vec![NodeType::Mix(MixType::Add)],
+            'n' => vec![NodeType::HeightToNormal],
             'o' => {
                 // let path = FileDialog::new()
                 //     // .set_location("~/Desktop")
@@ -214,18 +248,27 @@ fn add_update(
                 //     }
                 // };
 
-                Some(NodeType::OutputRgba("untitled".into()))
+                vec![NodeType::OutputRgba("untitled".into())]
             }
-            's' => Some(NodeType::SeparateRgba),
-            'v' => Some(NodeType::Value(1.0)),
-            _ => None,
+            's' => vec![NodeType::SeparateRgba],
+            'v' => vec![NodeType::Value(1.0)],
+            _ => Vec::new(),
         };
 
-        if let Some(node_type) = node_type {
-            if create_and_grab_node(&mut undo_command_manager, &*live_graph, &node_type).is_ok() {
-                info!("Added node: {:?}", node_type);
-            } else {
-                warn!("failed to create node: {:?}", node_type);
+        if !node_types.is_empty() {
+            let mut created_nodes: usize = 0;
+
+            for node_type in node_types {
+                if create_and_grab_node(&mut undo_command_manager, &*live_graph, &node_type).is_ok()
+                {
+                    created_nodes += 1;
+                } else {
+                    warn!("failed to create node: {:?}", node_type);
+                }
+            }
+
+            if created_nodes > 1 {
+                undo_command_manager.push(Box::new(MultiImportOffset));
             }
 
             break;

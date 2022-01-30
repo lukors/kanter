@@ -54,44 +54,6 @@ fn drag_drop_import(
     }
 
     if created_nodes > 1 {
-        undo_command_manager.push(Box::new(DragDropImportOffset));
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-struct DragDropImportOffset;
-impl UndoCommand for DragDropImportOffset {
-    fn command_type(&self) -> crate::undo::UndoCommandType {
-        crate::undo::UndoCommandType::Custom
-    }
-
-    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        const NODE_OFFSET: f32 = NODE_SIZE + 12.0;
-
-        let cursor_transform = *world
-            .query_filtered::<&GlobalTransform, With<Cursor>>()
-            .iter(world)
-            .next()
-            .unwrap();
-
-        let mut q_new_node =
-            world.query_filtered::<(&mut Transform, &mut GlobalTransform), With<Selected>>();
-
-        for (i, (mut transform, mut global_transform)) in q_new_node.iter_mut(world).enumerate() {
-            let new_translation = {
-                let mut translation = transform.translation;
-                translation.x = 0.0;
-                translation.y = NODE_OFFSET * i as f32;
-                translation
-            };
-            let new_global_translation = cursor_transform.translation - new_translation;
-
-            transform.translation = new_translation;
-            global_transform.translation = new_global_translation;
-        }
-    }
-
-    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
-        unreachable!("command is never placed on undo stack");
+        undo_command_manager.push(Box::new(MultiImportOffset));
     }
 }
