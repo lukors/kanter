@@ -252,6 +252,13 @@ impl ScanCodeInput {
         self.just_released.remove(&input);
     }
 
+    /// Reset the status for all `ScanCode`s in `input`.
+    pub fn reset_vec(&mut self, input: Vec<ScanCode>) {
+        for scan_code in input {
+            self.reset(scan_code);
+        }
+    }
+
     /// Clear just pressed and just released information.
     pub fn clear(&mut self) {
         self.just_pressed.clear();
