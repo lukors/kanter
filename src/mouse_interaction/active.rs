@@ -1,4 +1,5 @@
 use crate::{
+    mouse_interaction::select::SelectNode,
     shared::NodeIdComponent,
     undo::{prelude::*, UndoCommand, UndoCommandType},
 };
@@ -67,9 +68,11 @@ impl UndoCommand for MakeNodeActive {
         if let Some(active_node_id) = q_active_node_id.iter(world).next() {
             if active_node_id.0 != self.0 {
                 undo_command_manager.push_front(Box::new(MakeNodeNotActiveOnly(active_node_id.0)));
+                undo_command_manager.push_front(Box::new(SelectNode(self.0)));
                 undo_command_manager.push_front(Box::new(MakeNodeActiveOnly(self.0)));
             }
         } else {
+            undo_command_manager.push_front(Box::new(SelectNode(self.0)));
             undo_command_manager.push_front(Box::new(MakeNodeActiveOnly(self.0)));
         }
     }
