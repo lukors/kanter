@@ -5,13 +5,13 @@ A node based texture creation tool for Windows and Linux. It uses [Kanter Core](
 
 ![kanter_0-2-0](https://user-images.githubusercontent.com/1719884/117169645-908b1d80-adc9-11eb-9aee-6815c34d3f53.png)
 
-## Long-Term Goals
+## Design Goals
 - [x] Responsive - Fast to start and fluid to use
-- [ ] Simple - Easy to understand and use
+- [ ] Simple - Easy to pick up, depth for power users
 - [ ] Capable - Able to generate every kind of texture
 
-## Short-Term Goal
-Our strategy is to use feedback, testing, and our long-term goals to guide our efforts towards the most valuable work.
+## Current Goal
+Our strategy is to use feedback, testing, and our design goals to guide our efforts towards the most valuable work.
 
 **The current goal is to release [Alpha 3](https://github.com/lukors/kanter/milestone/4), which includes support for our first use case: manual image channel packing.**
 
