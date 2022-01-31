@@ -7,7 +7,11 @@ use kanter_core::{
 };
 use native_dialog::FileDialog;
 
-use crate::{instruction::ToolList, AmbiguitySet, ToolState};
+use crate::{
+    instruction::ToolList,
+    scan_code_input::{ScanCode, ScanCodeInput},
+    AmbiguitySet, ToolState,
+};
 
 pub(crate) struct ExportOutputsToolPlugin;
 
@@ -32,6 +36,7 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 fn export_outputs(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut tool_state: ResMut<State<ToolState>>,
+    mut sc_input: ResMut<ScanCodeInput>,
 ) {
     let directory = match FileDialog::new().show_open_single_dir() {
         Ok(path) => path,
@@ -105,6 +110,14 @@ fn export_outputs(
     } else {
         info!("cancelled file dialog");
     }
+
+    sc_input.reset_vec(vec![
+        ScanCode::ControlLeft,
+        ScanCode::ControlRight,
+        ScanCode::ShiftLeft,
+        ScanCode::ShiftRight,
+        ScanCode::KeyE,
+    ]);
 
     tool_state.overwrite_replace(ToolState::None).unwrap();
 }
