@@ -104,6 +104,13 @@ fn hotkeys(
                         None
                     }
                 }
+                ScanCode::KeyE => {
+                    if control_pressed(&sc_input) && shift_pressed(&sc_input) {
+                        Some(tool_state.set(ToolState::ExportOutputs))
+                    } else {
+                        None
+                    }
+                }
                 ScanCode::KeyG => Some(tool_state.set(ToolState::Grab(GrabToolType::Node))),
                 ScanCode::KeyS => {
                     if alt_pressed(&sc_input) && shift_pressed(&sc_input) {

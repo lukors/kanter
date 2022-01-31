@@ -10,6 +10,7 @@ pub mod drag_drop;
 // pub mod drag_drop_import;
 pub mod edit_node;
 pub mod export;
+pub mod export_outputs;
 pub mod hotkeys;
 pub mod hoverable;
 pub mod instruction;
@@ -59,15 +60,16 @@ pub(crate) enum GrabToolType {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub(crate) enum ToolState {
-    None,
     Add,
     BoxSelect,
     EditNode,
     Export,
+    ExportOutputs,
     Grab(GrabToolType),
+    None,
     Process,
-    Undo,
     Redo,
+    Undo,
 }
 
 impl Default for ToolState {

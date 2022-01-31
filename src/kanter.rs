@@ -12,6 +12,7 @@ impl Plugin for KanterPlugin {
 
         app.insert_non_send_resource(tex_pro)
             .add_state(ToolState::None)
+            .add_plugin(crate::export_outputs::ExportOutputsToolPlugin)
             .add_plugin(crate::scan_code_input::ScanCodeInputPlugin)
             .add_plugin(crate::add_tool::AddToolPlugin)
             .add_plugin(crate::drag_drop::WorkspaceDragDropPlugin)
