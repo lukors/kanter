@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use kanter_core::node::SlotType;
 
 use crate::{
-    mouse_interaction::Active,
+    mouse_interaction::active::Active,
     shared::{NodeIdComponent, SlotTypeComponent},
     Hovered, Selected,
 };

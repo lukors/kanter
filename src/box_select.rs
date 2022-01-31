@@ -1,6 +1,6 @@
 /// Box select tool
 use crate::{
-    mouse_interaction::{DeselectNode, SelectNode},
+    mouse_interaction::select::{DeselectNode, SelectNode},
     shared::NodeIdComponent,
     undo::prelude::{Checkpoint, UndoCommandManager},
     AmbiguitySet, CustomStage, Drag, Draggable, Selected, ToolState, Workspace, CAMERA_DISTANCE,

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use crate::{
     control_pressed,
     hoverable::box_contains_point,
-    mouse_interaction::Selected,
+    mouse_interaction::select::Selected,
     scan_code_input::ScanCodeInput,
     stretch_between,
     undo::{
@@ -139,7 +139,7 @@ pub(crate) fn grab_edge_update(
 
     if i_mouse_button.just_released(MouseButton::Left) {
         i_mouse_button.clear();
-        
+
         let mut new_edges = Vec::new();
 
         'outer: for (_, _, grabbed_edge, source_slot) in q_grabbed_edge.iter() {

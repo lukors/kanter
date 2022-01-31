@@ -5,7 +5,7 @@ use crate::{
     camera::Cursor,
     drag_drop::{node::grab_node_setup, Draggable},
     instruction::*,
-    mouse_interaction::{ReplaceSelection, Selected},
+    mouse_interaction::select::{ReplaceSelection, Selected},
     shared::NodeIdComponent,
     sync_graph::NODE_SIZE,
     undo::{node::AddNode, prelude::*},

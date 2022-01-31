@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use kanter_core::node::Node;
 
-use crate::{sync_graph::{self, Edge}, mouse_interaction::{DeselectNode, MakeNodeNotActive, MakeNothingActive}};
+use crate::{
+    mouse_interaction::{active::MakeNothingActive, select::DeselectNode},
+    sync_graph::{self, Edge},
+};
 
 use super::{edge::RemoveGuiEdge, prelude::*, undo_command_manager::BoxUndoCommand};
 

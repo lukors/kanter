@@ -12,7 +12,7 @@ use crate::{
     core_translation::Translator,
     instruction::*,
     listable::*,
-    mouse_interaction::Active,
+    mouse_interaction::active::Active,
     scan_code_input::*,
     shared::NodeIdComponent,
     undo::{gui::GuiUndoCommand, prelude::*},

@@ -33,7 +33,7 @@ use drag_drop::*;
 use hotkeys::*;
 use hoverable::*;
 use kanter::*;
-use mouse_interaction::Selected;
+use mouse_interaction::select::Selected;
 use sync_graph::*;
 use workspace::*;
 
