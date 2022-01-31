@@ -8,31 +8,6 @@ use crate::{
 
 use super::{edge::RemoveGuiEdge, prelude::*, undo_command_manager::BoxUndoCommand};
 
-// impl AddRemove for Node {
-//     fn add(&self, world: &mut World) -> Entity {
-//         sync_graph::spawn_gui_node_2(world, self.clone(), )
-//         // world.get_resource::<Arc<RwLock<LiveGraph>>>().unwrap().write().unwrap().add_node_with_id(self.clone()).unwrap();
-//         // if let Some(live_graph) = world.get_resource::<Arc<RwLock<LiveGraph>>>() {
-//         //     if let Ok(mut live_graph) = live_graph.write() {
-//         //         if live_graph.add_node_with_id(self.clone()).is_err() {
-//         //             error!("Couldn't add node");
-//         //         }
-//         //     }
-//         // }
-//         todo!();
-//     }
-
-//     fn remove(&self, world: &mut World) {
-//         if let Some(live_graph) = world.get_resource::<Arc<RwLock<LiveGraph>>>() {
-//             if let Ok(mut live_graph) = live_graph.write() {
-//                 if live_graph.remove_node(self.node_id).is_err() {
-//                     error!("Couldn't find the node to remove");
-//                 }
-//             }
-//         }
-//     }
-// }
-
 #[derive(Clone, Debug)]
 pub struct AddNode {
     pub node: Node,
