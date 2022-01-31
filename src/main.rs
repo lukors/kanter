@@ -82,7 +82,7 @@ fn main() {
             title: "Kanter".to_string(),
             width: 1024.0,
             height: 768.0,
-            vsync: false,
+            vsync: true,
             ..Default::default()
         })
         .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.5)))
