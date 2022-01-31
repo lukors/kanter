@@ -34,52 +34,6 @@ fn deselect_node(world: &mut World, node_id: NodeId) {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct SelectNode(pub NodeId);
-impl UndoCommand for SelectNode {
-    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        select_node(world, self.0);
-    }
-
-    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        deselect_node(world, self.0);
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct DeselectNode(pub NodeId);
-impl UndoCommand for DeselectNode {
-    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        deselect_node(world, self.0);
-    }
-
-    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        select_node(world, self.0);
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct DeselectAll;
-impl UndoCommand for DeselectAll {
-    fn command_type(&self) -> UndoCommandType {
-        UndoCommandType::Custom
-    }
-
-    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
-        let mut q_selected = world.query_filtered::<&NodeIdComponent, With<Selected>>();
-
-        for node_id in q_selected.iter(world) {
-            undo_command_manager
-                .commands
-                .push_front(Box::new(DeselectNode(node_id.0)));
-        }
-    }
-
-    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
-        unreachable!("command is never put on undo stack");
-    }
-}
-
 #[derive(Debug)]
 pub struct ReplaceSelection(pub Vec<NodeId>);
 impl UndoCommand for ReplaceSelection {
@@ -96,12 +50,106 @@ impl UndoCommand for ReplaceSelection {
             if selected.is_none() && in_new_selection {
                 undo_command_manager
                     .commands
-                    .push_front(Box::new(SelectNode(node_id.0)));
+                    .push_front(Box::new(SelectNodeOnly(node_id.0)));
             } else if selected.is_some() && !in_new_selection {
                 undo_command_manager
                     .commands
-                    .push_front(Box::new(DeselectNode(node_id.0)));
+                    .push_front(Box::new(DeselectNodeOnly(node_id.0)));
             }
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("command is never put on undo stack");
+    }
+}
+
+//
+// Selecting
+//
+
+#[derive(Copy, Clone, Debug)]
+struct SelectNodeOnly(NodeId);
+impl UndoCommand for SelectNodeOnly {
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        select_node(world, self.0);
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        deselect_node(world, self.0);
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct SelectNode(pub NodeId);
+impl UndoCommand for SelectNode {
+    fn command_type(&self) -> UndoCommandType {
+        UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut q_node_id = world.query_filtered::<&NodeIdComponent, Without<Selected>>();
+
+        if q_node_id.iter(world).any(|node_id| node_id.0 == self.0) {
+            undo_command_manager.push_front(Box::new(SelectNodeOnly(self.0)));
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is never put on the undo stack");
+    }
+}
+
+//
+// Deselecting
+//
+
+#[derive(Copy, Clone, Debug)]
+struct DeselectNodeOnly(NodeId);
+impl UndoCommand for DeselectNodeOnly {
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        deselect_node(world, self.0);
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        select_node(world, self.0);
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct DeselectNode(pub NodeId);
+impl UndoCommand for DeselectNode {
+    fn command_type(&self) -> UndoCommandType {
+        UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut q_node_id = world.query_filtered::<&NodeIdComponent, With<Selected>>();
+
+        if q_node_id.iter(world).any(|node_id| node_id.0 == self.0) {
+            undo_command_manager.push_front(Box::new(DeselectNodeOnly(self.0)));
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is never put on the undo stack");
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct DeselectAll;
+impl UndoCommand for DeselectAll {
+    fn command_type(&self) -> UndoCommandType {
+        UndoCommandType::Custom
+    }
+
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut q_selected = world.query_filtered::<&NodeIdComponent, With<Selected>>();
+
+        for node_id in q_selected.iter(world) {
+            undo_command_manager
+                .commands
+                .push_front(Box::new(DeselectNodeOnly(node_id.0)));
         }
     }
 
