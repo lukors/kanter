@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use kanter_core::node::Node;
 
-use crate::sync_graph::{self, Edge};
+use crate::{sync_graph::{self, Edge}, mouse_interaction::{DeselectNode, MakeNodeNotActive, MakeNothingActive}};
 
 use super::{edge::RemoveGuiEdge, prelude::*, undo_command_manager::BoxUndoCommand};
 
@@ -98,12 +98,14 @@ impl UndoCommand for RemoveNode {
             commands.push(Box::new(RemoveGuiEdge(*edge)));
         }
 
+        commands.push(Box::new(DeselectNode(self.node.node_id)));
+        commands.push(Box::new(MakeNothingActive));
         commands.push(Box::new(RemoveNodeOnly {
             node: self.node.clone(),
             translation: self.translation,
         }));
 
-        undo_command_manager.commands.push_front(Box::new(commands));
+        undo_command_manager.push_front_vec(commands);
     }
 
     fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {

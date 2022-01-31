@@ -80,6 +80,32 @@ fn make_node_not_active(world: &mut World, node_id: NodeId) {
 #[derive(Copy, Clone, Debug)]
 pub struct MakeNodeActive(pub NodeId);
 impl UndoCommand for MakeNodeActive {
+    fn command_type(&self) -> UndoCommandType {
+        UndoCommandType::Custom
+    }
+    
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut q_active_node_id = world.query_filtered::<&NodeIdComponent, With<Active>>();
+        assert!(q_active_node_id.iter(world).count() < 2, "there is more than one active node");
+        
+        if let Some(active_node_id) = q_active_node_id.iter(world).next() {
+            if active_node_id.0 != self.0 {
+                undo_command_manager.push_front(Box::new(MakeNodeNotActiveOnly(active_node_id.0)));
+                undo_command_manager.push_front(Box::new(MakeNodeActiveOnly(self.0)));
+            }
+        } else {
+            undo_command_manager.push_front(Box::new(MakeNodeActiveOnly(self.0)));
+        }
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is never put on the undo stack");
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct MakeNodeActiveOnly(pub NodeId);
+impl UndoCommand for MakeNodeActiveOnly {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         make_node_active(world, self.0);
     }
@@ -92,6 +118,33 @@ impl UndoCommand for MakeNodeActive {
 #[derive(Copy, Clone, Debug)]
 pub struct MakeNodeNotActive(pub NodeId);
 impl UndoCommand for MakeNodeNotActive {
+    fn command_type(&self) -> UndoCommandType {
+        UndoCommandType::Custom
+    }
+    
+    fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
+        let mut q_active_node_id = world.query_filtered::<&NodeIdComponent, With<Active>>();
+        assert!(q_active_node_id.iter(world).count() < 2, "there is more than one active node");
+        
+        if let Some(active_node_id) = q_active_node_id.iter(world).next() {
+            if active_node_id.0 == self.0 {
+                undo_command_manager.push_front(Box::new(MakeNodeNotActiveOnly(self.0)));
+            } else {
+                warn!("tried making a not active node not active");
+            }
+        } else {
+            warn!("could not find an active node to make not active");
+        }
+    }
+
+    fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
+        unreachable!("this command is never put on the undo stack");
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct MakeNodeNotActiveOnly(pub NodeId);
+impl UndoCommand for MakeNodeNotActiveOnly {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
         make_node_not_active(world, self.0);
     }
@@ -110,7 +163,7 @@ impl UndoCommand for MakeNothingActive {
     
     fn forward(&self, world: &mut World, undo_command_manager: &mut UndoCommandManager) {
         let mut q_active_node_id = world.query_filtered::<&NodeIdComponent, With<Active>>();
-        assert!(q_active_node_id.iter(world).count() < 2, "there was more than one active node");
+        assert!(q_active_node_id.iter(world).count() < 2, "there is more than one active node");
         
         if let Some(node_id) = q_active_node_id.iter(world).next() {
             undo_command_manager.push_front(Box::new(MakeNodeNotActive(node_id.0)));
@@ -216,7 +269,6 @@ fn mouse_interaction(
     q_hovered_selected_node: Query<Entity, (With<NodeIdComponent>, With<Selected>, With<Hovered>)>,
     q_hovered_slot: Query<Entity, (With<Slot>, With<Hovered>)>,
     q_selected_slot: Query<Entity, (With<Slot>, With<Selected>)>,
-    q_active: Query<Entity, With<Active>>,
     q_dropped: Query<&Dropped>,
     workspace: Res<Workspace>,
 ) {

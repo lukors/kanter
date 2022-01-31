@@ -116,7 +116,7 @@ pub(crate) fn grab_node_update(
     mut undo_command_manager: ResMut<UndoCommandManager>,
     q_dragged: Query<(Entity, &NodeIdComponent, &Dragged, &GlobalTransform)>,
     mut tool_state: ResMut<State<ToolState>>,
-    i_mouse_button: Res<Input<MouseButton>>,
+    mut i_mouse_button: ResMut<Input<MouseButton>>,
 ) {
     if i_mouse_button.just_released(MouseButton::Left) {
         for (entity, node_id, dragged, gtransform) in q_dragged.iter() {
@@ -134,6 +134,8 @@ pub(crate) fn grab_node_update(
 
         undo_command_manager.push(Box::new(Checkpoint));
         tool_state.overwrite_replace(ToolState::None).unwrap();
+
+        i_mouse_button.clear();
     }
 }
 

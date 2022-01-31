@@ -121,7 +121,7 @@ pub(crate) fn grab_tool_slot_setup(
 pub(crate) fn grab_edge_update(
     mut undo_command_manager: ResMut<UndoCommandManager>,
     mut tool_state: ResMut<State<ToolState>>,
-    i_mouse_button: Res<Input<MouseButton>>,
+    mut i_mouse_button: ResMut<Input<MouseButton>>,
     q_slot: Query<(&GlobalTransform, &Sprite, &Slot)>,
     q_cursor: Query<&GlobalTransform, With<Cursor>>,
     mut q_grabbed_edge: Query<
@@ -138,6 +138,8 @@ pub(crate) fn grab_edge_update(
     let cursor_t = q_cursor.iter().next().unwrap();
 
     if i_mouse_button.just_released(MouseButton::Left) {
+        i_mouse_button.clear();
+        
         let mut new_edges = Vec::new();
 
         'outer: for (_, _, grabbed_edge, source_slot) in q_grabbed_edge.iter() {
@@ -216,23 +218,6 @@ fn connect_arbitrary(slot_a: Slot, slot_b: Slot) -> Result<AddEdge> {
         Err(anyhow!("could not connect slot"))
     }
 }
-
-/// Updates the visual of all dragged slots.
-// pub(crate) fn grabbed_edge_update(
-//     mut q_edge: Query<(&mut Transform, &GrabbedEdge, &mut Sprite)>,
-//     q_cursor: Query<&GlobalTransform, With<Cursor>>,
-// ) {
-//     if let Ok(cursor_t) = q_cursor.get_single() {
-//         for (mut edge_t, edge, mut sprite) in q_edge.iter_mut() {
-//             stretch_between(
-//                 &mut sprite,
-//                 &mut edge_t,
-//                 edge.start,
-//                 cursor_t.translation.truncate(),
-//             );
-//         }
-//     }
-// }
 
 /// Drops all grabbed entities.
 pub(crate) fn grab_edge_cleanup(
