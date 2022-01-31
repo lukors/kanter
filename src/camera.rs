@@ -79,8 +79,6 @@ fn setup(
 ) {
     instructions.insert(InstructId::FirstPerson, first_person_instruct(false));
 
-    // let crosshair_image = asset_server.load("crosshair.png");
-
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(WorkspaceCamera)
