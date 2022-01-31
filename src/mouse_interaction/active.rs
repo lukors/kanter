@@ -1,8 +1,4 @@
-use crate::{
-    mouse_interaction::select::SelectNode,
-    shared::NodeIdComponent,
-    undo::{prelude::*, UndoCommand, UndoCommandType},
-};
+use crate::{mouse_interaction::select::SelectNode, shared::NodeIdComponent, undo::prelude::*};
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
 
@@ -67,13 +63,19 @@ impl UndoCommand for MakeNodeActive {
 
         if let Some(active_node_id) = q_active_node_id.iter(world).next() {
             if active_node_id.0 != self.0 {
-                undo_command_manager.push_front(Box::new(MakeNodeNotActiveOnly(active_node_id.0)));
-                undo_command_manager.push_front(Box::new(SelectNode(self.0)));
-                undo_command_manager.push_front(Box::new(MakeNodeActiveOnly(self.0)));
+                let undo_batch: Vec<BoxUndoCommand> = vec![
+                    Box::new(MakeNodeNotActive(active_node_id.0)),
+                    Box::new(SelectNode(self.0)),
+                    Box::new(MakeNodeActiveOnly(self.0)),
+                ];
+                undo_command_manager.push_front_vec(undo_batch);
             }
         } else {
-            undo_command_manager.push_front(Box::new(SelectNode(self.0)));
-            undo_command_manager.push_front(Box::new(MakeNodeActiveOnly(self.0)));
+            let undo_batch: Vec<BoxUndoCommand> = vec![
+                Box::new(SelectNode(self.0)),
+                Box::new(MakeNodeActiveOnly(self.0)),
+            ];
+            undo_command_manager.push_front_vec(undo_batch);
         }
     }
 
