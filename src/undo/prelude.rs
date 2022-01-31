@@ -1,4 +1,4 @@
 pub use super::{
-    undo_command_manager::{Checkpoint, UndoCommandManager},
-    UndoCommand,
+    undo_command_manager::{BoxUndoCommand, Checkpoint, UndoCommandManager},
+    UndoCommand, UndoCommandType,
 };
