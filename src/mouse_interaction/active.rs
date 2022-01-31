@@ -34,6 +34,22 @@ fn make_node_not_active(world: &mut World, node_id: NodeId) {
     }
 }
 
+//
+// Making nodes active
+//
+
+#[derive(Copy, Clone, Debug)]
+struct MakeNodeActiveOnly(pub NodeId);
+impl UndoCommand for MakeNodeActiveOnly {
+    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        make_node_active(world, self.0);
+    }
+
+    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
+        make_node_not_active(world, self.0);
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct MakeNodeActive(pub NodeId);
 impl UndoCommand for MakeNodeActive {
@@ -63,15 +79,19 @@ impl UndoCommand for MakeNodeActive {
     }
 }
 
+//
+// Making nodes not active
+//
+
 #[derive(Copy, Clone, Debug)]
-pub struct MakeNodeActiveOnly(pub NodeId);
-impl UndoCommand for MakeNodeActiveOnly {
+struct MakeNodeNotActiveOnly(pub NodeId);
+impl UndoCommand for MakeNodeNotActiveOnly {
     fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        make_node_active(world, self.0);
+        make_node_not_active(world, self.0);
     }
 
     fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        make_node_not_active(world, self.0);
+        make_node_active(world, self.0);
     }
 }
 
@@ -102,18 +122,6 @@ impl UndoCommand for MakeNodeNotActive {
 
     fn backward(&self, _: &mut World, _: &mut UndoCommandManager) {
         unreachable!("this command is never put on the undo stack");
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct MakeNodeNotActiveOnly(pub NodeId);
-impl UndoCommand for MakeNodeNotActiveOnly {
-    fn forward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        make_node_not_active(world, self.0);
-    }
-
-    fn backward(&self, world: &mut World, _: &mut UndoCommandManager) {
-        make_node_active(world, self.0);
     }
 }
 
