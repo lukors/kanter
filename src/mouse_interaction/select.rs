@@ -1,9 +1,11 @@
 use crate::{
     shared::NodeIdComponent,
-    undo::{prelude::*, UndoCommand, UndoCommandType},
+    undo::{prelude::*, undo_command_manager::BoxUndoCommand, UndoCommand, UndoCommandType},
 };
 use bevy::prelude::*;
 use kanter_core::node_graph::NodeId;
+
+use super::active::MakeNodeNotActive;
 
 #[derive(Component, Default)]
 pub(crate) struct Selected;
@@ -127,7 +129,11 @@ impl UndoCommand for DeselectNode {
         let mut q_node_id = world.query_filtered::<&NodeIdComponent, With<Selected>>();
 
         if q_node_id.iter(world).any(|node_id| node_id.0 == self.0) {
-            undo_command_manager.push_front(Box::new(DeselectNodeOnly(self.0)));
+            let undo_batch: Vec<BoxUndoCommand> = vec![
+                Box::new(MakeNodeNotActive(self.0)),
+                Box::new(DeselectNodeOnly(self.0)),
+            ];
+            undo_command_manager.push_front_vec(undo_batch);
         }
     }
 
