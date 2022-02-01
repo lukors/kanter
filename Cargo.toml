@@ -23,7 +23,7 @@ bevy = { version = "0.6.0", default-features = false, features = [
     "filesystem_watcher",
 ]}
 image = "0.20.1"
-kanter_core = { git = "https://github.com/lukors/kanter_core", tag = "v0.9.4" }
+kanter_core = { git = "https://github.com/lukors/kanter_core", tag = "v0.9.5" }
 native-dialog = "0.5.5"
 num_enum = "0.5.1"
 rand = "0.8.3"
