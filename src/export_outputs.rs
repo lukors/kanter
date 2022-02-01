@@ -10,27 +10,33 @@ use kanter_core::{
 };
 use native_dialog::FileDialog;
 
-use crate::{instruction::ToolList, scan_code_input::ScanCodeInput, AmbiguitySet, ToolState};
+use crate::{
+    instruction::{InstructId, Instructions, ToolList},
+    scan_code_input::ScanCodeInput,
+    AmbiguitySet, ToolState,
+};
 
 struct ExportPath(Option<PathBuf>);
+struct WaitedFrame(usize);
 
 pub(crate) struct ExportOutputsToolPlugin;
 
 impl Plugin for ExportOutputsToolPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ExportPath(None))
+            .insert_resource(WaitedFrame(0))
             .add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_set_to_stage(
                 CoreStage::Update,
                 SystemSet::new()
                     .with_system(
                         export_as
-                            .with_run_criteria(State::on_enter(ToolState::ExportOutputs(true)))
+                            .with_run_criteria(State::on_update(ToolState::ExportOutputs(true)))
                             .in_ambiguity_set(AmbiguitySet),
                     )
                     .with_system(
                         export
-                            .with_run_criteria(State::on_enter(ToolState::ExportOutputs(false)))
+                            .with_run_criteria(State::on_update(ToolState::ExportOutputs(false)))
                             .in_ambiguity_set(AmbiguitySet),
                     ),
             );
@@ -124,27 +130,43 @@ fn export_as(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut tool_state: ResMut<State<ToolState>>,
     mut sc_input: ResMut<ScanCodeInput>,
+    mut instructions: ResMut<Instructions>,
     mut export_path: ResMut<ExportPath>,
+    mut waited_frame: ResMut<WaitedFrame>,
 ) {
-    let directory = export_dialog(&mut *sc_input);
-    export_path.0 = directory.clone();
+    if waited_frame.0 > 1 {
+        let directory = export_dialog(&mut *sc_input);
+        export_path.0 = directory.clone();
 
-    do_export(directory, &*live_graph);
+        do_export(directory, &*live_graph);
 
-    tool_state.overwrite_replace(ToolState::None).unwrap();
+        tool_state.overwrite_replace(ToolState::None).unwrap();
+        waited_frame.0 = 0;
+    } else {
+        instructions.insert(InstructId::Tool, "EXPORTING".to_string());
+        waited_frame.0 += 1;
+    }
 }
 
 fn export(
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
     mut tool_state: ResMut<State<ToolState>>,
+    mut instructions: ResMut<Instructions>,
     export_path: ResMut<ExportPath>,
+    mut waited_frame: ResMut<WaitedFrame>,
 ) {
-    if export_path.0.is_none() {
-        tool_state
-            .overwrite_replace(ToolState::ExportOutputs(true))
-            .unwrap();
+    if waited_frame.0 > 1 {
+        if export_path.0.is_none() {
+            tool_state
+                .overwrite_replace(ToolState::ExportOutputs(true))
+                .unwrap();
+        } else {
+            do_export(export_path.0.clone(), &*live_graph);
+            tool_state.overwrite_replace(ToolState::None).unwrap();
+        }
+        waited_frame.0 = 0;
     } else {
-        do_export(export_path.0.clone(), &*live_graph);
-        tool_state.overwrite_replace(ToolState::None).unwrap();
+        instructions.insert(InstructId::Tool, "EXPORTING".to_string());
+        waited_frame.0 += 1;
     }
 }
