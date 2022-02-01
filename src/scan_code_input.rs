@@ -259,6 +259,13 @@ impl ScanCodeInput {
         }
     }
 
+    /// Reset all status.
+    pub fn reset_all(&mut self) {
+        self.pressed.clear();
+        self.just_pressed.clear();
+        self.just_released.clear();
+    }
+
     /// Clear just pressed and just released information.
     pub fn clear(&mut self) {
         self.just_pressed.clear();
