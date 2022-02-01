@@ -1,3 +1,4 @@
+mod name;
 mod size;
 mod slot;
 mod value;
@@ -22,6 +23,7 @@ use crate::{
 };
 
 use self::{
+    name::{edit_name_enter, edit_name_update},
     size::{edit_specific_size_enter, edit_specific_size_update},
     slot::{edit_specific_slot_enter, edit_specific_slot_update},
     value::{edit_value_enter, edit_value_update},
@@ -35,6 +37,7 @@ enum EditState {
     Size,
     Slot,
     Value,
+    Name,
 }
 
 #[derive(Clone, Debug)]
@@ -112,6 +115,16 @@ impl Plugin for EditNodePlugin {
                         edit_value_update
                             .system()
                             .with_run_criteria(State::on_update(EditState::Value)),
+                    )
+                    .with_system(
+                        edit_name_enter
+                            .system()
+                            .with_run_criteria(State::on_enter(EditState::Name)),
+                    )
+                    .with_system(
+                        edit_name_update
+                            .system()
+                            .with_run_criteria(State::on_update(EditState::Name)),
                     ),
             );
     }
@@ -154,6 +167,14 @@ fn tool_update(
 
     for scan_code in scan_codes {
         if match scan_code {
+            ScanCode::KeyN => {
+                if let NodeType::OutputRgba(_) = node_type {
+                    edit_state.overwrite_replace(EditState::Name).unwrap();
+                    true
+                } else {
+                    false
+                }
+            }
             ScanCode::Tab => {
                 tool_state.overwrite_replace(ToolState::None).unwrap();
                 true

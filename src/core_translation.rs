@@ -69,3 +69,27 @@ impl Translator<ChannelPixel> for NodeId {
         Ok(())
     }
 }
+
+impl Translator<String> for NodeId {
+    fn get(&self, live_graph: &LiveGraph) -> Result<String> {
+        let node = live_graph.node(*self)?;
+
+        if let NodeType::OutputRgba(name) = node.node_type {
+            Ok(name)
+        } else {
+            bail!("wrong NodeType: {:?}", node.node_type)
+        }
+    }
+
+    fn set(&self, live_graph: &mut LiveGraph, name: String) -> Result<()> {
+        let mut node = live_graph.node_mut(*self)?;
+
+        if node.node_type == NodeType::OutputRgba(String::new()) {
+            node.node_type = NodeType::OutputRgba(name);
+        } else {
+            bail!("wrong NodeType: {:?}", node.node_type)
+        }
+
+        Ok(())
+    }
+}
