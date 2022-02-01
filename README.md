@@ -27,3 +27,4 @@ It's fast, but not much else, it does not cover any use cases since it is too bu
 
 ### Other
 - Instructional text in the program to guide the user
+- Undo & redo
