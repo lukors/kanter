@@ -43,7 +43,7 @@ pub(super) fn edit_name_update(
                     undo_command_manager.push(Box::new(GuiUndoCommand::new(node_id.0, from, name)));
                     undo_command_manager.push(Box::new(Checkpoint));
                 } else {
-                    warn!("Invalid size format, should be for instance 256x256");
+                    warn!("Invalid name");
                 }
                 edit_state.overwrite_replace(EditState::Outer).unwrap();
                 *started = false;
@@ -64,11 +64,12 @@ pub(super) fn edit_name_enter(
     {
         if let Ok(node) = live_graph.read().unwrap().node(node_id.0) {
             if let NodeType::OutputRgba(name) = node.node_type {
-                instructions.sections[0].value = format!("Current: {}\nNew: ", name);
+                instructions.sections[0].value = "Name: ".into();
+                instructions.sections[1].value = name;
             } else {
-                instructions.sections[0].value = "New: ".to_string();
+                instructions.sections[0].value = "Name: ".to_string();
+                instructions.sections[1].value.clear();
             }
         }
-        instructions.sections[1].value.clear();
     }
 }

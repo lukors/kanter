@@ -82,14 +82,10 @@ impl Translator<String> for NodeId {
     }
 
     fn set(&self, live_graph: &mut LiveGraph, name: String) -> Result<()> {
-        let mut node = live_graph.node_mut(*self)?;
-
-        if node.node_type == NodeType::OutputRgba(String::new()) {
-            node.node_type = NodeType::OutputRgba(name);
+        if live_graph.rename_output_node(*self, &name).is_ok() {
+            Ok(())
         } else {
-            bail!("wrong NodeType: {:?}", node.node_type)
+            bail!("something went wrong when renaming node")
         }
-
-        Ok(())
     }
 }
