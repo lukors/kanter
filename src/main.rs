@@ -64,7 +64,8 @@ pub(crate) enum ToolState {
     BoxSelect,
     EditNode,
     Export,
-    ExportOutputs,
+    /// If `true`, do "export as".
+    ExportOutputs(bool),
     Grab(GrabToolType),
     None,
     Process,

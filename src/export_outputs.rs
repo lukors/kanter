@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 
 use bevy::prelude::*;
 use kanter_core::{
@@ -7,24 +10,29 @@ use kanter_core::{
 };
 use native_dialog::FileDialog;
 
-use crate::{
-    instruction::ToolList,
-    scan_code_input::{ScanCode, ScanCodeInput},
-    AmbiguitySet, ToolState,
-};
+use crate::{instruction::ToolList, scan_code_input::ScanCodeInput, AmbiguitySet, ToolState};
+
+struct ExportPath(Option<PathBuf>);
 
 pub(crate) struct ExportOutputsToolPlugin;
 
 impl Plugin for ExportOutputsToolPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
+        app.insert_resource(ExportPath(None))
+            .add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
             .add_system_set_to_stage(
                 CoreStage::Update,
-                SystemSet::new().with_system(
-                    export_outputs
-                        .with_run_criteria(State::on_enter(ToolState::ExportOutputs))
-                        .in_ambiguity_set(AmbiguitySet),
-                ),
+                SystemSet::new()
+                    .with_system(
+                        export_as
+                            .with_run_criteria(State::on_enter(ToolState::ExportOutputs(true)))
+                            .in_ambiguity_set(AmbiguitySet),
+                    )
+                    .with_system(
+                        export
+                            .with_run_criteria(State::on_enter(ToolState::ExportOutputs(false)))
+                            .in_ambiguity_set(AmbiguitySet),
+                    ),
             );
     }
 }
@@ -33,24 +41,24 @@ fn setup(mut tool_list: ResMut<ToolList>) {
     tool_list.insert("Ctrl (Shift) E: Export outputs".to_string());
 }
 
-fn export_outputs(
-    live_graph: Res<Arc<RwLock<LiveGraph>>>,
-    mut tool_state: ResMut<State<ToolState>>,
-    mut sc_input: ResMut<ScanCodeInput>,
-) {
-    let directory = match FileDialog::new().show_open_single_dir() {
+fn export_dialog(scan_code_input: &mut ScanCodeInput) -> Option<PathBuf> {
+    scan_code_input.reset_all();
+
+    match FileDialog::new().show_open_single_dir() {
         Ok(path) => path,
         Err(e) => {
             warn!("Unable to get export directory: {:?}\n", e);
             None
         }
-    };
+    }
+}
 
+fn do_export(directory: Option<PathBuf>, live_graph: &Arc<RwLock<LiveGraph>>) {
     if let Some(path) = directory {
         let output_ids = live_graph.read().unwrap().output_ids();
 
         for node_id in output_ids {
-            let live_graph = LiveGraph::await_clean_read(&live_graph, node_id).unwrap();
+            let live_graph = LiveGraph::await_clean_read(live_graph, node_id).unwrap();
             let mut path = path.clone();
 
             let size: CoreSize = match live_graph.slot_data_size(node_id, SlotId(0)) {
@@ -110,14 +118,33 @@ fn export_outputs(
     } else {
         info!("cancelled file dialog");
     }
+}
 
-    sc_input.reset_vec(vec![
-        ScanCode::ControlLeft,
-        ScanCode::ControlRight,
-        ScanCode::ShiftLeft,
-        ScanCode::ShiftRight,
-        ScanCode::KeyE,
-    ]);
+fn export_as(
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
+    mut tool_state: ResMut<State<ToolState>>,
+    mut sc_input: ResMut<ScanCodeInput>,
+    mut export_path: ResMut<ExportPath>,
+) {
+    let directory = export_dialog(&mut *sc_input);
+    export_path.0 = directory.clone();
+
+    do_export(directory, &*live_graph);
 
     tool_state.overwrite_replace(ToolState::None).unwrap();
+}
+
+fn export(
+    live_graph: Res<Arc<RwLock<LiveGraph>>>,
+    mut tool_state: ResMut<State<ToolState>>,
+    export_path: ResMut<ExportPath>,
+) {
+    if export_path.0.is_none() {
+        tool_state
+            .overwrite_replace(ToolState::ExportOutputs(true))
+            .unwrap();
+    } else {
+        do_export(export_path.0.clone(), &*live_graph);
+        tool_state.overwrite_replace(ToolState::None).unwrap();
+    }
 }

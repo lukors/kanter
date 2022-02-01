@@ -105,8 +105,12 @@ fn hotkeys(
                     }
                 }
                 ScanCode::KeyE => {
-                    if control_pressed(&sc_input) && shift_pressed(&sc_input) {
-                        Some(tool_state.set(ToolState::ExportOutputs))
+                    if control_pressed(&sc_input) {
+                        if shift_pressed(&sc_input) {
+                            Some(tool_state.set(ToolState::ExportOutputs(true)))
+                        } else {
+                            Some(tool_state.set(ToolState::ExportOutputs(false)))
+                        }
                     } else {
                         None
                     }
