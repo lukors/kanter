@@ -55,9 +55,7 @@ pub(crate) struct GuiNodeBundle {
     sprite_bundle: SpriteBundle,
     hoverable: Hoverable,
     hovered: Hovered,
-    // selected: Selected,
     draggable: Draggable,
-    // dragged: Dragged,
     node_id: NodeIdComponent,
     node_state: NodeStateComponent,
     needs_thumbnail: ThumbnailState,
@@ -105,17 +103,12 @@ fn setup(mut commands: Commands, tex_pro: Res<Arc<TextureProcessor>>) {
 #[allow(clippy::too_many_arguments)]
 fn sync_graph(
     mut commands: Commands,
-    // mut materials: ResMut<Assets<ColorMaterial>>,
     mut q_node: Query<(
         Entity,
         &NodeIdComponent,
         &mut NodeStateComponent,
         &mut ThumbnailState,
     )>,
-    // q_edge: Query<(Entity, &Edge)>,
-    // q_slot: Query<(&Slot, &GlobalTransform)>,
-    // q_selected: Query<Entity, With<Selected>>,
-    // workspace: Res<Workspace>,
     live_graph: Res<Arc<RwLock<LiveGraph>>>,
 ) {
     let changed_node_ids = live_graph.write().unwrap().changed_consume();
@@ -152,80 +145,6 @@ fn sync_graph(
                     node_id
                 );
             }
-
-            // info!("Updating visual edges");
-
-            // Removing edges for the node so they can be re-created in the next step.
-            // for (entity, _) in q_edge.iter().filter(|(_, edge)| {
-            //     edge.input_slot.node_id == node_id || edge.output_slot.node_id == node_id
-            // }) {
-            //     commands.entity(entity).despawn_recursive();
-            // }
-
-            // // Adding the current edges.
-            // for edge in live_graph
-            //     .read()
-            //     .unwrap()
-            //     .edges()
-            //     .iter()
-            //     .filter(|edge| edge.input_id == node_id)
-            // {
-            //     let output_slot = Slot {
-            //         node_id: edge.output_id,
-            //         side: Side::Output,
-            //         slot_id: edge.output_slot,
-            //     };
-            //     let input_slot = Slot {
-            //         node_id: edge.input_id,
-            //         side: Side::Input,
-            //         slot_id: edge.input_slot,
-            //     };
-            //     let mut start = Vec2::ZERO;
-            //     let mut end = Vec2::ZERO;
-
-            //     for (slot, slot_t) in q_slot.iter() {
-            //         if slot.node_id == output_slot.node_id
-            //             && slot.slot_id == output_slot.slot_id
-            //             && slot.side == output_slot.side
-            //         {
-            //             start = slot_t.translation.truncate();
-            //         } else if slot.node_id == input_slot.node_id
-            //             && slot.slot_id == input_slot.slot_id
-            //             && slot.side == input_slot.side
-            //         {
-            //             end = slot_t.translation.truncate();
-            //         }
-            //     }
-
-            //     let mut sprite = Sprite::new(Vec2::new(5., 5.));
-            //     let mut transform = Transform::default();
-
-            //     stretch_between(&mut sprite, &mut transform, start, end);
-
-            //     commands
-            //         .spawn_bundle(SpriteBundle {
-            //             material: materials.add(Color::rgb(0., 0., 0.).into()),
-            //             sprite,
-            //             transform,
-            //             ..Default::default()
-            //         })
-            //         .insert(Edge {
-            //             start,
-            //             end,
-            //             output_slot,
-            //             input_slot,
-            //         });
-            // }
-        } else {
-            // info!("Adding the node");
-
-            // Deselect everything so the new node(s) can be selected instead.
-            // for entity in q_selected.iter() {
-            //     commands.entity(entity).remove::<Selected>();
-            // }
-
-            // let node = live_graph.read().unwrap().node(node_id).unwrap();
-            // spawn_gui_node(&mut commands, &mut materials, &node, workspace.cursor_world);
         }
 
         info!("}}");
