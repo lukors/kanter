@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use super::{prelude::*, UndoCommandType};
-use crate::{AmbiguitySet, CustomStage, ToolState};
+use crate::{AmbiguitySet, CustomStage, ToolState, instruction::ToolList};
 use bevy::prelude::*;
 
 #[derive(Debug)]
@@ -55,7 +55,8 @@ impl UndoCommand for Redo {
 pub struct UndoPlugin;
 impl Plugin for UndoPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_stage(
+        app.add_startup_system(setup.in_ambiguity_set(AmbiguitySet))
+            .add_system_to_stage(
             CoreStage::Update,
             undo.system()
                 .label(CustomStage::Update)
@@ -72,6 +73,10 @@ impl Plugin for UndoPlugin {
                 .in_ambiguity_set(AmbiguitySet),
         );
     }
+}
+
+fn setup(mut tool_list: ResMut<ToolList>) {
+    tool_list.insert("Ctrl (Shift) Z: Undo & Redo".to_string());
 }
 
 fn undo(
