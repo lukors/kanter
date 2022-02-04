@@ -220,8 +220,10 @@ fn add_update(
             'c' => vec![NodeType::CombineRgba],
             'i' => {
                 let file_dialog = FileDialog::new()
-                    .add_filter("PNG Image", &["png"])
-                    .add_filter("JPEG Image", &["jpg", "jpeg"])
+                    .add_filter(
+                        "Image",
+                        &["bmp", "gif", "jpg", "jpeg", "png", "tga", "tiff"],
+                    )
                     .show_open_multiple_file();
 
                 if let Ok(path_bufs) = file_dialog {
