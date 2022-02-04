@@ -23,7 +23,7 @@ impl Plugin for VismutPlugin {
             .add_plugin(crate::material::MaterialPlugin)
             .add_plugin(crate::sync_graph::SyncGraphPlugin)
             .add_plugin(crate::instruction::InstructionPlugin)
-            .add_plugin(crate::deselect_tool::DeselectToolPlugin)
+            // .add_plugin(crate::deselect_tool::DeselectToolPlugin)
             .add_plugin(crate::delete_tool::DeleteToolPlugin)
             .add_plugin(crate::hotkeys::HotkeysPlugin)
             .add_plugin(crate::hoverable::HoverablePlugin)
