@@ -201,7 +201,8 @@ fn setup(mut tool_list: ResMut<ToolList>) {
 fn add_tool_instructions(mut instructions: ResMut<Instructions>) {
     instructions.insert(
         InstructId::Tool,
-        "C: Combine\nI: Input\nM: Mix\nN: Height to Normal\nO: Output\nV: Value\nS: Separate\n"
+        "I: Image\nS: Separate\nC: Combine\nO: Output\nV: Value\n"
+            // "C: Combine\nI: Input\nM: Mix\nN: Height to Normal\nO: Output\nV: Value\nS: Separate\n"
             .to_string(),
     );
 }
@@ -234,8 +235,8 @@ fn add_update(
                     Vec::new()
                 }
             }
-            'm' => vec![NodeType::Mix(MixType::Add)],
-            'n' => vec![NodeType::HeightToNormal],
+            // 'm' => vec![NodeType::Mix(MixType::Add)],
+            // 'n' => vec![NodeType::HeightToNormal],
             'o' => {
                 // let path = FileDialog::new()
                 //     // .set_location("~/Desktop")
