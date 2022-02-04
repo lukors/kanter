@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::{
+use vismut_core::{
     live_graph::{LiveGraph, NodeState},
     node::SlotType,
     node_graph::NodeId,

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use kanter_core::node::Node;
+use vismut_core::node::Node;
 
 use crate::{
     mouse_interaction::{active::MakeNothingActive, select::DeselectNode},

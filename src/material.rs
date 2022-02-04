@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use kanter_core::node::SlotType;
+use vismut_core::node::SlotType;
 
 use crate::{
     mouse_interaction::active::Active,

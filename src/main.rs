@@ -14,7 +14,7 @@ pub mod export_outputs;
 pub mod hotkeys;
 pub mod hoverable;
 pub mod instruction;
-pub mod kanter;
+pub mod vismut;
 pub mod listable;
 pub mod material;
 pub mod mouse_interaction;
@@ -33,7 +33,7 @@ use camera::*;
 use drag_drop::*;
 use hotkeys::*;
 use hoverable::*;
-use kanter::*;
+use vismut::*;
 use mouse_interaction::select::Selected;
 use sync_graph::*;
 use workspace::*;
@@ -82,7 +82,7 @@ impl Default for ToolState {
 fn main() {
     App::new()
         .insert_resource(WindowDescriptor {
-            title: "Kanter".to_string(),
+            title: "Vismut".to_string(),
             width: 1024.0,
             height: 768.0,
             vsync: true,
@@ -91,6 +91,6 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.5)))
         // .insert_resource(bevy::ecs::schedule::ReportExecutionOrderAmbiguities)
         .add_plugins(DefaultPlugins)
-        .add_plugin(KanterPlugin)
+        .add_plugin(VismutPlugin)
         .run();
 }

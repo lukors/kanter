@@ -5,7 +5,7 @@
 // use super::{prelude::*, AddRemove};
 // use anyhow::{anyhow, bail, Result};
 // use bevy::prelude::*;
-// use kanter_core::{
+// use vismut_core::{
 //     edge::Edge,
 //     live_graph::LiveGraph,
 //     node::Side,

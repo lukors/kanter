@@ -3,7 +3,7 @@ use crate::{
     undo::{prelude::*, undo_command_manager::BoxUndoCommand, UndoCommand, UndoCommandType},
 };
 use bevy::prelude::*;
-use kanter_core::node_graph::NodeId;
+use vismut_core::node_graph::NodeId;
 
 use super::active::MakeNodeNotActive;
 

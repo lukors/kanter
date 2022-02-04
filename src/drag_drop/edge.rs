@@ -15,7 +15,7 @@ use crate::{
     Cursor, Edge as GuiEdge, Slot, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{edge::Edge, node::Side};
+use vismut_core::{edge::Edge, node::Side};
 
 use super::Dragged;
 

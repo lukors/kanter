@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::{live_graph::LiveGraph, node::ResizePolicy, slot_data::Size as TPSize};
+use vismut_core::{live_graph::LiveGraph, node::ResizePolicy, slot_data::Size as TPSize};
 
 use crate::{
     core_translation::Translator,

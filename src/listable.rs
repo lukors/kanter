@@ -1,4 +1,4 @@
-use kanter_core::{
+use vismut_core::{
     node::{mix::MixType, ResizeFilter, ResizePolicy},
     node_graph::SlotId,
     slot_data::Size as TPSize,

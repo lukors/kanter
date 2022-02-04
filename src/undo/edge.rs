@@ -8,7 +8,7 @@ use crate::{
 
 use super::{prelude::*, undo_command_manager::BoxUndoCommand, AddRemove};
 use bevy::prelude::*;
-use kanter_core::{
+use vismut_core::{
     edge::Edge, error::TexProError, live_graph::LiveGraph, node::Side, node_graph::NodeId,
 };
 

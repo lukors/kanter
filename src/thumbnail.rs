@@ -7,7 +7,7 @@ use bevy::{
     prelude::*,
     render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
-use kanter_core::{
+use vismut_core::{
     error::TexProError,
     live_graph::{LiveGraph, NodeState},
     node::{embed::EmbeddedSlotDataId, node_type::NodeType, Node, ResizeFilter, ResizePolicy},

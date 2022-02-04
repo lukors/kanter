@@ -75,7 +75,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
     );
     text.sections[InstructId::Tool as usize].value =
-        "Welcome to Kanter!\n\nShift A: Add node\n".to_string();
+        "Welcome to Vismut!\n\nShift A: Add node\n".to_string();
 
     commands.spawn_bundle(UiCameraBundle::default());
     commands

@@ -6,7 +6,7 @@ mod value;
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::{
+use vismut_core::{
     live_graph::LiveGraph,
     node::{mix::MixType, node_type::NodeType, Node, ResizeFilter, ResizePolicy},
 };

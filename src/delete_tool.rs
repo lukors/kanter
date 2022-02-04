@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use bevy::prelude::*;
-use kanter_core::live_graph::LiveGraph;
+use vismut_core::live_graph::LiveGraph;
 
 use crate::{
     instruction::ToolList,

@@ -1,5 +1,5 @@
-# Kanter
-A node based texture creation tool for Windows and Linux. It uses [Kanter Core](https://github.com/lukors/kanter_core) for the computation and [Bevy](https://github.com/bevyengine/bevy) for the graphical user interface.
+# Vismut
+A node based texture creation tool for Windows and Linux. It uses [Vismut Core](https://github.com/lukors/kanter_core) for the computation and [Bevy](https://github.com/bevyengine/bevy) for the graphical user interface.
 
 [**Download the latest version here**](https://github.com/lukors/kanter/releases/latest)
 

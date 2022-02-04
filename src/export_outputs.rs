@@ -4,7 +4,7 @@ use std::{
 };
 
 use bevy::prelude::*;
-use kanter_core::{
+use vismut_core::{
     error::TexProError, live_graph::LiveGraph, node::node_type::NodeType, node_graph::SlotId,
     slot_data::Size as CoreSize,
 };

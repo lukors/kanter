@@ -13,7 +13,7 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use bevy::prelude::*;
-use kanter_core::{
+use vismut_core::{
     live_graph::LiveGraph,
     node::{mix::MixType, node_type::NodeType, Node},
 };
@@ -307,8 +307,8 @@ pub fn create_default_node(
 ) -> Result<Node> {
     let node_id = live_graph.write().map_err(|e| anyhow!("{}", e))?.new_id();
     Ok(Node::with_id(node_type, node_id)
-        .resize_policy(kanter_core::node::ResizePolicy::MostPixels)
-        .resize_filter(kanter_core::node::ResizeFilter::Triangle))
+        .resize_policy(vismut_core::node::ResizePolicy::MostPixels)
+        .resize_filter(vismut_core::node::ResizeFilter::Triangle))
 }
 
 fn grab_tool_add_instructions(mut instructions: ResMut<Instructions>) {

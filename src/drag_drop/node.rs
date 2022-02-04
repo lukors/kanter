@@ -5,7 +5,7 @@ use crate::{
     Slot, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::node_graph::NodeId;
+use vismut_core::node_graph::NodeId;
 
 use super::{Dragged, Dropped};
 

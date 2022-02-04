@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
 use bevy::prelude::*;
-use kanter_core::{live_graph::LiveGraph, slot_data::ChannelPixel};
+use vismut_core::{live_graph::LiveGraph, slot_data::ChannelPixel};
 
 use crate::{
     core_translation::Translator,

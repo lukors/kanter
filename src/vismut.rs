@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use crate::ToolState;
 use bevy::prelude::*;
-use kanter_core::texture_processor::TextureProcessor;
+use vismut_core::texture_processor::TextureProcessor;
 
-pub(crate) struct KanterPlugin;
+pub(crate) struct VismutPlugin;
 
-impl Plugin for KanterPlugin {
+impl Plugin for VismutPlugin {
     fn build(&self, app: &mut App) {
         let tex_pro = TextureProcessor::new(Arc::new(1_000_000_000.into()));
 

@@ -2,7 +2,7 @@ use crate::{
     instruction::ToolList, shared::NodeIdComponent, AmbiguitySet, CustomStage, Selected, ToolState,
 };
 use bevy::prelude::*;
-use kanter_core::{
+use vismut_core::{
     error::TexProError, live_graph::LiveGraph, node_graph::SlotId, slot_data::Size as TPSize,
 };
 use native_dialog::FileDialog;

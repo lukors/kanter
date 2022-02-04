@@ -9,7 +9,7 @@ use crate::{
     AmbiguitySet, CustomStage, Draggable, Hoverable, Hovered,
 };
 use bevy::prelude::*;
-use kanter_core::{
+use vismut_core::{
     edge::Edge as CoreEdge,
     live_graph::{LiveGraph, NodeState},
     node::{node_type::NodeType, Node, Side},

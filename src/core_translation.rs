@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use anyhow::{bail, Result};
-use kanter_core::{
+use vismut_core::{
     live_graph::LiveGraph,
     node::{node_type::NodeType, ResizeFilter, ResizePolicy},
     node_graph::NodeId,

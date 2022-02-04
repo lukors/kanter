@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use kanter_core::live_graph::NodeState;
+use vismut_core::live_graph::NodeState;
 
 use crate::{
     shared::NodeStateComponent, sync_graph::SLOT_SIZE, thumbnail::THUMBNAIL_SIZE, CustomStage,
