@@ -80,5 +80,5 @@ impl Plugin for WorkspaceDragDropPlugin {
 }
 
 fn setup(mut tool_list: ResMut<ToolList>) {
-    tool_list.insert("G: Move".to_string());
+    tool_list.insert("G: Move selected".to_string());
 }

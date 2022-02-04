@@ -131,7 +131,7 @@ impl Plugin for EditNodePlugin {
 }
 
 fn setup(mut tool_list: ResMut<ToolList>) {
-    tool_list.insert("Tab: Edit node".to_string());
+    tool_list.insert("Tab: Edit active".to_string());
 }
 
 fn tool_update(

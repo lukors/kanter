@@ -19,7 +19,7 @@ impl Plugin for DeleteToolPlugin {
 }
 
 fn setup(mut tool_list: ResMut<ToolList>) {
-    tool_list.insert("X: Delete node".to_string());
+    tool_list.insert("X: Delete selected".to_string());
 }
 
 #[derive(Copy, Clone, Debug)]
