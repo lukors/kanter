@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    fmt::Debug,
+    sync::{Arc, RwLock},
+};
 
 use crate::{
     shared::{NodeIdComponent, NodeStateComponent, SlotTypeComponent},
@@ -9,7 +12,7 @@ use bevy::prelude::*;
 use kanter_core::{
     edge::Edge as CoreEdge,
     live_graph::{LiveGraph, NodeState},
-    node::{Node, Side},
+    node::{node_type::NodeType, Node, Side},
     node_graph::{NodeId, SlotId},
     texture_processor::TextureProcessor,
 };
@@ -21,6 +24,24 @@ const SLOT_DISTANCE_X: f32 = THUMBNAIL_SIZE / 2. + SLOT_SIZE / 2. + SLOT_MARGIN;
 pub const NODE_SIZE: f32 = THUMBNAIL_SIZE + SLOT_SIZE * 2. + SLOT_MARGIN * 2.;
 const SLOT_DISTANCE_Y: f32 = 32. + SLOT_MARGIN;
 const SMALLEST_DEPTH_UNIT: f32 = f32::EPSILON * 500.;
+
+trait Name {
+    fn title(&self) -> String;
+}
+
+impl Name for NodeType {
+    fn title(&self) -> String {
+        match self {
+            Self::CombineRgba => "Combine",
+            Self::Image(_) => "Image",
+            Self::OutputRgba(_) => "Output",
+            Self::SeparateRgba => "Separate",
+            Self::Value(_) => "Value",
+            _ => "Unnamed",
+        }
+        .into()
+    }
+}
 
 // I'm saving the start and end variables for when I want to select the edges themselves.
 #[derive(Component, Copy, Clone, Debug)]
@@ -191,6 +212,24 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
         .add_node_with_id(node.clone())
         .unwrap();
 
+    let font = world
+        .get_resource::<AssetServer>()
+        .unwrap()
+        .load("fonts/FiraSans-Regular.ttf");
+
+    let title = node.node_type.title();
+    let font_size = SLOT_SIZE;
+    let text_y_pos = NODE_SIZE / 2.0 - font_size / 2.0;
+    let text_style = TextStyle {
+        font,
+        font_size,
+        color: Color::WHITE,
+    };
+    let text_alignment = TextAlignment {
+        horizontal: HorizontalAlign::Center,
+        vertical: VerticalAlign::Center,
+    };
+
     let entity = world
         .spawn()
         .insert_bundle(GuiNodeBundle {
@@ -211,6 +250,12 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
             ..Default::default()
         })
         .with_children(|parent| {
+            parent.spawn_bundle(Text2dBundle {
+                text: Text::with_section(title, text_style, text_alignment),
+                transform: Transform::from_translation(Vec3::new(0.0, text_y_pos, 0.00001)),
+                ..Default::default()
+            });
+
             parent
                 .spawn_bundle(SpriteBundle {
                     sprite: Sprite {
