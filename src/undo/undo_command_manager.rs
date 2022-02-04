@@ -34,11 +34,11 @@ impl UndoCommandManager {
     }
 
     fn apply_commands(&mut self, world: &mut World) {
-        if !self.commands.is_empty() {
-            dbg!(&self.commands);
-            dbg!(&self.undo_stack);
-            dbg!(&self.redo_stack);
-        }
+        // if !self.commands.is_empty() {
+        //     dbg!(&self.commands);
+        //     dbg!(&self.undo_stack);
+        //     dbg!(&self.redo_stack);
+        // }
 
         while let Some(command) = self.commands.pop_front() {
             command.forward(world, self);
