@@ -1,7 +1,7 @@
 pub mod edge;
 pub mod node;
 
-use crate::{AmbiguitySet, GrabToolType, ToolState};
+use crate::{AmbiguitySet, GrabToolType, ToolState, instruction::ToolList};
 use bevy::prelude::*;
 
 use self::{
@@ -26,7 +26,8 @@ pub(crate) struct WorkspaceDragDropPlugin;
 
 impl Plugin for WorkspaceDragDropPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set_to_stage(
+        app.add_startup_system(setup.system().in_ambiguity_set(AmbiguitySet))
+            .add_system_set_to_stage(
             CoreStage::Update,
             SystemSet::new()
                 .with_system(
@@ -72,4 +73,8 @@ impl Plugin for WorkspaceDragDropPlugin {
                 ),
         );
     }
+}
+
+fn setup(mut tool_list: ResMut<ToolList>) {
+    tool_list.insert("G: Move".to_string());
 }
