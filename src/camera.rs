@@ -1,6 +1,6 @@
 /// Box select tool
 use crate::{instruction::*, AmbiguitySet, CustomStage, Workspace};
-use bevy::{prelude::*, window::WindowFocused};
+use bevy::prelude::*;
 
 pub(crate) const CAMERA_DISTANCE: f32 = 10.;
 
@@ -38,24 +38,24 @@ impl Plugin for CameraPlugin {
                 SystemSet::new()
                     .label(CustomStage::Setup)
                     .after(CustomStage::Input)
-                    .with_system(
-                        first_person_on_setup
-                            .system()
-                            .with_run_criteria(State::on_enter(FirstPersonState::On))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        first_person_on_update
-                            .system()
-                            .with_run_criteria(State::on_update(FirstPersonState::On))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
-                    .with_system(
-                        first_person_on_cleanup
-                            .system()
-                            .with_run_criteria(State::on_exit(FirstPersonState::On))
-                            .in_ambiguity_set(AmbiguitySet),
-                    )
+                    // .with_system(
+                    //     first_person_on_setup
+                    //         .system()
+                    //         .with_run_criteria(State::on_enter(FirstPersonState::On))
+                    //         .in_ambiguity_set(AmbiguitySet),
+                    // )
+                    // .with_system(
+                    //     first_person_on_update
+                    //         .system()
+                    //         .with_run_criteria(State::on_update(FirstPersonState::On))
+                    //         .in_ambiguity_set(AmbiguitySet),
+                    // )
+                    // .with_system(
+                    //     first_person_on_cleanup
+                    //         .system()
+                    //         .with_run_criteria(State::on_exit(FirstPersonState::On))
+                    //         .in_ambiguity_set(AmbiguitySet),
+                    // )
                     .with_system(
                         first_person_off_update
                             .system()
@@ -110,28 +110,28 @@ fn setup(
         .insert(Cursor);
 }
 
-fn first_person_on_update(
-    mut first_person_state: ResMut<State<FirstPersonState>>,
-    mut er_window_focused: EventReader<WindowFocused>,
-    mut windows: ResMut<Windows>,
-    mut q_camera: Query<(Entity, &mut Transform), With<WorkspaceCamera>>,
-    workspace: Res<Workspace>,
-) {
-    for (_camera_e, mut transform) in q_camera.iter_mut() {
-        transform.translation.x += workspace.cursor_delta.x;
-        transform.translation.y -= workspace.cursor_delta.y;
-    }
+// fn first_person_on_update(
+//     mut first_person_state: ResMut<State<FirstPersonState>>,
+//     mut er_window_focused: EventReader<WindowFocused>,
+//     mut windows: ResMut<Windows>,
+//     mut q_camera: Query<(Entity, &mut Transform), With<WorkspaceCamera>>,
+//     workspace: Res<Workspace>,
+// ) {
+//     for (_camera_e, mut transform) in q_camera.iter_mut() {
+//         transform.translation.x += workspace.cursor_delta.x;
+//         transform.translation.y -= workspace.cursor_delta.y;
+//     }
 
-    let window = windows.get_primary_mut().unwrap();
-    let window_size = Vec2::new(window.width(), window.height());
-    window.set_cursor_position(window_size / 2.0);
+//     let window = windows.get_primary_mut().unwrap();
+//     let window_size = Vec2::new(window.width(), window.height());
+//     window.set_cursor_position(window_size / 2.0);
 
-    if let Some(event_window_focused) = er_window_focused.iter().last() {
-        if !event_window_focused.focused && *first_person_state.current() != FirstPersonState::Off {
-            first_person_state.set(FirstPersonState::Off).unwrap();
-        }
-    }
-}
+//     if let Some(event_window_focused) = er_window_focused.iter().last() {
+//         if !event_window_focused.focused && *first_person_state.current() != FirstPersonState::Off {
+//             first_person_state.set(FirstPersonState::Off).unwrap();
+//         }
+//     }
+// }
 
 fn first_person_off_update(
     mut q_cursor: Query<&mut Transform, With<Cursor>>,
@@ -150,52 +150,52 @@ fn first_person_instruct(on: bool) -> String {
     format!("{}{}\n\n", TEXT, setting)
 }
 
-fn first_person_on_setup(
-    mut instruction_list: ResMut<Instructions>,
-    mut windows: ResMut<Windows>,
-    mut q_camera: Query<Entity, With<WorkspaceCameraAnchor>>,
-    mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
-    mut q_crosshair: Query<&mut Visibility, With<Crosshair>>,
-    mut commands: Commands,
-) {
-    instruction_list.insert(InstructId::FirstPerson, first_person_instruct(true));
+// fn first_person_on_setup(
+//     mut instruction_list: ResMut<Instructions>,
+//     mut windows: ResMut<Windows>,
+//     mut q_camera: Query<Entity, With<WorkspaceCameraAnchor>>,
+//     mut q_cursor: Query<(Entity, &mut Transform), With<Cursor>>,
+//     mut q_crosshair: Query<&mut Visibility, With<Crosshair>>,
+//     mut commands: Commands,
+// ) {
+//     instruction_list.insert(InstructId::FirstPerson, first_person_instruct(true));
 
-    let window = windows.get_primary_mut().unwrap();
-    window.set_cursor_visibility(false);
+//     let window = windows.get_primary_mut().unwrap();
+//     window.set_cursor_visibility(false);
 
-    if let Ok(mut crosshair) = q_crosshair.get_single_mut() {
-        crosshair.is_visible = true;
-    }
+//     if let Ok(mut crosshair) = q_crosshair.get_single_mut() {
+//         crosshair.is_visible = true;
+//     }
 
-    if let Ok(camera_e) = q_camera.get_single_mut() {
-        if let Ok((cursor_e, mut transform)) = q_cursor.get_single_mut() {
-            transform.translation.x = 0.;
-            transform.translation.y = 0.;
-            commands.entity(camera_e).push_children(&[cursor_e]);
-        }
-    }
-}
+//     if let Ok(camera_e) = q_camera.get_single_mut() {
+//         if let Ok((cursor_e, mut transform)) = q_cursor.get_single_mut() {
+//             transform.translation.x = 0.;
+//             transform.translation.y = 0.;
+//             commands.entity(camera_e).push_children(&[cursor_e]);
+//         }
+//     }
+// }
 
-fn first_person_on_cleanup(
-    mut instructions: ResMut<Instructions>,
-    mut windows: ResMut<Windows>,
-    mut q_cursor: Query<Entity, With<Cursor>>,
-    mut q_crosshair: Query<&mut Visibility, With<Crosshair>>,
-    mut commands: Commands,
-) {
-    instructions.insert(InstructId::FirstPerson, first_person_instruct(false));
+// fn first_person_on_cleanup(
+//     mut instructions: ResMut<Instructions>,
+//     mut windows: ResMut<Windows>,
+//     mut q_cursor: Query<Entity, With<Cursor>>,
+//     mut q_crosshair: Query<&mut Visibility, With<Crosshair>>,
+//     mut commands: Commands,
+// ) {
+//     instructions.insert(InstructId::FirstPerson, first_person_instruct(false));
 
-    let window = windows.get_primary_mut().unwrap();
-    window.set_cursor_visibility(true);
+//     let window = windows.get_primary_mut().unwrap();
+//     window.set_cursor_visibility(true);
 
-    for mut crosshair in q_crosshair.iter_mut() {
-        crosshair.is_visible = false;
-    }
+//     for mut crosshair in q_crosshair.iter_mut() {
+//         crosshair.is_visible = false;
+//     }
 
-    for cursor_e in q_cursor.iter_mut() {
-        commands.entity(cursor_e).remove::<Parent>();
-    }
-}
+//     for cursor_e in q_cursor.iter_mut() {
+//         commands.entity(cursor_e).remove::<Parent>();
+//     }
+// }
 
 /// Pan using the mouse.
 fn mouse_pan(
