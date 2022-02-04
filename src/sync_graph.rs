@@ -9,6 +9,7 @@ use crate::{
     AmbiguitySet, CustomStage, Draggable, Hoverable, Hovered,
 };
 use bevy::prelude::*;
+use rand::Rng;
 use vismut_core::{
     edge::Edge as CoreEdge,
     live_graph::{LiveGraph, NodeState},
@@ -16,7 +17,6 @@ use vismut_core::{
     node_graph::{NodeId, SlotId},
     texture_processor::TextureProcessor,
 };
-use rand::Rng;
 
 pub const SLOT_SIZE: f32 = 30.;
 const SLOT_MARGIN: f32 = 2.;

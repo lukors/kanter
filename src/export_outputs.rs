@@ -4,11 +4,11 @@ use std::{
 };
 
 use bevy::prelude::*;
+use native_dialog::FileDialog;
 use vismut_core::{
     error::TexProError, live_graph::LiveGraph, node::node_type::NodeType, node_graph::SlotId,
     slot_data::Size as CoreSize,
 };
-use native_dialog::FileDialog;
 
 use crate::{
     instruction::{InstructId, Instructions, ToolList},

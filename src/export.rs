@@ -2,13 +2,13 @@ use crate::{
     instruction::ToolList, shared::NodeIdComponent, AmbiguitySet, CustomStage, Selected, ToolState,
 };
 use bevy::prelude::*;
-use vismut_core::{
-    error::TexProError, live_graph::LiveGraph, node_graph::SlotId, slot_data::Size as TPSize,
-};
 use native_dialog::FileDialog;
 use std::{
     path::Path,
     sync::{Arc, RwLock},
+};
+use vismut_core::{
+    error::TexProError, live_graph::LiveGraph, node_graph::SlotId, slot_data::Size as TPSize,
 };
 
 pub(crate) struct ExportPlugin;

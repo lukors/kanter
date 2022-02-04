@@ -1,10 +1,10 @@
 use super::prelude::*;
 use crate::core_translation::Translator;
-use vismut_core::live_graph::LiveGraph;
 use std::{
     fmt::Debug,
     sync::{Arc, RwLock},
 };
+use vismut_core::live_graph::LiveGraph;
 
 #[derive(Debug)]
 pub struct GuiUndoCommand<T, U>

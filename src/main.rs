@@ -14,7 +14,6 @@ pub mod export_outputs;
 pub mod hotkeys;
 pub mod hoverable;
 pub mod instruction;
-pub mod vismut;
 pub mod listable;
 pub mod material;
 pub mod mouse_interaction;
@@ -26,6 +25,7 @@ pub mod sync_graph;
 pub mod thumbnail;
 pub mod thumbnail_state;
 pub mod undo;
+pub mod vismut;
 pub mod workspace;
 
 use bevy::prelude::*;
@@ -33,9 +33,9 @@ use camera::*;
 use drag_drop::*;
 use hotkeys::*;
 use hoverable::*;
-use vismut::*;
 use mouse_interaction::select::Selected;
 use sync_graph::*;
+use vismut::*;
 use workspace::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, AmbiguitySetLabel)]

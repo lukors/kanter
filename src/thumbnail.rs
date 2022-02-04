@@ -7,6 +7,7 @@ use bevy::{
     prelude::*,
     render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
+use std::sync::{Arc, RwLock};
 use vismut_core::{
     error::TexProError,
     live_graph::{LiveGraph, NodeState},
@@ -15,7 +16,6 @@ use vismut_core::{
     slot_data::Size as TPSize,
     texture_processor::TextureProcessor,
 };
-use std::sync::{Arc, RwLock};
 
 type TexProThumb = (NodeId, TextureProcessor);
 
