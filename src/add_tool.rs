@@ -16,7 +16,7 @@ use bevy::prelude::*;
 use native_dialog::FileDialog;
 use vismut_core::{
     live_graph::LiveGraph,
-    node::{mix::MixType, node_type::NodeType, Node},
+    node::{node_type::NodeType, Node},
 };
 
 #[derive(Copy, Clone, Debug)]
