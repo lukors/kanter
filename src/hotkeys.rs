@@ -111,18 +111,13 @@ fn hotkeys(
                         } else {
                             Some(tool_state.set(ToolState::ExportOutputs(false)))
                         }
-                    } else {
-                        None
-                    }
-                }
-                ScanCode::KeyG => Some(tool_state.set(ToolState::Grab(GrabToolType::Node))),
-                ScanCode::KeyS => {
-                    if alt_pressed(&sc_input) && shift_pressed(&sc_input) {
+                    } else if alt_pressed(&sc_input) && shift_pressed(&sc_input) {
                         Some(tool_state.set(ToolState::Export))
                     } else {
                         None
                     }
                 }
+                ScanCode::KeyG => Some(tool_state.set(ToolState::Grab(GrabToolType::Node))),
                 ScanCode::Tab => Some(tool_state.set(ToolState::EditNode)),
                 ScanCode::KeyZ => {
                     if control_pressed(&sc_input) {

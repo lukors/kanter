@@ -32,7 +32,7 @@ impl Plugin for ExportPlugin {
 }
 
 fn setup(mut tool_list: ResMut<ToolList>) {
-    tool_list.insert("Alt Shift S: Export selected".to_string());
+    tool_list.insert("Shift Alt E: Export active".to_string());
 }
 
 fn export(
