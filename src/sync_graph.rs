@@ -252,7 +252,7 @@ pub fn spawn_gui_node_2(world: &mut World, node: Node, translation: Vec2) -> Ent
         .with_children(|parent| {
             parent.spawn_bundle(Text2dBundle {
                 text: Text::with_section(title, text_style, text_alignment),
-                transform: Transform::from_translation(Vec3::new(0.0, text_y_pos, 0.00001)),
+                transform: Transform::from_translation(Vec3::new(0.0, text_y_pos, 0.0001)),
                 ..Default::default()
             });
 
