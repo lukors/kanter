@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use super::{prelude::*, UndoCommandType};
-use crate::{AmbiguitySet, CustomStage, ToolState, instruction::ToolList};
+use crate::{instruction::ToolList, AmbiguitySet, CustomStage, ToolState};
 use bevy::prelude::*;
 
 #[derive(Debug)]
@@ -57,21 +57,21 @@ impl Plugin for UndoPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup.in_ambiguity_set(AmbiguitySet))
             .add_system_to_stage(
-            CoreStage::Update,
-            undo.system()
-                .label(CustomStage::Update)
-                .after(CustomStage::Setup)
-                .with_run_criteria(State::on_update(ToolState::Undo))
-                .in_ambiguity_set(AmbiguitySet),
-        )
-        .add_system_to_stage(
-            CoreStage::Update,
-            redo.system()
-                .label(CustomStage::Update)
-                .after(CustomStage::Setup)
-                .with_run_criteria(State::on_update(ToolState::Redo))
-                .in_ambiguity_set(AmbiguitySet),
-        );
+                CoreStage::Update,
+                undo.system()
+                    .label(CustomStage::Update)
+                    .after(CustomStage::Setup)
+                    .with_run_criteria(State::on_update(ToolState::Undo))
+                    .in_ambiguity_set(AmbiguitySet),
+            )
+            .add_system_to_stage(
+                CoreStage::Update,
+                redo.system()
+                    .label(CustomStage::Update)
+                    .after(CustomStage::Setup)
+                    .with_run_criteria(State::on_update(ToolState::Redo))
+                    .in_ambiguity_set(AmbiguitySet),
+            );
     }
 }
 
