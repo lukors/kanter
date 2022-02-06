@@ -1,3 +1,6 @@
+# THIS REPOSITORY HAS MOVED
+New location: https://gitlab.com/vismutorg/vismut
+
 # Vismut
 A node based texture creation tool for Windows and Linux. It uses [Vismut Core](https://github.com/lukors/kanter_core) for the computation and [Bevy](https://github.com/bevyengine/bevy) for the graphical user interface.
 
